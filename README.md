@@ -37,7 +37,7 @@ Configuration:
 }
 ```
 6. Copy this info to use in the config of the plugin. This output is also saved to `palGateCli.config`.
-Note: on future usuage of the CLI for other commands (eg `./palGateCli.js devices`) it will use the saved config to populate the values and so the flags are not needed
+Note: on future usuage of the CLI for other commands (eg `./palGateCli.js devices`) it will use the saved config to populate the values and so the flags are not needed.
 
 # Plugin-in configuration
 
