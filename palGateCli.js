@@ -10,10 +10,10 @@
  *   devices: List devices.
  *   token: Generate (and display) a temporary token.
  *   link: Run the device linking flow (QR code only).
- *   config: Run the linking flow, then retrieve devices, and output all configuration info and save it as palGateCLI.config.
+ *   config: Run the linking flow, then retrieve devices, and output all configuration info and save it as palGateCli.config.
  *
  * If certain required options are missing as flags, the CLI will attempt to load them
- * from a configuration file (palGateCLI.config). If that file is missing or incomplete,
+ * from a configuration file (palGateCli.config). If that file is missing or incomplete,
  * an error is thrown.
  *
  * Usage examples:
@@ -35,7 +35,7 @@ const path = require('path');
 const BASE_URL = 'https://api1.pal-es.com/v1/bt/';
 
 // The configuration file path.
-const configFilePath = path.join(process.cwd(), 'palGateCLI.config');
+const configFilePath = path.join(process.cwd(), 'palGateCli.config');
 
 // Helper function to print usage instructions.
 function printUsage() {
