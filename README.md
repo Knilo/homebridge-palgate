@@ -1,6 +1,6 @@
 # Update #
-This plugin has now been updated to work with the newest token and API flow for PalGate and works as of Feburary 2025.
-It has been updated to support Homebridge 2.0.
+- This plugin has now been updated to work with the newest token and API flow for PalGate and works as of Feburary 2025.
+- It has been updated to support Homebridge 2.0.
 
 # Authors
 
