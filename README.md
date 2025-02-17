@@ -1,9 +1,12 @@
 # Update #
-This plugin has now been updated to work with the newest token and API flow for PalGate and works as of Feburary 2025. 
+This plugin has now been updated to work with the newest token and API flow for PalGate and works as of Feburary 2025.
+It has been updated to support Homebridge 2.0.
 
-Credit to [@DonutByte](https://github.com/DonutByte) for making this possible. Translation from Python to Javascript was implemented by [@Knilo](https://github.com/Knilo).
+# Authors
 
-The Original plugin was created by [@RoeiOfri](https://github.com/RoeiOfri) and this version has been re-archicitected by [@Knilo](https://github.com/Knilo) to support Homebridge 2.0.
+Original plugin created by [@RoeiOfri](https://github.com/RoeiOfri).
+API logic discovered by [@DonutByte](https://github.com/DonutByte).
+Rewrite and migration by [@Knilo](https://github.com/Knilo).
 
 # homebridge-palgate-opener
 This plugin enables connection between Pal Gate App Controled systems and Apple HomeKit.
