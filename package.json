@@ -1,10 +1,10 @@
 {
   "name": "homebridge-palgate-opener",
   "description": "Homebridge plugin for PalGate app",
-  "version": "1.0.10",
+  "version": "2.0.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RoeiOfri/homebridge-palgate-opener.git"
+    "url": "git+https://github.com/Knilo/homebridge-palgate-opener.git"
   },
   "license": "MIT",
   "preferGlobal": true,
@@ -14,34 +14,26 @@
   ],
   "engines": {
     "node": ">=10.17.0",
-    "homebridge": ">=0.4.4"
+    "homebridge": ">=2.0.0"
   },
   "dependencies": {
+    "qrcode-terminal": "^0.12.0",
+    "uuid": "^11.0.5",
     "xmlhttprequest": "^1.8.0"
   },
-  "main": "palgate.js",
+  "main": "palGate.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Roei Ofri",
+  "author": "Knilo",
   "bugs": {
-    "url": "https://github.com/RoeiOfri/homebridge-palgate-opener/issues"
+    "url": "https://github.com/Knilo/homebridge-palgate-opener/issues"
   },
   "bin": {
-    "palgate_extract": "./extraction_tool/extract_token.py"
+    "palgate_config": "./palGateCli.js config"
   },
-  "homepage": "https://github.com/RoeiOfri/homebridge-palgate-opener#readme",
+  "homepage": "https://github.com/Knilo/homebridge-palgate-opener#readme",
   "directories": {
     "lib": "lib"
-  },
-  "funding": [
-    {
-      "type": "paypal",
-      "url": "https://paypal.me/roeio"
-    },
-    {
-      "type": "kofi",
-      "url": "https://ko-fi.com/roeiofri"
-    }
-  ]
+  }
 }
