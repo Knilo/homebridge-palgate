@@ -2,46 +2,64 @@
 /**
  * palGateCli.js
  *
- * A helper CLI tool to use the PalGate API endpoints outside of the plugin.
+ * A helper CLI tool to interact with the PalGate API endpoints.
  *
  * Commands:
  *   validate: Validate a token.
  *   open: Open the gate.
  *   devices: List devices.
- *   token: Generate (and display) a temporal token.
+ *   token: Generate (and display) a temporary token.
  *   link: Run the device linking flow (QR code only).
- *   config: Run the linking flow and then retrieve devices; output all configuration info.
+ *   config: Run the linking flow, then retrieve devices, and output all configuration info and save it as palGateCLI.config.
+ *
+ * If certain required options are missing as flags, the CLI will attempt to load them
+ * from a configuration file (palGateCLI.config). If that file is missing or incomplete,
+ * an error is thrown.
  *
  * Usage examples:
- *   node palGateCli.js validate --token <token> --phone <phoneNumber> --tokenType <1|2>
- *   node palGateCli.js open --deviceId <deviceId> --token <token> --phone <phoneNumber> --tokenType <1|2>
- *   node palGateCli.js devices --token <token> --phone <phoneNumber> --tokenType <1|2>
- *   node palGateCli.js token --token <token> --phone <phoneNumber> --tokenType <1|2>
+ *   node palGateCli.js validate --token <token> --phoneNumber <phoneNumber> --tokenType <1|2>
+ *   node palGateCli.js open --deviceId <deviceId> --token <token> --phoneNumber <phoneNumber> --tokenType <1|2>
+ *   node palGateCli.js devices --token <token> --phoneNumber <phoneNumber> --tokenType <1|2>
+ *   node palGateCli.js token --token <token> --phoneNumber <phoneNumber> --tokenType <1|2>
  *   node palGateCli.js link
  *   node palGateCli.js config
- *
- * IMPORTANT: Ensure that your generateToken function (in token_generator.js) supports token type 2.
  */
 
 const { generateToken } = require('./tokenGenerator.js');
 const { validateToken, openGate, getDevices, callApi } = require('./palGateApi.js');
 const { v4: uuidv4 } = require('uuid');
 const qrcode = require('qrcode-terminal');
+const fs = require('fs');
+const path = require('path');
 
 const BASE_URL = 'https://api1.pal-es.com/v1/bt/';
+
+// The configuration file path.
+const configFilePath = path.join(process.cwd(), 'palGateCLI.config');
 
 // Helper function to print usage instructions.
 function printUsage() {
   console.log("Usage:");
-  console.log("  node palGateCli.js validate --token <token> --phone <phoneNumber> --tokenType <1|2>");
-  console.log("  node palGateCli.js open --deviceId <deviceId> --token <token> --phone <phoneNumber> --tokenType <1|2>");
-  console.log("  node palGateCli.js devices --token <token> --phone <phoneNumber> --tokenType <1|2>");
-  console.log("  node palGateCli.js token --token <token> --phone <phoneNumber> --tokenType <1|2>");
+  console.log("  node palGateCli.js validate --token <token> --phoneNumber <phoneNumber> --tokenType <0|1|2>");
+  console.log("  node palGateCli.js open --deviceId <deviceId> --token <token> --phoneNumber <phoneNumber> --tokenType <0|1|2>");
+  console.log("  node palGateCli.js devices --token <token> --phoneNumber <phoneNumber> --tokenType <0|1|2>");
+  console.log("  node palGateCli.js token --token <token> --phoneNumber <phoneNumber> --tokenType <0|1|2>");
   console.log("  node palGateCli.js link");
   console.log("  node palGateCli.js config");
   console.log("");
   console.log("Example (Config):");
   console.log("  node palGateCli.js config");
+}
+
+// Load configuration from file if it exists.
+let fileConfig = {};
+if (fs.existsSync(configFilePath)) {
+  try {
+    fileConfig = JSON.parse(fs.readFileSync(configFilePath, 'utf8'));
+  } catch (e) {
+    console.error("Error parsing configuration file:", e);
+    process.exit(1);
+  }
 }
 
 const args = process.argv.slice(2);
@@ -66,13 +84,17 @@ for (let i = 1; i < args.length; i++) {
   }
 }
 
-// Ensure required parameters are provided.
+// Merge values from the configuration file into options if they are missing.
 function requireOptions(keys) {
   for (const key of keys) {
     if (!options[key]) {
-      console.error(`Missing required parameter: --${key}`);
-      printUsage();
-      process.exit(1);
+      if (fileConfig[key]) {
+        options[key] = fileConfig[key];
+      } else {
+        console.error(`Missing required parameter: --${key} and no configuration found in ${configFilePath}`);
+        printUsage();
+        process.exit(1);
+      }
     }
   }
 }
@@ -81,7 +103,7 @@ function requireOptions(keys) {
 function getTemporalToken() {
   return generateToken(
     Buffer.from(options.token, 'hex'),
-    parseInt(options.phone, 10),
+    parseInt(options.phoneNumber, 10),
     parseInt(options.tokenType, 10)
   );
 }
@@ -89,7 +111,7 @@ function getTemporalToken() {
 /**
  * startDeviceLinking:
  *  - Generates a unique ID.
- *  - Displays a QR code so the user can scan it with the PalGate app.
+ *  - Displays a QR code for the user to scan with the PalGate app.
  *  - Calls the linking endpoint.
  *  - Returns linking data: { phoneNumber, sessionToken, tokenType }.
  */
@@ -124,7 +146,7 @@ function startDeviceLinking(callback) {
 }
 
 if (command === 'validate') {
-  requireOptions(['token', 'phone', 'tokenType']);
+  requireOptions(['token', 'phoneNumber', 'tokenType']);
   const temporalToken = getTemporalToken();
   console.log("Generated temporal token for validation:", temporalToken);
   validateToken(temporalToken, (err, response) => {
@@ -135,7 +157,7 @@ if (command === 'validate') {
     }
   });
 } else if (command === 'open') {
-  requireOptions(['deviceId', 'token', 'phone', 'tokenType']);
+  requireOptions(['deviceId', 'token', 'phoneNumber', 'tokenType']);
   const temporalToken = getTemporalToken();
   console.log("Generated temporal token for opening gate:", temporalToken);
   openGate(options.deviceId, temporalToken, (err, response) => {
@@ -146,7 +168,7 @@ if (command === 'validate') {
     }
   });
 } else if (command === 'devices') {
-  requireOptions(['token', 'phone', 'tokenType']);
+  requireOptions(['token', 'phoneNumber', 'tokenType']);
   const temporalToken = getTemporalToken();
   console.log("Generated temporal token for getting devices:", temporalToken);
   getDevices(temporalToken, (err, response) => {
@@ -157,11 +179,11 @@ if (command === 'validate') {
     }
   });
 } else if (command === 'token') {
-  requireOptions(['token', 'phone', 'tokenType']);
+  requireOptions(['token', 'phoneNumber', 'tokenType']);
   const temporalToken = getTemporalToken();
   console.log("Generated token:", temporalToken);
 } else if (command === 'link') {
-  // Perform linking and show linking data.
+  // Just perform linking and show linking data.
   startDeviceLinking((err, linkingData) => {
     if (err) {
       console.error("Device linking failed:", err);
@@ -174,7 +196,7 @@ if (command === 'validate') {
     }
   });
 } else if (command === 'config') {
-  // Run linking flow, then get devices, and output a JSON configuration object.
+  // Run the linking flow, then retrieve devices, and output a JSON configuration object.
   startDeviceLinking((err, linkingData) => {
     if (err) {
       console.error("Device linking failed:", err);
@@ -207,11 +229,18 @@ if (command === 'validate') {
         const configObj = {
           phoneNumber: linkingData.phoneNumber,
           token: linkingData.sessionToken,
-          tokenType: parseInt(linkingData.tokenType),
+          tokenType: linkingData.tokenType,
           deviceIds: deviceIds
         };
         console.log("\nConfiguration:");
         console.log(JSON.stringify(configObj, null, 2));
+        // Save the configuration object to a file.
+        try {
+          fs.writeFileSync(configFilePath, JSON.stringify(configObj, null, 2));
+          console.log(`Configuration saved to ${configFilePath}`);
+        } catch (writeError) {
+          console.error("Error saving configuration file:", writeError);
+        }
       } catch (parseError) {
         console.error("Error parsing devices response:", parseError);
         process.exit(1);
