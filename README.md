@@ -16,10 +16,11 @@ Before installing the homebridge plugin you must obtain the following info:
 
 # Use palGateCli.js to extract the Session Token, Token Type and Devices
 
-1. Make the utility executable `chmod +x palGateCli.js`
-2. Run `palGateCli.js config`
-3. Open the PalGate App > Device Linking > Link A Device and scan the QR Code
-4. All the required config will be printed, for example:
+1. Build the plugin `npm install`
+2. Make the utility executable `chmod +x palGateCli.js`
+3. Run `palGateCli.js config`
+4. Open the PalGate App > Device Linking > Link A Device and scan the QR Code
+5. All the required config will be printed, for example:
 ```
 Configuration:
 {
@@ -32,7 +33,7 @@ Configuration:
   ]
 }
 ```
-7. Copy this info to use in the config of the plugin.
+6. Copy this info to use in the config of the plugin.
 
 # Plugin-in configuration
 
