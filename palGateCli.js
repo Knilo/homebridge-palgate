@@ -11,7 +11,7 @@
  *   token: Generate (and display) a temporary token.
  *   link: Run the device linking flow (QR code only).
  *   config: Run the linking flow, retrieve devices, and output configuration info.
- *           If the --full-setup flag is provided, the new accessory configuration will be appended
+ *           If the --auto flag is provided, the new accessory configuration will be appended
  *           to the Homebridge config file at ~/.homebridge/config.json and the linking data will be saved
  *           locally in palGateCLI.config.
  *
@@ -19,7 +19,7 @@
  *   -v, --verbose  Enable verbose logging.
  *
  * Example usage:
- *   node palGateCli.js config --full-setup -v
+ *   node palGateCli.js config --auto -v
  */
 
 const { generateToken } = require('./tokenGenerator.js');
@@ -38,26 +38,32 @@ const localConfigPath = path.join(process.cwd(), 'palGateCLI.config');
 
 function printUsage() {
     console.log("Usage:");
-    console.log("  node palGateCli.js validate --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [-v]");
-    console.log("  node palGateCli.js open --deviceId <deviceId> --tokenNumber <token> --phone <phoneNumber> --tokenType <1|2> [-v]");
-    console.log("  node palGateCli.js devices --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [-v]");
-    console.log("  node palGateCli.js token --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [-v]");
+    console.log("  node palGateCli.js validate --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [--verbose]");
+    console.log("  node palGateCli.js open --deviceId <deviceId> --tokenNumber <token> --phone <phoneNumber> --tokenType <1|2> [--verbose]");
+    console.log("  node palGateCli.js devices --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [--verbose]");
+    console.log("  node palGateCli.js token --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [--verbose]");
     console.log("  node palGateCli.js link [-v]");
-    console.log("  node palGateCli.js config [--full-setup] [-v]");
+    console.log("  node palGateCli.js config [--auto] [-v]");
     console.log("");
     console.log("Example (Full Setup):");
-    console.log("  node palGateCli.js config --full-setup");
+    console.log("  node palGateCli.js config --auto");
 }
 
 // Load local defaults from palGateCLI.config if available.
 let fileConfig = {};
 if (fs.existsSync(localConfigPath)) {
-    try {
-        fileConfig = JSON.parse(fs.readFileSync(localConfigPath, 'utf8'));
-    } catch (e) {
-        console.error("Error parsing local configuration file:", e.message);
-        process.exit(1);
+  try {
+    const fileContent = fs.readFileSync(localConfigPath, 'utf8').trim();
+    if (fileContent) {
+      fileConfig = JSON.parse(fileContent);
+    } else {
+      console.warn("Local configuration file exists but is empty. Using default configuration.");
+      fileConfig = {};
     }
+  } catch (e) {
+    console.warn("Local configuration file exists but is not valid JSON. Ignoring local config.");
+    fileConfig = {};
+  }
 }
 
 const args = process.argv.slice(2);
@@ -66,24 +72,46 @@ if (args.length === 0) {
     process.exit(1);
 }
 
+// Define aliases for short and long flags.
+const aliases = {
+    t: "token",
+    token: "token",
+    p: "phoneNumber",
+    phoneNumber: "phoneNumber",
+    d: "deviceId",
+    deviceid: "deviceId",
+    T: "tokenType",
+    tokenType: "tokenType",
+    v: "verbose",
+    verbose: "verbose",
+    a: "auto",
+    auto: "auto"
+  };
+  
+
 const command = args[0];
 const options = {};
 
 // Simple argument parser: flags start with '--' and support -v/--verbose.
 for (let i = 1; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === '-v' || arg === '--verbose') {
-        options.verbose = true;
-    } else if (arg.startsWith('--')) {
-        const key = arg.substring(2);
-        if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
-            options[key] = args[i + 1];
-            i++;
-        } else {
-            options[key] = true;
-        }
+    let arg = args[i];
+    if (arg.startsWith('--')) {
+      arg = arg.substring(2);
+    } else if (arg.startsWith('-')) {
+      arg = arg.substring(1);
+    } else {
+      continue;
     }
-}
+    // Convert the flag to lowercase and get the canonical name
+    const key = aliases[arg.toLowerCase()] || arg;
+    // If the next argument exists and doesn't start with '-', treat it as the value.
+    if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
+      options[key] = args[i + 1];
+      i++; // Skip the next argument since we've consumed it.
+    } else {
+      options[key] = true;
+    }
+  }
 
 const verbose = options.verbose || false;
 function debugLog(...args) {
@@ -169,6 +197,7 @@ switch (command) {
     }
     case 'open': {
         requireOptions(['deviceId', 'token', 'phoneNumber', 'tokenType']);
+        debugLog("Gateid is:", options.deviceId);
         const temporalToken = getTemporalToken();
         debugLog("Generated temporal token for opening gate:", temporalToken);
         openGate(options.deviceId, temporalToken, (err, response) => {
@@ -272,7 +301,7 @@ switch (command) {
                     
 
                     // If --full-setup flag is provided, update the Homebridge config file and save the linking data locally.
-                    if (options["full-setup"]) {
+                    if (options["auto"]) {
                         if (!fs.existsSync(homebridgeConfigPath)) {
                             console.error(`Homebridge config not found at ${homebridgeConfigPath}. Please ensure Homebridge is installed and configured.`);
                             process.exit(1);

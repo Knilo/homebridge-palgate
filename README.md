@@ -21,7 +21,7 @@ Before installing the homebridge plugin you must obtain the following info:
 
 1. Build the plugin `npm install`
 2. Make the utility executable `chmod +x palGateCli.js`
-3. Run `palGateCli.js config --full-setup`
+3. Run `palGateCli.js config --auto`
 4. Open the PalGate App > Device Linking > Link A Device and scan the QR Code
 5. All the required config will be printed and automatically added to `~/.homebridge/config.json`
 Note: if this fails for any reason, you can use the `palGateCli.js config` command or the others to extract the required info manually.
