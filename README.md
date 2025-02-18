@@ -36,15 +36,15 @@ Note: if this fails for any reason, you can use the `palGateCli.js config` comma
 ## Manual configuration (configuration.yaml file)
 ```
 "accessories": [
-        {
-            "accessory": "PalGateOpener",
-            "name": "<chosen name>",
-            "deviceId": "<device id>",
-            "token": "<token>,
-            "phoneNumber": "<phone number>",
-            "tokenType": <0|1|2>,
-            "accessoryType": "garageDoor"
-        }
+    {
+        "accessory": "PalGateOpener",
+        "name": "<chosen name>",
+        "deviceId": "<device id>",
+        "token": "<token>,
+        "phoneNumber": "<phone number>",
+        "tokenType": <0|1|2>,
+        "accessoryType": "garageDoor"
+    }
 ]
 ```
 # Explanation
@@ -56,11 +56,11 @@ Note: if this fails for any reason, you can use the `palGateCli.js config` comma
 | `token` |Yes| Token extracted using pylgate |
 | `phoneNumber` |Yes| Phone number for your account |
 | `tokenType` |Yes| 0 (SMS) or 1 (Primary) or 2 (Secondary) |
-| `accessoryType`|No - Default usage: switch | switch/garageDoor* |
+| `accessoryType`|No - Default usage: garageDoor | switch/garageDoor* |
 
 ### Please note:
-1. The default accessoryType is set to `switch`, if using `garageDoor` HomeKit can use location services to open the gate
-automatically when arriving home but approval via push notification must be given. This is a security feature by Apple. If you wish to "bypass" it please set the `accessortyType` as `switch`.
+1. The default accessoryType is set to `garageDoor`, if using `garageDoor` HomeKit can use location services to open the gate
+automatically when arriving home but approval via push notification must be given. This is a security feature by Apple. If you wish to "bypass" it please set the `accessoryType` as `switch`.
 2. You can duplicate the accessory so you will have one button as GarageDoor button useable in CarPlay and a switch for any automations.
 
 2. When setting the `accessoryType` as `garageDoor` automation will not work independetly (as mentioned above) but you will loose the ability

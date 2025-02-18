@@ -2,58 +2,55 @@
 	"pluginAlias": "PalGateOpener",
 	"pluginType": "accessory",
 	"singular": false,
-	"headerDisplay": "Gate Opener for homebridge for PalGate APP users",
-	"footerDisplay": "Created by @roeio and updated by @Knilo",
+	"headerDisplay": "PalGate Opener for Homebridge",
+	"footerDisplay": "Created by @roeio, updated by @Knilo. \n\nAll config details can be obtained using `node palGateCli.js config` command.",
 	"schema": {
-		"type": "object",
-		"properties": {
-			"deviceId": {
-				"title": "Gate ID",
-				"description": "Use ./palGateCli.js config to link your device and find the Gate IDs",
-				"type": "string",
-				"required": true
+	  "type": "object",
+	  "properties": {
+		"deviceId": {
+		  "title": "Gate ID",
+		  "description": "The unique ID of the gate you wish to control.",
+		  "type": "string"
+		},
+		"token": {
+		  "title": "Session Token",
+		  "description": "The session token generated during device linking.",
+		  "type": "string"
+		},
+		"phoneNumber": {
+		  "title": "Phone Number",
+		  "description": "Your account's phone number (e.g., 972500000000).",
+		  "type": "string"
+		},
+		"tokenType": {
+		  "title": "Token Type",
+		  "description": "Set to 0 for SMS, 1 for Primary linking, or 2 for Secondary linking.",
+		  "type": "number",
+		  "enum": [0, 1, 2]
+		},
+		"accessoryType": {
+		  "title": "Accessory Type",
+		  "description": "How the gate is represented in HomeKit. Default is 'garageDoor'.",
+		  "type": "string",
+		  "default": "garageDoor",
+		  "oneOf": [
+			{
+			  "title": "Garage Door",
+			  "enum": ["garageDoor"]
 			},
-			"token": {
-				"title": "Token",
-				"description": "Use ./palGateCli.js config to link your device and generate the required token.",
-				"type": "string",
-				"required": true
-			},
-			"phoneNumber": {
-				"title": "Phone Number",
-				"description": "Put the phone number for your account here (eg 972500000000)",
-				"type": "string",
-				"required": true
-			},
-			"tokenType": {
-				"title": "Token Type",
-				"description": "Set to 0 for SMS, 1 for Primary or 2 for Secondary.",
-				"type": "number",
-				"required": true
-			},
-			"accessoryType": {
-				"title": "Accessory Type",
-				"description": "How do you wish to represent the gate in HomeKit? default: garageDoor",
-				"type": "string",
-				"default": "garageDoor",
-				"required": false,
-				"oneOf": [{
-						"title": "Garage Door",
-						"enum": ["garageDoor"]
-					},
-					{
-						"title": "Switch",
-						"enum": ["switch"]
-					}
-				]
-			},
-			"name": {
-				"title": "Gate name, e.g Parking Gate",
-				"description": "Please provide a name to your gate, default: Parking Gate",
-				"type": "string",
-				"default": "Parking Gate",
-				"required": false
+			{
+			  "title": "Switch",
+			  "enum": ["switch"]
 			}
+		  ]
+		},
+		"name": {
+		  "title": "Gate Name",
+		  "description": "A friendly name for your gate. Default is 'Parking Gate'.",
+		  "type": "string",
+		  "default": "Parking Gate"
 		}
+	  },
+	  "required": ["deviceId", "token", "phoneNumber", "tokenType"]
 	}
-}
+  }

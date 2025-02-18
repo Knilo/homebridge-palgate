@@ -1,6 +1,6 @@
 // palGate.js
 const { generateToken } = require('./tokenGenerator.js');
-const { validateToken, openGate } = require('./palGateApi.js');
+const { validateToken, openGate } = require('./palGateAPI.js');
 
 module.exports = (api) => {
   api.registerAccessory('PalGateOpener', PalGateOpener);
