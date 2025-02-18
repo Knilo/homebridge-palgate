@@ -97,7 +97,7 @@ automatically when arriving home but approval via push notification must be give
 to see the ability to use the Garage Door icon in Apple CarPlay.
 If you wish that the gate will open automaticlly by setting location service automation please use `switch` as `accessoryType` value.
 
-# Full CLI Reference:
+# Full CLI Reference
 
    - **Validate a Token:**
      ```bash
