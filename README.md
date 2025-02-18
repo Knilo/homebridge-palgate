@@ -9,7 +9,7 @@ Before installing the homebridge plugin you must obtain the following info:
 
 All of this info can be found using the CLI as explained below.
 
-# Update #
+### Please note:
 - This plugin has now been updated to work with the newest token and API flow for PalGate and works as of Feburary 2025.
 - It has been updated to support Homebridge 2.0.
 
