@@ -5,7 +5,9 @@
 # Authors
 
 Original plugin created by [@RoeiOfri](https://github.com/RoeiOfri).
+
 API logic discovered by [@DonutByte](https://github.com/DonutByte).
+
 Rewrite and migration by [@Knilo](https://github.com/Knilo).
 
 # homebridge-palgate-opener
@@ -17,14 +19,40 @@ Before installing the homebridge plugin you must obtain the following info:
 - Session Token: Extracted using the CLI (explained below)
 - Token Type: 1 (Primary) or 2 (Secondary) and can be found using the CLI (explained below)
 
-# Use palGateCli.js to extract the Session Token, Token Type and Devices
+# Extract Session Token, Token Type and Devices
 
-1. Build the plugin `npm install`
-2. Make the utility executable `chmod +x palGateCli.js`
-3. Run `palGateCli.js config --auto`
-4. Open the PalGate App > Device Linking > Link A Device and scan the QR Code
-5. All the required config will be printed and automatically added to `~/.homebridge/config.json`
-Note: if this fails for any reason, you can use the `palGateCli.js config` command or the others to extract the required info manually.
+A CLI tool is provided to extract the required information using the latest PalGate API. Follow these steps:
+
+1. **Build and Prepare the CLI Tool:**
+   - Install the dependencies:
+     ```bash
+     npm install
+     ```
+   - Make the CLI executable:
+     ```bash
+     chmod +x palGateCli.js
+     ```
+
+2. **Run the Full Setup Command:**
+   - To run the device linking flow (which displays a QR code for linking) and then retrieve your device information, run:
+     ```bash
+      ./palGateCli.js config --auto
+     ```
+     This command will:
+     - Start device linking (displaying a QR code).
+     - Wait for you to scan the QR code using the PalGate App.
+     - Once linked, it retrieves your phone number, session token, and token type.
+     - It then calls the devices endpoint to list your gate IDs.
+     - **Final Output:** It prints a JSON object with the following keys:
+       - `phoneNumber`
+       - `token` (the permanent session token)
+       - `tokenType`
+       - `deviceIds`
+     - Additionally, when you use the `--auto` flag, it appends new accessory configuration objects (one per gate) to your Homebridge config file at `~/.homebridge/config.json` and saves the linking data (excluding devices) to a local configuration file (`palGateCLI.config`). So your plugin will be ready to go!
+
+
+
+
 
 # Plugin-in configuration
 
@@ -66,6 +94,67 @@ automatically when arriving home but approval via push notification must be give
 2. When setting the `accessoryType` as `garageDoor` automation will not work independetly (as mentioned above) but you will loose the ability
 to see the ability to use the Garage Door icon in Apple CarPlay.
 If you wish that the gate will open automaticlly by setting location service automation please use `switch` as `accessoryType` value.
+
+# Full CLI Reference:
+
+   - **Validate a Token:**
+     ```bash
+     ./palGateCli.js validate --token <your_token> --phoneNumber <phone_number> --tokenType <1|2>
+     ```
+     Generates a temporary token from your credentials and validates it with the PalGate API.
+
+   - **Open the Gate:**
+     ```bash
+     ./palGateCli.js open --deviceId <your_deviceId> --token <your_token> --phoneNumber <phone_number> --tokenType <1|2>
+     ```
+     Opens the gate corresponding to the specified device ID.
+
+   - **Retrieve Devices:**
+     ```bash
+     ./palGateCli.js devices --token <your_token> --phoneNumber <phone_number> --tokenType <1|2>
+     ```
+     Retrieves a list of devices (gates) from the PalGate API.
+
+   - **Generate a Temporary Token:**
+     ```bash
+     ./palGateCli.js token --token <your_token> --phoneNumber <phone_number> --tokenType <0|1|2>
+     ```
+     Prints the generated temporary token as JSON.
+
+   - **Link Only:**
+     ```bash
+     ./palGateCli.js link
+     ```
+     Starts the device linking flow (shows the QR code and waits for linking) and prints the linking data (phone number, session token, token type) as plain text.
+
+   - **Generate Config:**
+     ```bash
+      ./palGateCli.js config [--auto]
+     ```
+      Starts the device linking flow (shows the QR code and waits for linking). Retrieves the gateIds and prints the information. 
+      
+      When using the `--auto` command, the Homebride config will be automatically updated as well.
+      
+
+   - **Verbose Mode:**
+     Add the `--verbose` flag to any command to enable detailed debug logging:
+     ```bash
+     ./palGateCli.js config --verbose
+     ```
+     In verbose mode, additional debug messages are printed to stdout. Otherwise, only essential prompts and the final JSON output are printed.
+
+   - **Short Flags:**
+     There are short versions of all the flags:
+     ```bash
+     --token | -t
+     --phoneNumber | -p
+     --token | -t
+     --tokenType | -T
+     --deviceId | -d
+     --auto | -a
+     --verbose | -v
+     ```
+     In verbose mode, additional debug messages are printed to stdout. Otherwise, only essential prompts and the final JSON output are printed.
 
 
 # FAQ
