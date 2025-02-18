@@ -33,7 +33,7 @@ class PalGateOpener {
       const temporalToken = generateToken(
         Buffer.from(this.token, 'hex'),
         parseInt(this.phoneNumber, 10),
-        this.tokenType
+        parseInt(this.tokenType)
       );
       this.log.debug("Generated temp token for validation:", temporalToken);
       validateToken(temporalToken, (err, response) => {
@@ -114,7 +114,7 @@ class PalGateOpener {
         const temporalToken = generateToken(
           Buffer.from(this.token, 'hex'),
           parseInt(this.phoneNumber, 10),
-          this.tokenType
+          parseInt(this.tokenType)
         );
         this.log.debug("Generated temp token for opening gate:", temporalToken);
         openGate(this.deviceId, temporalToken, (err, response) => {
@@ -167,7 +167,7 @@ class PalGateOpener {
       const temporalToken = generateToken(
         Buffer.from(this.token, 'hex'),
         parseInt(this.phoneNumber, 10),
-        this.tokenType
+        parseInt(this.tokenType)
       );
       this.log.debug("Generated temp token for opening gate:", temporalToken);
       openGate(this.deviceId, temporalToken, (err, response) => {
