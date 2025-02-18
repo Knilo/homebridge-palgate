@@ -1,3 +1,14 @@
+# homebridge-palgate-opener
+This plugin enables connection between Pal Gate App Controled systems and Apple HomeKit.
+
+Before installing the homebridge plugin you must obtain the following info:
+- Device ID: The ID for the gate you wish to control.
+- Phone Number: This is the phone number of your account beginning with the country code.
+- Session Token: Permanent authorization token for the API.
+- Token Type: 0 (SMS) or 1 (Primary) or 2 (Secondary).
+
+All of this info can be found using the CLI as explained below.
+
 # Update #
 - This plugin has now been updated to work with the newest token and API flow for PalGate and works as of Feburary 2025.
 - It has been updated to support Homebridge 2.0.
@@ -9,15 +20,6 @@ Original plugin created by [@RoeiOfri](https://github.com/RoeiOfri).
 API logic discovered by [@DonutByte](https://github.com/DonutByte).
 
 Rewrite and migration by [@Knilo](https://github.com/Knilo).
-
-# homebridge-palgate-opener
-This plugin enables connection between Pal Gate App Controled systems and Apple HomeKit.
-
-Before installing the homebridge plugin you must obtain the following info:
-- Device ID: The ID for the gate you wish to control and can be found using the CLI (explained below)
-- Phone Number: This is the phone number of your account beginning with the country code (eg 972000000000)
-- Session Token: Extracted using the CLI (explained below)
-- Token Type: 1 (Primary) or 2 (Secondary) and can be found using the CLI (explained below)
 
 # Extract Session Token, Token Type and Devices
 
