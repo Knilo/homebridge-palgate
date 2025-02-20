@@ -6,7 +6,7 @@ module.exports = (api) => {
   Service = api.hap.Service;
   Characteristic = api.hap.Characteristic;
   UUIDGen = api.hap.uuid;
-  api.registerPlatform('PalGateOpener', PalGatePlatform);
+  api.registerPlatform('PalGatePlatform', PalGatePlatform);
 };
 
 class PalGatePlatform {
@@ -165,7 +165,7 @@ createAccessoryForGate(gate, type) {
     this.setupSwitchHandlers(accessory);
   }
   
-  this.api.registerPlatformAccessories("homebridge-palgate-opener", "PalGateOpener", [accessory]);
+  this.api.registerPlatformAccessories("homebridge-palgate-platform", "PalGatePlatform", [accessory]);
   this.log.info("Added new accessory:", desiredName);
   this.accessories.push(accessory);
 }
