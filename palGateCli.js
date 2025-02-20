@@ -52,18 +52,18 @@ function printUsage() {
 // Load local defaults from palGateCLI.config if available.
 let fileConfig = {};
 if (fs.existsSync(localConfigPath)) {
-  try {
-    const fileContent = fs.readFileSync(localConfigPath, 'utf8').trim();
-    if (fileContent) {
-      fileConfig = JSON.parse(fileContent);
-    } else {
-      console.warn("Local configuration file exists but is empty. Using default configuration.");
-      fileConfig = {};
+    try {
+        const fileContent = fs.readFileSync(localConfigPath, 'utf8').trim();
+        if (fileContent) {
+            fileConfig = JSON.parse(fileContent);
+        } else {
+            console.warn("Local configuration file exists but is empty. Using default configuration.");
+            fileConfig = {};
+        }
+    } catch (e) {
+        console.warn("Local configuration file exists but is not valid JSON. Ignoring local config.");
+        fileConfig = {};
     }
-  } catch (e) {
-    console.warn("Local configuration file exists but is not valid JSON. Ignoring local config.");
-    fileConfig = {};
-  }
 }
 
 const args = process.argv.slice(2);
@@ -86,8 +86,8 @@ const aliases = {
     verbose: "verbose",
     a: "auto",
     auto: "auto"
-  };
-  
+};
+
 
 const command = args[0];
 const options = {};
@@ -96,22 +96,22 @@ const options = {};
 for (let i = 1; i < args.length; i++) {
     let arg = args[i];
     if (arg.startsWith('--')) {
-      arg = arg.substring(2);
+        arg = arg.substring(2);
     } else if (arg.startsWith('-')) {
-      arg = arg.substring(1);
+        arg = arg.substring(1);
     } else {
-      continue;
+        continue;
     }
     // Convert the flag to lowercase and get the canonical name
     const key = aliases[arg.toLowerCase()] || arg;
     // If the next argument exists and doesn't start with '-', treat it as the value.
     if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
-      options[key] = args[i + 1];
-      i++; // Skip the next argument since we've consumed it.
+        options[key] = args[i + 1];
+        i++; // Skip the next argument since we've consumed it.
     } else {
-      options[key] = true;
+        options[key] = true;
     }
-  }
+}
 
 const verbose = options.verbose || false;
 function debugLog(...args) {
@@ -190,7 +190,7 @@ switch (command) {
                 console.error("Token validation failed:", err.message);
             } else {
                 console.log("Token validated successfully");
-                console.log(JSON.stringify({response: JSON.parse(response) }, null, 2));
+                console.log(JSON.stringify({ response: JSON.parse(response) }, null, 2));
             }
         });
         break;
@@ -205,7 +205,7 @@ switch (command) {
                 console.error("Error opening gate:", err.message);
             } else {
                 console.log("Gate opened successfully")
-                console.log(JSON.stringify({response: JSON.parse(response) }, null, 2));
+                console.log(JSON.stringify({ response: JSON.parse(response) }, null, 2));
             }
         });
         break;
@@ -219,7 +219,7 @@ switch (command) {
                 console.error("Error getting devices:", err.message);
             } else {
                 console.log("Devices retrieved successfully");
-                console.log(JSON.stringify({response: JSON.parse(response) }, null, 2));
+                console.log(JSON.stringify({ response: JSON.parse(response) }, null, 2));
             }
         });
         break;
@@ -234,7 +234,7 @@ switch (command) {
                 console.error("Error getting device info:", err.message);
             } else {
                 console.log("Device info retrieved successfully");
-                console.log(JSON.stringify({response: JSON.parse(response) }, null, 2));
+                console.log(JSON.stringify({ response: JSON.parse(response) }, null, 2));
             }
         });
         break;
@@ -243,7 +243,7 @@ switch (command) {
         requireOptions(['token', 'phoneNumber', 'tokenType']);
         const temporalToken = getTemporalToken();
         console.log("Generated temporal token");
-        console.log(JSON.stringify({token: temporalToken }, null, 2));
+        console.log(JSON.stringify({ token: temporalToken }, null, 2));
         break;
     }
     case 'link': {
@@ -272,88 +272,57 @@ switch (command) {
     case 'config': {
         // Run the linking flow and then retrieve devices.
         startDeviceLinking((err, linkingData) => {
-            if (err) {
-                console.error("Device linking failed:", err.message);
-                process.exit(1);
+          if (err) {
+            console.error("Device linking failed:", err.message);
+            process.exit(1);
+          }
+          debugLog("Device linking successful!");
+          debugLog("Phone Number:", linkingData.phoneNumber);
+          debugLog("Session Token:", linkingData.sessionToken);
+          debugLog("Token Type:", linkingData.tokenType);
+      
+          // Build the configuration object.
+          const configObj = {
+            phoneNumber: linkingData.phoneNumber,
+            token: linkingData.sessionToken,
+            tokenType: parseInt(linkingData.tokenType),
+          };
+          // Print final configuration as JSON.
+          console.log("Configuration generated");
+          console.log(JSON.stringify({ config: configObj }, null, 2));
+          fs.writeFileSync(localConfigPath, JSON.stringify(configObj, null, 2), 'utf8');
+          console.log("Local configuration saved to " + localConfigPath);
+          console.log("hb configuration is here " + homebridgeConfigPath);
+      
+          // If --auto flag is provided, update the Homebridge config file.
+          if (options["auto"]) {
+            if (!fs.existsSync(homebridgeConfigPath)) {
+              console.error(`Homebridge config not found at ${homebridgeConfigPath}. Please ensure Homebridge is installed and configured.`);
+              process.exit(1);
             }
-            debugLog("Device linking successful!");
-            debugLog("Phone Number:", linkingData.phoneNumber);
-            debugLog("Session Token:", linkingData.sessionToken);
-            debugLog("Token Type:", linkingData.tokenType);
-
-            // Generate a temporary token from the linking data.
-            const temporalToken = generateToken(
-                Buffer.from(linkingData.sessionToken, 'hex'),
-                parseInt(linkingData.phoneNumber, 10),
-                parseInt(linkingData.tokenType)
-            );
-            debugLog("Generated temporal token for retrieving devices:", temporalToken);
-
-            // Retrieve devices.
-            getDevices(temporalToken, (err, response) => {
-                if (err) {
-                    console.error("Error retrieving devices:", err.message);
-                    process.exit(1);
-                }
-                try {
-                    const data = JSON.parse(response);
-                    if (!data.devices || !Array.isArray(data.devices)) {
-                        throw new Error("Invalid devices response: missing 'devices' array.");
-                    }
-                    const deviceIds = data.devices.map(device => device.id || device._id);
-                    // Build the configuration object.
-                    const configObj = {
-                        phoneNumber: linkingData.phoneNumber,
-                        token: linkingData.sessionToken,
-                        tokenType: parseInt(linkingData.tokenType),
-                        deviceIds: deviceIds
-                    };
-                    // Print final configuration as JSON.
-                    console.log("Configuration generated");
-                    console.log(JSON.stringify({ config: configObj }, null, 2));
-                    fs.writeFileSync(localConfigPath, JSON.stringify(configObj, null, 2), 'utf8');
-                    console.log("Local configuration saved to " + localConfigPath);
-                    
-
-                    // If --full-setup flag is provided, update the Homebridge config file and save the linking data locally.
-                    if (options["auto"]) {
-                        if (!fs.existsSync(homebridgeConfigPath)) {
-                            console.error(`Homebridge config not found at ${homebridgeConfigPath}. Please ensure Homebridge is installed and configured.`);
-                            process.exit(1);
-                        }
-                        const hbConfig = JSON.parse(fs.readFileSync(homebridgeConfigPath, 'utf8'));
-                        if (!Array.isArray(hbConfig.accessories)) {
-                            hbConfig.accessories = [];
-                        }
-                        // Count existing PalGateOpener accessories.
-                        const existingCount = hbConfig.accessories.filter(acc => acc.accessory === "PalGateOpener").length;
-                        const newAccessories = [];
-                        deviceIds.forEach((id, idx) => {
-                            const accessoryConfig = {
-                                "accessory": "PalGateOpener",
-                                "name": `Parking Gate ${existingCount + idx + 1}`,
-                                "deviceId": id,
-                                "token": linkingData.sessionToken,
-                                "phoneNumber": linkingData.phoneNumber,
-                                "tokenType": parseInt(linkingData.tokenType),
-                                "accessoryType": "garageDoor"
-                            };
-                            hbConfig.accessories.push(accessoryConfig);
-                            newAccessories.push(accessoryConfig);
-                        });
-                        fs.writeFileSync(homebridgeConfigPath, JSON.stringify(hbConfig, null, 2), 'utf8');
-                        console.log("Homebridge configuration updated and saved to " + homebridgeConfigPath);
-                        console.log("New Accessories Added:");
-                        console.log(JSON.stringify(newAccessories, null, 2));
-
-                    }
-                } catch (parseError) {
-                    console.error("Error parsing devices response:", parseError.message);
-                    process.exit(1);
-                }
-            });
+            let hbConfig = JSON.parse(fs.readFileSync(homebridgeConfigPath, 'utf8'));
+            if (!Array.isArray(hbConfig.platforms)) {
+              hbConfig.platforms = [];
+            }
+            // Count existing PalGatePlatform entries (adjust as needed)
+            const existingCount = hbConfig.platforms.filter(acc => acc.platform === "PalGatecConfig").length;
+            const platformConfig = {
+              "name": "PalGate Platform",
+              "platform": "PalGatePlatform",
+              "token": linkingData.sessionToken,
+              "phoneNumber": linkingData.phoneNumber,
+              "tokenType": parseInt(linkingData.tokenType),
+              "accessoryType": "garageDoor"
+            };
+            hbConfig.platforms.push(platformConfig);
+            fs.writeFileSync(homebridgeConfigPath, JSON.stringify(hbConfig, null, 2), 'utf8');
+            console.log("Homebridge configuration updated and saved to " + homebridgeConfigPath);
+            console.log("New Platform Added:");
+            console.log(JSON.stringify(platformConfig, null, 2));
+          }
         });
         break;
+      
     }
     default: {
         console.error("Unknown command:", command);

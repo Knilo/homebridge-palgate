@@ -26,7 +26,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "RoeiOfri and Knilo",
+  "author": "@Knilo",
   "bugs": {
     "url": "https://github.com/Knilo/homebridge-palgate-opener/issues"
   },
