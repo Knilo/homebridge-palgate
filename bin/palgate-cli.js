@@ -22,7 +22,7 @@
  *   node palGateCli.js config --auto -v
  */
 
-const { generateToken } = require('../lib/tokenGenerator.js');
+const { generateToken } = require('../lib/token-gen.js');
 const { validateToken, openGate, getDevices, getDeviceInfo, callApi } = require('../lib/api.js');
 const { v4: uuidv4 } = require('uuid');
 const qrcode = require('qrcode-terminal');
@@ -34,7 +34,7 @@ const BASE_URL = 'https://api1.pal-es.com/v1/bt/';
 // Path for the Homebridge configuration file.
 const homebridgeConfigPath = path.join(os.homedir(), '.homebridge', 'config.json');
 // Local configuration defaults file.
-const localConfigPath = path.join(process.cwd(), 'palGateCLI.config');
+const localConfigPath = path.join(os.homedir(), '.palgate-cli.json');
 
 function printUsage() {
     console.log("Usage:");
@@ -292,7 +292,6 @@ switch (command) {
           console.log(JSON.stringify({ config: configObj }, null, 2));
           fs.writeFileSync(localConfigPath, JSON.stringify(configObj, null, 2), 'utf8');
           console.log("Local configuration saved to " + localConfigPath);
-          console.log("hb configuration is here " + homebridgeConfigPath);
       
           // If --auto flag is provided, update the Homebridge config file.
           if (options["auto"]) {
@@ -319,6 +318,7 @@ switch (command) {
             console.log("Homebridge configuration updated and saved to " + homebridgeConfigPath);
             console.log("New Platform Added:");
             console.log(JSON.stringify(platformConfig, null, 2));
+            console.log("Note: You will need to restart Homebridge for the platform to initialise");
           }
         });
         break;

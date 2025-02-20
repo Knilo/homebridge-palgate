@@ -22,7 +22,7 @@
     "uuid": "^11.0.5",
     "xmlhttprequest": "^1.8.0"
   },
-  "main": "palGate.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -31,10 +31,11 @@
     "url": "https://github.com/Knilo/homebridge-palgate-opener/issues"
   },
   "bin": {
-    "palgate_config": "./palGateCli.js config"
+    "palgate_config": "./palgate-cli.js config --auto"
   },
   "homepage": "https://github.com/Knilo/homebridge-palgate-opener#readme",
   "directories": {
-    "lib": "lib"
+    "lib": "lib",
+    "bin": "bin"
   }
 }
