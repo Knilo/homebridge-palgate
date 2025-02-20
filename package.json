@@ -1,6 +1,6 @@
 {
-  "name": "homebridge-palgate-opener",
-  "description": "Homebridge plugin for PalGate app",
+  "name": "homebridge-palgate-platform",
+  "description": "Homebridge plugin for PalGate App",
   "version": "2.1.0",
   "repository": {
     "type": "git",
@@ -10,7 +10,8 @@
   "preferGlobal": true,
   "keywords": [
     "homebridge-plugin",
-    "homebridge-palgate"
+    "homebridge-palgate",
+    "homebridge-palgate-platform"
   ],
   "engines": {
     "node": ">=10.17.0",

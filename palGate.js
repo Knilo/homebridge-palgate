@@ -14,6 +14,8 @@ class PalGatePlatform {
     this.log = log;
     this.config = config || {};
     this.api = api;
+    this.name = this.config.name || 'PalGate Platform';
+
     this.accessories = [];
 
     // Global platform configuration (shared among all devices)
