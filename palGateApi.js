@@ -48,9 +48,15 @@ function getDevices(tokenHeader, callback) {
     callApi(endpoint, tokenHeader, callback);
   }
   
+function getDeviceInfo(tokenHeader, deviceId, callback) {
+    const endpoint = `${BASE_URL}device/${deviceId}/`;
+    callApi(endpoint, tokenHeader, callback);
+  }
+
   module.exports = {
     callApi,
     validateToken,
     openGate,
-    getDevices
+    getDevices,
+    getDeviceInfo
   };

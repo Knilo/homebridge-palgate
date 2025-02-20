@@ -1,188 +1,249 @@
-// palGate.js
-const { generateToken } = require('./tokenGenerator.js');
-const { validateToken, openGate } = require('./palGateApi.js');
+'use strict';
+
+let Service, Characteristic, UUIDGen;
 
 module.exports = (api) => {
-  api.registerAccessory('PalGateOpener', PalGateOpener);
+  Service = api.hap.Service;
+  Characteristic = api.hap.Characteristic;
+  UUIDGen = api.hap.uuid;
+  api.registerPlatform('PalGateOpener', PalGatePlatform);
 };
 
-class PalGateOpener {
+class PalGatePlatform {
   constructor(log, config, api) {
     this.log = log;
-    this.config = config;
+    this.config = config || {};
     this.api = api;
+    this.accessories = [];
 
-    this.deviceId = config['deviceId'];
-    this.token = config['token'];
-    this.tokenType = config['tokenType'];
-    this.phoneNumber = config['phoneNumber'];
+    // Global platform configuration (shared among all devices)
+    this.token = config.token;
+    this.phoneNumber = config.phoneNumber;
+    this.tokenType = config.tokenType; // Expected to be a number: 0, 1, or 2.
+    this.accessoryType = config.accessoryType || 'garageDoor'; // default to "garageDoor"
 
-    this.accessoryType = (config['accessoryType'] || 'switch').toLowerCase();
-    this.name = config.name;
-
-    this.Service = this.api.hap.Service;
-    this.Characteristic = this.api.hap.Characteristic;
-
-    this.log.debug('PalGate Accessory Plugin Loaded');
-    this.log.debug("deviceID :", this.deviceId);
-    this.log.debug("token :", this.token);
-    this.log.debug("phoneNumber :", this.phoneNumber);
-
-    // Verify login details
-    try {
-      const temporalToken = generateToken(
-        Buffer.from(this.token, 'hex'),
-        parseInt(this.phoneNumber, 10),
-        parseInt(this.tokenType)
-      );
-      this.log.debug("Generated temp token for validation:", temporalToken);
-      validateToken(temporalToken, (err, response) => {
-        if (err) {
-          this.log.error("Token validation failed:", err);
-        } else {
-          this.log.debug("Token validated successfully. Response: " + response);
-        }
-      });
-    } catch (error) {
-      this.log.error("Error during token validation:", error);
+    if (!this.token || !this.phoneNumber || (this.tokenType === undefined)) {
+      this.log.error("PalGatePlatform: Missing required configuration. Please provide token, phoneNumber, and tokenType in your platform config.");
     }
 
-    // Verify accessory type meets supporting types.
-    if (this.accessoryType !== 'switch' && this.accessoryType !== 'garagedoor') {
-      this.log.warn('Accessory Type is not supported, using it as "switch" instead!');
-      this.accessoryType = 'switch';
-    }
-
-    // AccessoryInformation service
-    this.informationService = new this.api.hap.Service.AccessoryInformation()
-      .setCharacteristic(this.api.hap.Characteristic.Manufacturer, "Pal Systems")
-      .setCharacteristic(this.api.hap.Characteristic.Model, "PalGate App");
-
-    // Create the appropriate service based on accessory type.
-    switch (this.accessoryType) {
-      case "switch":
-        this.service = new this.api.hap.Service.Switch(this.name);
-        this.service.getCharacteristic(this.api.hap.Characteristic.On)
-          .on('get', this.getOnHandler.bind(this))
-          .on('set', this.setOnHandler.bind(this));
-        break;
-      case "garagedoor":
-        this.service = new this.api.hap.Service.GarageDoorOpener(this.name);
-        this.service.getCharacteristic(this.Characteristic.CurrentDoorState)
-          .on('get', this.handleCurrentDoorStateGet.bind(this));
-        this.service.getCharacteristic(this.Characteristic.TargetDoorState)
-          .on('get', this.handleTargetDoorStateGet.bind(this))
-          .on('set', this.handleTargetDoorStateSet.bind(this));
-        break;
-    }
-  }
-
-  getServices() {
-    return [this.informationService, this.service];
-  }
-
-  // GET handler for CurrentDoorState
-  handleCurrentDoorStateGet(callback) {
-    this.log.debug('Triggered GET Current DoorState');
-    const currentValue = this.api.hap.Characteristic.CurrentDoorState.CLOSED;
-    callback(null, currentValue);
-  }
-
-  // GET handler for TargetDoorState
-  handleTargetDoorStateGet(callback) {
-    this.log.debug('Triggered GET Target DoorState');
-    const targetDoorState = this.api.hap.Characteristic.CurrentDoorState.CLOSED;
-    callback(null, targetDoorState);
-  }
-
-  // SET handler for TargetDoorState (Garage Door)
-  handleTargetDoorStateSet(value, callback) {
-    this.log.debug("Checking values before generating token...");
-    this.log.debug("Token:", this.token);
-    this.log.debug("Phone Number:", this.phoneNumber);
-
-    if (!this.token || typeof this.token !== 'string' || !/^[0-9a-fA-F]{32}$/.test(this.token)) {
-      this.log.error("Error: Token is missing or invalid.");
-      return callback(new Error("Token is missing or invalid."));
-    }
-    if (!this.phoneNumber || isNaN(parseInt(this.phoneNumber, 10))) {
-      this.log.error("Error: Phone number is missing or invalid.");
-      return callback(new Error("Phone number is missing or invalid."));
-    }
-    if (value == this.api.hap.Characteristic.TargetDoorState.OPEN) {
-      try {
-        const temporalToken = generateToken(
-          Buffer.from(this.token, 'hex'),
-          parseInt(this.phoneNumber, 10),
-          parseInt(this.tokenType)
-        );
-        this.log.debug("Generated temp token for opening gate:", temporalToken);
-        openGate(this.deviceId, temporalToken, (err, response) => {
-          if (err) {
-            this.log.error("Error opening gate:", err);
-            return callback(err);
-          } else {
-            this.log.info("Gate opened successfully!");
-            this.service.setCharacteristic(
-              this.Characteristic.CurrentDoorState,
-              this.api.hap.Characteristic.CurrentDoorState.OPEN
-            );
-            this.log.debug("Response: " + response);
-            return callback(null);
-          }
-        });
-      } catch (error) {
-        this.log.error("Error generating token for opening gate:", error);
-        return callback(error);
+    // Validate global token on startup.
+    const { generateToken } = require('./tokenGenerator.js');
+    const temporalToken = generateToken(
+      Buffer.from(this.token, 'hex'),
+      parseInt(this.phoneNumber, 10),
+      parseInt(this.tokenType, 10)
+    );
+    this.log.debug("Validating platform credentials with temporal token:", temporalToken);
+    const { validateToken } = require('./palGateApi.js');
+    validateToken(temporalToken, (err, response) => {
+      if (err) {
+        this.log.error("Platform token validation failed:", err.message);
+      } else {
+        this.log.info("Platform token validated successfully.");
       }
-    } else if (value == this.api.hap.Characteristic.CurrentDoorState.CLOSED) {
-      this.log.debug('Closing gate...');
-      this.service.setCharacteristic(this.Characteristic.CurrentDoorState, this.api.hap.Characteristic.CurrentDoorState.CLOSED);
-      return callback(null);
-    }
+    });
+
+    // Listen for Homebridge finishing launch, then discover devices.
+    this.api.on('didFinishLaunching', () => {
+      this.discoverDevices();
+    });
   }
 
-  // GET handler for Switch On state
-  getOnHandler(callback) {
-    this.log.debug('Getting switch state');
-    const value = false;
-    callback(null, value);
+  // Called for each accessory loaded from cache.
+  configureAccessory(accessory) {
+    this.log.info("Restoring cached accessory:", accessory.displayName);
+    this.accessories.push(accessory);
   }
 
-  // SET handler for Switch On state
-  setOnHandler(value, callback) {
-    this.log.debug("Checking values before generating token...");
-    this.log.debug("Token:", this.token);
-    this.log.debug("Phone Number:", this.phoneNumber);
+  // Discover devices via the PalGate API.
+  // Inside your PalGatePlatform class
 
-    if (!this.token || typeof this.token !== 'string' || !/^[0-9a-fA-F]{32}$/.test(this.token)) {
-      this.log.error("Error: Token is missing or invalid.");
-      return callback(new Error("Token is missing or invalid."));
-    }
-    if (!this.phoneNumber || isNaN(parseInt(this.phoneNumber, 10))) {
-      this.log.error("Error: Phone number is missing or invalid.");
-      return callback(new Error("Phone number is missing or invalid."));
+discoverDevices() {
+  const { generateToken } = require('./tokenGenerator.js');
+  const temporalToken = generateToken(
+    Buffer.from(this.token, 'hex'),
+    parseInt(this.phoneNumber, 10),
+    parseInt(this.tokenType, 10)
+  );
+  this.log.debug("Generated temporal token for device discovery:", temporalToken);
+  const { getDevices } = require('./palGateApi.js');
+  getDevices(temporalToken, (err, response) => {
+    if (err) {
+      this.log.error("Error retrieving devices:", err.message);
+      return;
     }
     try {
-      const temporalToken = generateToken(
-        Buffer.from(this.token, 'hex'),
-        parseInt(this.phoneNumber, 10),
-        parseInt(this.tokenType)
-      );
-      this.log.debug("Generated temp token for opening gate:", temporalToken);
-      openGate(this.deviceId, temporalToken, (err, response) => {
-        if (err) {
-          this.log.error("Error opening gate:", err);
-          return callback(err);
+      const data = JSON.parse(response);
+      if (!data.devices || !Array.isArray(data.devices)) {
+        throw new Error("Invalid devices response: missing devices array.");
+      }
+      this.log.info("Discovered", data.devices.length, "device(s).");
+
+      // Get custom gate settings from platform config (optional).
+      const customGates = this.config.customGates || [];
+      
+      // Build a gate array: for each device, extract deviceId, name, and which types to expose.
+      this.gates = data.devices.map((deviceData, idx) => {
+        const deviceId = deviceData.id || deviceData._id;
+        // Look for custom settings for this device.
+        const custom = customGates.find(item => item.deviceId === deviceId);
+        // Use the custom name if provided; otherwise, default to the deviceId.
+        const name = (custom && custom.name && custom.name.trim().length > 0) ? custom.name : deviceId;
+        // Determine accessory types to expose:
+        let exposeGarageDoor, exposeSwitch;
+        if (custom) {
+          exposeGarageDoor = custom.garageDoor === true;
+          exposeSwitch = custom.switch === true;
         } else {
-          this.log.info("Gate opened successfully!");
-          this.log.debug("Response: " + response);
-          return callback(null);
+          // If no custom config, use the platform's default.
+          exposeGarageDoor = (this.accessoryType === "garageDoor");
+          exposeSwitch = (this.accessoryType === "switch");
+        }
+        // If the custom config specifies hide, skip this gate.
+        if (custom && custom.hide === true) {
+          return null;
+        }
+        return { deviceId, name, exposeGarageDoor, exposeSwitch };
+      }).filter(gate => gate !== null);
+
+      this.log.info("Final gate configuration:", JSON.stringify(this.gates, null, 2));
+
+      // For each gate, create accessories for each exposed type.
+      this.gates.forEach(gate => {
+        if (gate.exposeGarageDoor) {
+          this.createAccessoryForGate(gate, "garageDoor");
+        }
+        if (gate.exposeSwitch) {
+          this.createAccessoryForGate(gate, "switch");
         }
       });
-    } catch (error) {
-      this.log.error("Error generating token for opening gate:", error);
-      return callback(error);
+    } catch (parseError) {
+      this.log.error("Error parsing devices response:", parseError.message);
     }
+  });
+}
+
+createAccessoryForGate(gate, type) {
+  // Use a stable UUID combining deviceId and type.
+  const uuid = UUIDGen.generate(gate.deviceId + "_" + type);
+  
+  // Determine the desired name:
+  // If a custom name is provided, use it; otherwise, use the deviceId as the default.
+  const desiredName = (gate.name && gate.name.trim() !== "") ? gate.name : gate.deviceId;
+  
+  // Check if an accessory with this UUID already exists.
+  let accessory = this.accessories.find(acc => acc.UUID === uuid);
+  if (accessory) {
+    // Update the accessory's name if it differs from desiredName.
+    if (accessory.displayName !== desiredName) {
+      accessory.displayName = desiredName;
+      accessory.context.name = desiredName;
+      // Attempt to update the primary service's name (if possible).
+      const svc = accessory.getService(type === "garageDoor" ? Service.GarageDoorOpener : Service.Switch);
+      if (svc) {
+        svc.setCharacteristic(Characteristic.Name, desiredName);
+      }
+      this.log.info("Updated cached accessory name to:", desiredName);
+    }
+    return;
+  }
+  
+  // If accessory does not exist, create a new one.
+  accessory = new this.api.platformAccessory(desiredName, uuid);
+  accessory.context.deviceId = gate.deviceId;
+  accessory.context.name = desiredName;
+  accessory.context.accessoryType = type;
+  
+  // Add the appropriate service based on the accessory type.
+  if (type === "garageDoor") {
+    accessory.addService(Service.GarageDoorOpener, desiredName);
+    this.setupGarageDoorHandlers(accessory);
+  } else {
+    accessory.addService(Service.Switch, desiredName);
+    this.setupSwitchHandlers(accessory);
+  }
+  
+  this.api.registerPlatformAccessories("homebridge-palgate-opener", "PalGateOpener", [accessory]);
+  this.log.info("Added new accessory:", desiredName);
+  this.accessories.push(accessory);
+}
+  // Setup handlers for a garage door accessory.
+  setupGarageDoorHandlers(accessory) {
+    const service = accessory.getService(Service.GarageDoorOpener);
+    // GET current state: for simplicity, assume CLOSED.
+    service.getCharacteristic(Characteristic.CurrentDoorState)
+      .on('get', (callback) => {
+        callback(null, Characteristic.CurrentDoorState.CLOSED);
+      });
+    // GET target state: assume CLOSED.
+    service.getCharacteristic(Characteristic.TargetDoorState)
+      .on('get', (callback) => {
+        callback(null, Characteristic.CurrentDoorState.CLOSED);
+      })
+      .on('set', (value, callback) => {
+        this.log.info("Setting Garage Door state for", accessory.displayName, "to", value);
+        if (value === Characteristic.TargetDoorState.OPEN) {
+          this.openGateForAccessory(accessory, (err) => {
+            if (err) {
+              callback(err);
+            } else {
+              // Update current state to OPEN.
+              service.setCharacteristic(Characteristic.CurrentDoorState, Characteristic.CurrentDoorState.OPEN);
+              callback(null);
+            }
+          });
+        } else {
+          // For CLOSED, simply update the state.
+          service.setCharacteristic(Characteristic.CurrentDoorState, Characteristic.CurrentDoorState.CLOSED);
+          callback(null);
+        }
+      });
+  }
+
+  // Setup handlers for a switch accessory.
+  setupSwitchHandlers(accessory) {
+    const service = accessory.getService(Service.Switch);
+    service.getCharacteristic(Characteristic.On)
+      .on('get', (callback) => {
+        callback(null, false);
+      })
+      .on('set', (value, callback) => {
+        this.log.info("Setting Switch state for", accessory.displayName, "to", value);
+        if (value) {
+          this.openGateForAccessory(accessory, (err) => {
+            if (err) {
+              callback(err);
+            } else {
+              service.setCharacteristic(Characteristic.On, true);
+              callback(null);
+            }
+          });
+        } else {
+          service.setCharacteristic(Characteristic.On, false);
+          callback(null);
+        }
+      });
+  }
+
+  // Helper method to open the gate for a given accessory.
+  openGateForAccessory(accessory, callback) {
+    const { openGate } = require('./palGateApi.js');
+    const deviceId = accessory.context.deviceId;
+    const { generateToken } = require('./tokenGenerator.js');
+    // Use the platform's global credentials to generate a temporary token.
+    const temporalToken = generateToken(
+      Buffer.from(this.token, 'hex'),
+      parseInt(this.phoneNumber, 10),
+      parseInt(this.tokenType, 10)
+    );
+    this.log.debug("Using temporal token for device", deviceId, ":", temporalToken);
+    openGate(deviceId, temporalToken, (err, response) => {
+      if (err) {
+        this.log.error("Error opening gate for device", deviceId, ":", err.message);
+        return callback(err);
+      }
+      this.log.info("Gate opened successfully for device", deviceId);
+      callback(null);
+    });
   }
 }

@@ -23,7 +23,7 @@
  */
 
 const { generateToken } = require('./tokenGenerator.js');
-const { validateToken, openGate, getDevices, callApi } = require('./palGateApi.js');
+const { validateToken, openGate, getDevices, getDeviceInfo, callApi } = require('./palGateApi.js');
 const { v4: uuidv4 } = require('uuid');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
@@ -219,6 +219,21 @@ switch (command) {
                 console.error("Error getting devices:", err.message);
             } else {
                 console.log("Devices retrieved successfully");
+                console.log(JSON.stringify({response: JSON.parse(response) }, null, 2));
+            }
+        });
+        break;
+    }
+    case 'info': {
+        requireOptions(['deviceId', 'token', 'phoneNumber', 'tokenType']);
+        debugLog("Gateid is:", options.deviceId);
+        const temporalToken = getTemporalToken();
+        debugLog("Generated temporal token for getting device info:", temporalToken);
+        getDeviceInfo(temporalToken, options.deviceId, (err, response) => {
+            if (err) {
+                console.error("Error getting device info:", err.message);
+            } else {
+                console.log("Device info retrieved successfully");
                 console.log(JSON.stringify({response: JSON.parse(response) }, null, 2));
             }
         });
