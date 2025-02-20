@@ -22,8 +22,8 @@
  *   node palGateCli.js config --auto -v
  */
 
-const { generateToken } = require('./tokenGenerator.js');
-const { validateToken, openGate, getDevices, getDeviceInfo, callApi } = require('./palGateApi.js');
+const { generateToken } = require('../lib/tokenGenerator.js');
+const { validateToken, openGate, getDevices, getDeviceInfo, callApi } = require('../lib/api.js');
 const { v4: uuidv4 } = require('uuid');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
