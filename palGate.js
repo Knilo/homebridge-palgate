@@ -60,70 +60,80 @@ class PalGatePlatform {
   // Discover devices via the PalGate API.
   // Inside your PalGatePlatform class
 
-discoverDevices() {
-  const { generateToken } = require('./tokenGenerator.js');
-  const temporalToken = generateToken(
-    Buffer.from(this.token, 'hex'),
-    parseInt(this.phoneNumber, 10),
-    parseInt(this.tokenType, 10)
-  );
-  this.log.debug("Generated temporal token for device discovery:", temporalToken);
-  const { getDevices } = require('./palGateApi.js');
-  getDevices(temporalToken, (err, response) => {
-    if (err) {
-      this.log.error("Error retrieving devices:", err.message);
-      return;
-    }
-    try {
-      const data = JSON.parse(response);
-      if (!data.devices || !Array.isArray(data.devices)) {
-        throw new Error("Invalid devices response: missing devices array.");
+  discoverDevices() {
+    const { generateToken } = require('./tokenGenerator.js');
+    const temporalToken = generateToken(
+      Buffer.from(this.token, 'hex'),
+      parseInt(this.phoneNumber, 10),
+      parseInt(this.tokenType, 10)
+    );
+    this.log.debug("Generated temporal token for device discovery:", temporalToken);
+    const { getDevices } = require('./palGateApi.js');
+    getDevices(temporalToken, (err, response) => {
+      if (err) {
+        this.log.error("Error retrieving devices:", err.message);
+        return;
       }
-      this.log.info("Discovered", data.devices.length, "device(s).");
-
-      // Get custom gate settings from platform config (optional).
-      const customGates = this.config.customGates || [];
-      
-      // Build a gate array: for each device, extract deviceId, name, and which types to expose.
-      this.gates = data.devices.map((deviceData, idx) => {
-        const deviceId = deviceData.id || deviceData._id;
-        // Look for custom settings for this device.
-        const custom = customGates.find(item => item.deviceId === deviceId);
-        // Use the custom name if provided; otherwise, default to the deviceId.
-        const name = (custom && custom.name && custom.name.trim().length > 0) ? custom.name : deviceId;
-        // Determine accessory types to expose:
-        let exposeGarageDoor, exposeSwitch;
-        if (custom) {
-          exposeGarageDoor = custom.garageDoor === true;
-          exposeSwitch = custom.switch === true;
-        } else {
-          // If no custom config, use the platform's default.
-          exposeGarageDoor = (this.accessoryType === "garageDoor");
-          exposeSwitch = (this.accessoryType === "switch");
+      try {
+        const data = JSON.parse(response);
+        if (!data.devices || !Array.isArray(data.devices)) {
+          throw new Error("Invalid devices response: missing devices array.");
         }
-        // If the custom config specifies hide, skip this gate.
-        if (custom && custom.hide === true) {
-          return null;
-        }
-        return { deviceId, name, exposeGarageDoor, exposeSwitch };
-      }).filter(gate => gate !== null);
-
-      this.log.info("Final gate configuration:", JSON.stringify(this.gates, null, 2));
-
-      // For each gate, create accessories for each exposed type.
-      this.gates.forEach(gate => {
-        if (gate.exposeGarageDoor) {
-          this.createAccessoryForGate(gate, "garageDoor");
-        }
-        if (gate.exposeSwitch) {
-          this.createAccessoryForGate(gate, "switch");
-        }
-      });
-    } catch (parseError) {
-      this.log.error("Error parsing devices response:", parseError.message);
-    }
-  });
-}
+        this.log.info("Discovered", data.devices.length, "device(s).");
+  
+        // Get custom gate settings from platform config (optional).
+        const customGates = this.config.customGates || [];
+        
+        // Build a gate array: for each device, extract deviceId, name, and which types to expose.
+        this.gates = data.devices.map((deviceData) => {
+          const deviceId = deviceData.id || deviceData._id;
+          const deviceName = deviceData.name1;
+          // Look for custom settings for this device.
+          const custom = customGates.find(item => item.deviceId === deviceId);
+          // If custom settings exist, remove any previously registered accessories for this device.
+          if (custom) {
+            const toRemove = this.accessories.filter(acc => acc.context.deviceId === deviceId);
+            if (toRemove.length > 0) {
+              this.api.unregisterPlatformAccessories("homebridge-palgate-opener", "PalGateOpener", toRemove);
+              this.log.info(`Removed ${toRemove.length} original accessory(ies) for device ${deviceId} due to custom configuration.`);
+              this.accessories = this.accessories.filter(acc => acc.context.deviceId !== deviceId);
+            }
+          }
+          // If the custom config specifies hide, skip this device entirely.
+          if (custom && custom.hide === true) {
+            return null;
+          }
+          // Use the custom name if provided; otherwise, default to the deviceName.
+          const name = (custom && custom.name && custom.name.trim().length > 0) ? custom.name : deviceName;
+          // Determine accessory types to expose:
+          let exposeGarageDoor, exposeSwitch;
+          if (custom) {
+            exposeGarageDoor = custom.garageDoor === true;
+            exposeSwitch = custom.switch === true;
+          } else {
+            // If no custom config, use the platform's default.
+            exposeGarageDoor = (this.accessoryType === "garageDoor");
+            exposeSwitch = (this.accessoryType === "switch");
+          }
+          return { deviceId, name, exposeGarageDoor, exposeSwitch };
+        }).filter(gate => gate !== null);
+  
+        this.log.info("Final gate configuration:", JSON.stringify(this.gates, null, 2));
+  
+        // For each gate, create accessories for each exposed type.
+        this.gates.forEach(gate => {
+          if (gate.exposeGarageDoor) {
+            this.createAccessoryForGate(gate, "garageDoor");
+          }
+          if (gate.exposeSwitch) {
+            this.createAccessoryForGate(gate, "switch");
+          }
+        });
+      } catch (parseError) {
+        this.log.error("Error parsing devices response:", parseError.message);
+      }
+    });
+  }
 
 createAccessoryForGate(gate, type) {
   // Use a stable UUID combining deviceId and type.
