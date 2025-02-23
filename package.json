@@ -1,7 +1,7 @@
 {
-  "name": "homebridge-palgate-opener",
-  "description": "Homebridge plugin for PalGate app",
-  "version": "2.0.0",
+  "name": "homebridge-palgate-platform",
+  "description": "Homebridge plugin for PalGate App",
+  "version": "2.1.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Knilo/homebridge-palgate-opener.git"
@@ -10,7 +10,8 @@
   "preferGlobal": true,
   "keywords": [
     "homebridge-plugin",
-    "homebridge-palgate"
+    "homebridge-palgate",
+    "homebridge-palgate-platform"
   ],
   "engines": {
     "node": ">=10.17.0",
@@ -21,19 +22,20 @@
     "uuid": "^11.0.5",
     "xmlhttprequest": "^1.8.0"
   },
-  "main": "palGate.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "RoeiOfri and Knilo",
+  "author": "@Knilo",
   "bugs": {
     "url": "https://github.com/Knilo/homebridge-palgate-opener/issues"
   },
   "bin": {
-    "palgate_config": "./palGateCli.js config"
+    "palgate_config": "./palgate-cli.js config --auto"
   },
   "homepage": "https://github.com/Knilo/homebridge-palgate-opener#readme",
   "directories": {
-    "lib": "lib"
+    "lib": "lib",
+    "bin": "bin"
   }
 }
