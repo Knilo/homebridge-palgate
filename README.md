@@ -1,29 +1,50 @@
-# homebridge-palgate-opener
-This plugin enables connection between Pal Gate App Controled systems and Apple HomeKit.
+# PalGate Platform for Homebridge
 
-Before installing the homebridge plugin you must obtain the following info:
-- Device ID: The ID for the gate you wish to control.
-- Phone Number: This is the phone number of your account beginning with the country code.
-- Session Token: Permanent authorization token for the API.
-- Token Type: 0 (SMS) or 1 (Primary) or 2 (Secondary).
+PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalGate-controlled gate devices into HomeKit. The plugin supports both garage door and switch accessory types, and provides customizable options for each device.
 
-All of this info can be found using the CLI as explained below.
+## Table of Contents
 
-### Please note:
-- This plugin has now been updated to work with the newest token and token auth flow for PalGate and works as of Feburary 2025.
-- It has been updated to support Homebridge 2.0.
+- [Features](#features)
+- [Installation](#installation)
+- [Automatic Configuration](#automatic-configuration)
+- [Manual Configuration](#manual-configuration)
+- [Usage](#usage)
+- [Credits](#credits)
+- [Disclaimer](#disclaimer)
 
-# Authors
+## Features
 
-Original plugin created by [@RoeiOfri](https://github.com/RoeiOfri).
+- **Automatic Device Discovery:**  
+  After Homebridge launches, the plugin automatically retrieves and registers your gate devices using the PalGate API.
+  
+- **Flexible Accessory Types:**  
+  Configure each discovered gate as either a garage door or a switch. The default behavior can be overridden on a per-device basis.
 
-API logic discovered by [@DonutByte](https://github.com/DonutByte).
+- **Custom Gate Settings:**  
+  Use the `customGates` configuration option to rename, hide, or change the behavior of individual gates.
 
-Rewrite and migration by [@Knilo](https://github.com/Knilo).
+- **CLI Support:**  
+  Easily extract the necesary configuration using the CLI command:
+  ```bash
+  node palGateCli.js config
+  ```
 
-# Extract Session Token, Token Type and Devices
+## Installation
+1. **Install Homebridge:**  
+  If you haven’t already installed Homebridge, follow the instructions on [Homebridge’s website](https://homebridge.io/).
+  
+2. **Install the PLugin:**  
+   Install the plugin using the command below, or through th Homebridge UI.
+   ```bash
+   node palGateCli.js config
+   ```
 
-A CLI tool is provided to extract the required information using the latest PalGate API. Follow these steps:
+3. **Restart Homebridge:**  
+  Restart Homebridge to load the new plugin configuration.
+
+## Automatic Configuration
+
+A CLI tool is provided to extract the required information using the latest PalGate API and setup the plugin.
 
 1. **Build and Prepare the CLI Tool:**
    - Install the dependencies:
@@ -44,130 +65,70 @@ A CLI tool is provided to extract the required information using the latest PalG
      - Start device linking (displaying a QR code).
      - Wait for you to scan the QR code using the PalGate App.
      - Once linked, it retrieves your phone number, session token, and token type.
-     - It then calls the devices endpoint to list your gate IDs.
      - **Final Output:** It prints a JSON object with the following keys:
        - `phoneNumber`
        - `token` (the permanent session token)
        - `tokenType`
        - `deviceIds`
-     - Additionally, when you use the `--auto` flag, it appends new accessory configuration objects (one per gate) to your Homebridge config file at `~/.homebridge/config.json` and saves the linking data (excluding devices) to a local configuration file (`palGateCLI.config`). So your plugin will be ready to go!
+     - Additionally, when you use the `--auto` flag, it appends the platform configuration to your Homebridge config file at `~/.homebridge/config.json` and saves the linking data to a local configuration file (`~/.palgate-cli.json`) for further CLI usage.
 
+## Manual Configuration
 
+To configure the PalGate Platform, add the following snippet to your Homebridge config.json file under the platforms section. You can use the included `palgate-cli.js` to extract the neccesary config:
 
-
-
-# Plugin-in configuration
-
-## Configure plugin via UI
-1. Open your HomeBridge UI and navigate to "Plugins" tab.
-2. Locate the PalGateOpener plugin and click on "Settings".
-3. Follow on-screen instructions, please do so *after* extracting the required information listed above.
-
-## Manual configuration (configuration.yaml file)
-```
-"accessories": [
+```json
+{
+  "platforms": [
     {
-        "accessory": "PalGateOpener",
-        "name": "<chosen name>",
-        "deviceId": "<device id>",
-        "token": "<token>,
-        "phoneNumber": "<phone number>",
-        "tokenType": <0|1|2>,
-        "accessoryType": "garageDoor"
+      "platform": "PalGatePlatform",
+      "name": "PalGate Platform",
+      "token": "<session_token>",
+      "phoneNumber": "<phone_number>",
+      "tokenType": <0|1|2>,
+      "accessoryType": "garageDoor",
+      "customGates": [
+        {
+          "deviceId": "DEVICE_ID",
+          "name": "Custom Gate Name",
+          "garageDoor": true,
+          "switch": false,
+          "hide": false
+        }
+      ]
     }
-]
+  ]
+}
 ```
-# Explanation
-| key | Mandatory/Optional |Description |
-| --- | --- | --- |
-| `accessory` | Yes |Must be PalGateOpener |
-| `name` |Yes |Chosen name to populate to HomeKit |
-| `deviceId`|Yes | Gate ID extracted from CLI tool |
-| `token` |Yes| Token extracted using pylgate |
-| `phoneNumber` |Yes| Phone number for your account |
-| `tokenType` |Yes| 0 (SMS) or 1 (Primary) or 2 (Secondary) |
-| `accessoryType`|No - Default usage: garageDoor | switch/garageDoor* |
 
-### Please note:
-1. The default accessoryType is set to `garageDoor`, if using `garageDoor` HomeKit can use location services to open the gate
-automatically when arriving home but approval via push notification must be given. This is a security feature by Apple. If you wish to "bypass" it please set the `accessoryType` as `switch`.
-2. You can duplicate the accessory so you will have one button as GarageDoor button useable in CarPlay and a switch for any automations.
+### Options
 
-2. When setting the `accessoryType` as `garageDoor` automation will not work independetly (as mentioned above) but you will loose the ability
-to see the ability to use the Garage Door icon in Apple CarPlay.
-If you wish that the gate will open automaticlly by setting location service automation please use `switch` as `accessoryType` value.
+| Option         | Description                                                                                                                                                                                                                                      |
+|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `token`        | Your session token generated during device linking.                                                                                                                                                                                            |
+| `phoneNumber`  | Your account’s phone number (e.g., `972500000000`).                                                                                                                                                                                              |
+| `tokenType`    | The linking type. Valid values: <br> - `0` for SMS linking <br> - `1` for primary linking <br> - `2` for secondary linking                                                                                                                      |
+| `accessoryType`| Defines the default type for discovered devices; valid values are `"garageDoor"` or `"switch"`.                                                                                                                                                   |
+| `customGates`  | An optional array for individual gate configuration. Each object in the array may include: <br> - `deviceId`: Unique identifier for the gate (required). <br> - `name`: A custom name for the gate. <br> - `garageDoor`: Set to `true` to expose as a garage door. <br> - `switch`: Set to `true` to expose as a switch. <br> - `hide`: Set to `true` to hide the gate from HomeKit. |
 
-# Full CLI Reference
+#### Notes on Accesory Types
+- You can expose a gate as both a `garageDoor` and a `switch` by setting both to true. 
+- While you can use a `garageDoor` in automations, due to Apple security restrictions, the automation will need to be approved through a push notification. A `switch` can be used without this step. 
+- CarPlay will automatically surface a `garageDoor` as you approach your home. This does not happen to a `switch`.
 
-   - **Validate a Token:**
-     ```bash
-     ./palGateCli.js validate --token <your_token> --phoneNumber <phone_number> --tokenType <1|2>
-     ```
-     Generates a temporary token from your credentials and validates it with the PalGate API.
+## Credits
 
-   - **Open the Gate:**
-     ```bash
-     ./palGateCli.js open --deviceId <your_deviceId> --token <your_token> --phoneNumber <phone_number> --tokenType <1|2>
-     ```
-     Opens the gate corresponding to the specified device ID.
+Original plugin created by [@RoeiOfri](https://github.com/RoeiOfri).
 
-   - **Retrieve Devices:**
-     ```bash
-     ./palGateCli.js devices --token <your_token> --phoneNumber <phone_number> --tokenType <1|2>
-     ```
-     Retrieves a list of devices (gates) from the PalGate API.
+API logic discovered by [@DonutByte](https://github.com/DonutByte).
 
-   - **Generate a Temporary Token:**
-     ```bash
-     ./palGateCli.js token --token <your_token> --phoneNumber <phone_number> --tokenType <0|1|2>
-     ```
-     Prints the generated temporary token as JSON.
+Rewrite and platform migration by [@Knilo](https://github.com/Knilo).
 
-   - **Link Only:**
-     ```bash
-     ./palGateCli.js link
-     ```
-     Starts the device linking flow (shows the QR code and waits for linking) and prints the linking data (phone number, session token, token type) as plain text.
+## License
 
-   - **Generate Config:**
-     ```bash
-      ./palGateCli.js config [--auto]
-     ```
-      Starts the device linking flow (shows the QR code and waits for linking). Retrieves the gateIds and prints the information. 
-      
-      When using the `--auto` command, the Homebride config will be automatically updated as well.
-      
+This project is licensed under the MIT License.
 
-   - **Verbose Mode:**
-     Add the `--verbose` flag to any command to enable detailed debug logging:
-     ```bash
-     ./palGateCli.js config --verbose
-     ```
-     In verbose mode, additional debug messages are printed to stdout. Otherwise, only essential prompts and the final JSON output are printed.
+## Disclaimer
 
-   - **Short Flags:**
-     There are short versions of all the flags:
-     ```bash
-     --token | -t
-     --phoneNumber | -p
-     --token | -t
-     --tokenType | -T
-     --deviceId | -d
-     --auto | -a
-     --verbose | -v
-     ```
-     In verbose mode, additional debug messages are printed to stdout. Otherwise, only essential prompts and the final JSON output are printed.
-
-
-# FAQ
-### Can I control more than one Pal Gate barriers?
-Yes you can! just insert the block more than once with different name and with the same token and deviceID and it should work just fine.
-### Will I still be able to use the PalGate app on my phone?
-Yes! With the Device Linking feature, adding this plugin using Pylgate does not remove access from your phone.
-### Will I still be able to use voice-dial to open the gate?
-Yes you can, it has nothing to do with this plugin.
-
-# Disclaimer
 This project is intended for research purpose only.
 
 This project is not affiliated with, endorsed by, or in any way officially connected to PalGate.
@@ -175,7 +136,3 @@ This project is not affiliated with, endorsed by, or in any way officially conne
 The use of this software is at the user's own risk. The author(s) of this project take no responsibility and disclaim any liability for any damage, loss, or consequence resulting directly or indirectly from the use or application of this software.
 
 Users are solely responsible for ensuring their use of this project complies with all applicable laws, regulations, and terms of service of any related platforms or services. The author(s) bear no accountability for any actions taken by users of this software.
-
-# Support the original creator:
-- https://paypal.me/roeio
-- https://www.buymeacoffee.com/roeio
