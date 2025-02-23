@@ -1,7 +1,7 @@
 {
   "name": "homebridge-palgate",
   "description": "Homebridge plugin for PalGate App",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Knilo/homebridge-palgate.git"
@@ -18,13 +18,16 @@
     "homebridge": "^1.6.0 || ^2.0.0-beta.0"
   },
   "dependencies": {
+    "@homebridge/plugin-ui-utils": "^2.0.1",
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "uuid": "^11.0.5",
     "xmlhttprequest": "^1.8.0"
   },
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm link && sudo hb-service restart"
   },
   "author": "@Knilo",
   "bugs": {
@@ -37,5 +40,8 @@
   "directories": {
     "lib": "lib",
     "bin": "bin"
+  },
+  "devDependencies": {
+    "homebridge-config-ui-x": "^4.71.1"
   }
 }

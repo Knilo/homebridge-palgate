@@ -2,7 +2,8 @@
 	"pluginAlias": "PalGatePlatform", 
 	"platform": true,
 	"pluginType": "platform",
-	"singular": false,
+	"singular": true,
+	"customUi": true,
 	"headerDisplay": "PalGate Platform for Homebridge",
 	"footerDisplay": "Created by @Knilo. \n\nAll config details can be obtained using `node palGateCli.js config` command.",
 	"schema": {
