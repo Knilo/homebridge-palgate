@@ -1,7 +1,7 @@
 {
   "name": "homebridge-palgate-platform",
   "description": "Homebridge plugin for PalGate App",
-  "version": "2.2.0",
+  "version": "2.6.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Knilo/homebridge-palgate-opener.git"
