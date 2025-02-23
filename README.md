@@ -26,7 +26,7 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - **CLI Support:**  
   Easily extract the necesary configuration using the CLI command:
   ```bash
-  node palGateCli.js config
+  ./cli/palgate-cli.js config
   ```
 
 ## Installation
@@ -36,15 +36,15 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 2. **Install the PLugin:**  
    Install the plugin using the command below, or through th Homebridge UI.
    ```bash
-   node palGateCli.js config
+   npm install -g homebridge-palgate-platform
    ```
 
 3. **Restart Homebridge:**  
-  Restart Homebridge to load the new plugin configuration.
+  Restart Homebridge to load the new plugin and configure it.
 
 ## Automatic Configuration
 
-A CLI tool is provided to extract the required information using the latest PalGate API and setup the plugin.
+A CLI tool is provincluded ided to extract the required information using the latest PalGate API and setup the plugin automatically.
 
 1. **Build and Prepare the CLI Tool:**
    - Install the dependencies:
