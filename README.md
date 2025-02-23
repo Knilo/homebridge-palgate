@@ -7,12 +7,16 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - [Features](#features)
 - [Installation](#installation)
 - [Automatic Configuration](#automatic-configuration)
+- [CLI Configuration](#automatic-configuration)
 - [Manual Configuration](#manual-configuration)
 - [Usage](#usage)
 - [Credits](#credits)
 - [Disclaimer](#disclaimer)
 
 ## Features
+
+- **Set Up using the Homebridge UI:**  
+  No complicated token extraction required! Simply use the Set Up screen in the Homebridge UI to get everythign configured.
 
 - **Automatic Device Discovery:**  
   After Homebridge launches, the plugin automatically retrieves and registers your gate devices using the PalGate API.
@@ -24,9 +28,9 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
   Use the `customGates` configuration option to rename, hide, or change the behavior of individual gates.
 
 - **CLI Support:**  
-  Easily extract the necesary configuration using the CLI command:
+  All the main PalGate API features are supported through the custom CLI. 
   ```bash
-  ./cli/palgate-cli.js config
+  ./cli/palgate-cli.js
   ```
 
 ## Installation
@@ -42,7 +46,19 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 3. **Restart Homebridge:**  
   Restart Homebridge to load the new plugin and configure it.
 
-## Automatic Configuration
+## Automatic Configiration
+
+### Using the UI
+
+This plugin features an automatic configuration UI that simplifies the device linking and configuration process. Follow these steps to configure your device:
+
+1. Open the Homebridge UI
+2. Go to Plugins and clicl Set Up 
+3. Click the Begin Device Linking button. This initiates the linking process and generates a QR code.
+4. Open the PalGate App, and navigate to Device Linking > Link a Device and then scan the QR code.
+5. The linking will complete and configuration will be updated automatically. You can then edit it as you wish.
+
+### Using the CLI
 
 A CLI tool is provincluded ided to extract the required information using the latest PalGate API and setup the plugin automatically.
 
@@ -59,7 +75,7 @@ A CLI tool is provincluded ided to extract the required information using the la
 2. **Run the Full Setup Command:**
    - To run the device linking flow (which displays a QR code for linking) and then retrieve your device information, run:
      ```bash
-      ./palGateCli.js config --auto
+      ./cli/palGateCli.js config --auto
      ```
      This command will:
      - Start device linking (displaying a QR code).

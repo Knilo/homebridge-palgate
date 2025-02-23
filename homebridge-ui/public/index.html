@@ -52,8 +52,12 @@
       throw new Error(initData.error || 'Failed to initiate linking.');
     }
     uniqueId = initData.uniqueId;
-    document.getElementById('qrCodeArea').innerHTML = `<img src="${initData.qrCode}" alt="QR Code" style="max-width:100%;">`;
-
+    document.getElementById('qrCodeArea').innerHTML = `
+  <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+    <img src="${initData.qrCode}" alt="QR Code" style="max-width:100%;">
+    <div style="font-size: 0.9rem; font-weight: 300;">Open the PalGate App and go to Device Linking > Link a Device to scan the QR code and complete the setup.</div>
+  </div>
+`;
     // Start polling /link/confirm every 3 seconds.
     pollInterval = setInterval(async () => {
       try {
