@@ -1,10 +1,10 @@
 {
-  "name": "homebridge-palgate-platform",
+  "name": "homebridge-palgate",
   "description": "Homebridge plugin for PalGate App",
   "version": "2.6.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Knilo/homebridge-palgate-opener.git"
+    "url": "git+https://github.com/Knilo/homebridge-palgate.git"
   },
   "license": "MIT",
   "preferGlobal": true,
@@ -31,12 +31,12 @@
   },
   "author": "@Knilo",
   "bugs": {
-    "url": "https://github.com/Knilo/homebridge-palgate-opener/issues"
+    "url": "https://github.com/Knilo/homebridge-homebridge-palgate/issues"
   },
   "bin": {
     "palgate_config": "./palgate-cli.js config --auto"
   },
-  "homepage": "https://github.com/Knilo/homebridge-palgate-opener#readme",
+  "homepage": "https://github.com/Knilo/homebridge-palgate#readme",
   "directories": {
     "lib": "lib",
     "bin": "bin"
