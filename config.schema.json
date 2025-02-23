@@ -1,101 +1,64 @@
 {
-	"pluginAlias": "PalGatePlatform", 
-	"platform": true,
+	"pluginAlias": "PalGatePlatform",
 	"pluginType": "platform",
-	"singular": false,
-	"headerDisplay": "PalGate Platform for Homebridge",
-	"footerDisplay": "Created by @Knilo. \n\nAll config details can be obtained using `node palGateCli.js config` command.",
+	"singular": true,
+	"customUi": true,
 	"schema": {
-		"type": "object",
-		"properties": {
-			"name": {
-				"title": "Platform Name",
-				"description": "The name of the platform instance.",
-				"type": "string",
-				"default": "PalGate Platform"
-			  },
-			"token": {
-				"title": "Session Token",
-				"description": "The session token generated during device linking.",
-				"type": "string"
-			},
-			"phoneNumber": {
-				"title": "Phone Number",
-				"description": "Your account's phone number (e.g., 972500000000).",
-				"type": "string"
-			},
-			"tokenType": {
-				"title": "Token Type",
-				"description": "Set to 0 for SMS, 1 for Primary linking, or 2 for Secondary linking.",
-				"type": "number",
-				"enum": [
-					0,
-					1,
-					2
-				]
-			},
-			"accessoryType": {
-				"title": "Default Accessory Type",
-				"description": "The default type for discovered gates. Default is 'garageDoor'.",
-				"type": "string",
-				"default": "garageDoor",
-				"oneOf": [
-					{
-						"title": "Garage Door",
-						"enum": [
-							"garageDoor"
-						]
-					},
-					{
-						"title": "Switch",
-						"enum": [
-							"switch"
-						]
-					}
-				]
-			},
-			"customGates": {
-				"title": "Custom Gate Settings",
-				"description": "Optional overrides for individual gates. Each object in this array can specify custom settings for a gate.",
-				"type": "array",
-				"required": false,
-				"items": {
-					"type": "object",
-					"properties": {
-						"deviceId": {
-							"title": "Gate ID",
-							"description": "The unique ID of the gate.",
-							"type": "string"
-						},
-						"name": {
-							"title": "Custom Gate Name",
-							"description": "A custom name for the gate.",
-							"type": "string"
-						},
-						"garageDoor": {
-							"title": "Expose as Garage Door",
-							"description": "Set to true to expose this gate as a garage door.",
-							"type": "boolean"
-						},
-						"switch": {
-							"title": "Expose as Switch",
-							"description": "Set to true to expose this gate as a switch.",
-							"type": "boolean"
-						},
-						"hide": {
-							"title": "Hide Gate",
-							"description": "Set to true to hide this gate from HomeKit.",
-							"type": "boolean"
-						}
-					}
-				}
-			}
-		},
-		"required": [
-			"token",
-			"phoneNumber",
-			"tokenType",
-			"accessoryType"
+	  "token": {
+		"title": "Session Token",
+		"type": "string",
+		"description": "Leave empty to generate via linking flow"
+	  },
+	  "phoneNumber": {
+		"title": "Phone Number",
+		"type": "string",
+		"description": "Your account's phone number (e.g., 972500000000)."
+	  },
+	  "tokenType": {
+		"title": "Token Type",
+		"type": "number",
+		"enum": [0, 1, 2],
+		"description": "0 for SMS, 1 for Primary, or 2 for Secondary linking"
+	  },
+	  "accessoryType": {
+		"title": "Default Accessory Type",
+		"type": "string",
+		"default": "garageDoor",
+		"oneOf": [
+		  { "title": "Garage Door", "enum": ["garageDoor"] },
+		  { "title": "Switch", "enum": ["switch"] }
 		]
-	}
-}
+	  },
+	  "customGates": {
+		"title": "Custom Gate Settings",
+		"description": "Optional overrides for individual gates.",
+		"type": "array",
+		"items": {
+		  "type": "object",
+		  "properties": {
+			"deviceId": { "title": "Gate ID", "type": "string" },
+			"name": { "title": "Custom Gate Name", "type": "string" },
+			"garageDoor": { "title": "Expose as Garage Door", "type": "boolean" },
+			"switch": { "title": "Expose as Switch", "type": "boolean" },
+			"hide": { "title": "Hide Gate", "type": "boolean" }
+		  }
+		}
+	  }
+	},
+	"layout": [
+	  {
+		"type": "flex",
+		"flex-flow": "row wrap",
+		"items": ["token", "phoneNumber", "tokenType"]
+	  },
+	  "accessoryType",
+	  "customGates",
+	  {
+		"type": "button",
+		"title": "Link Device",
+		"action": "command",
+		"command": "link",
+		"description": "Click to initiate device linking and generate a QR code."
+	  }
+	]
+  }

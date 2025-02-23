@@ -1,0 +1,257 @@
+<!-- No <html>, <head>, or <body> tags! -->
+  <div class="card card-body">
+    <h2 class="mb-3">PalGate Device Setup</h2>
+  
+    <!-- Linking Section -->
+    <div id="linkingSection">
+      <div class="card mb-3">
+        <div class="card-header">
+          Link Your Device
+        </div>
+        <div class="card-body">
+          <p>Click the button below to generate a QR code. Scan it with your PalGate app to link your device.</p>
+          <button class="btn btn-primary" id="initLinkBtn">Generate QR Code</button>
+          <div id="qrCodeArea" class="mt-3"></div>
+          <div id="pollStatus" class="mt-2 font-weight-bold"></div>
+        </div>
+      </div>
+    </div>
+  
+    <!-- Configuration Section -->
+    <div id="configSection" class="d-none">
+      <div class="card">
+        <div class="card-header">
+          Configuration
+        </div>
+        <div class="card-body">
+          <form id="configForm">
+            <div class="form-group">
+              <label for="phoneNumberInput">Phone Number</label>
+              <input type="text" class="form-control" id="phoneNumberInput" placeholder="Enter phone number">
+            </div>
+            <div class="form-group">
+              <label for="tokenInput">Session Token</label>
+              <input type="text" class="form-control" id="tokenInput" readonly>
+            </div>
+            <div class="form-group">
+              <label for="tokenTypeInput">Token Type</label>
+              <select class="form-control" id="tokenTypeInput">
+                <option value="0">SMS</option>
+                <option value="1">Primary</option>
+                <option value="2">Secondary</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="accessoryTypeInput">Default Accessory Type</label>
+              <select class="form-control" id="accessoryTypeInput">
+                <option value="garageDoor">Garage Door</option>
+                <option value="switch">Switch</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Custom Gate Settings</label>
+              <div id="customGatesContainer" class="mb-2"></div>
+              <button type="button" class="btn btn-secondary btn-sm" id="addGateButton">Add Gate</button>
+            </div>
+            <button type="submit" class="btn btn-success">Save Configuration</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    (async () => {
+      // Hide spinner on initial load.
+      homebridge.hideSpinner();
+  
+      // Retrieve current plugin configuration.
+      const pluginConfig = await homebridge.getPluginConfig();
+      let config = pluginConfig.length ? pluginConfig[0] : {};
+      if (!pluginConfig.length) {
+        pluginConfig.push(config);
+      }
+  
+      const linkingSection = document.getElementById('linkingSection');
+      const configSection = document.getElementById('configSection');
+  
+      // Helper to show/hide sections.
+      function showLinkingSection() {
+        linkingSection.classList.remove('d-none');
+        configSection.classList.add('d-none');
+      }
+      function showConfigSection() {
+        linkingSection.classList.add('d-none');
+        configSection.classList.remove('d-none');
+      }
+  
+      // Render config form with existing values.
+      function renderConfigForm() {
+        document.getElementById('phoneNumberInput').value = config.phoneNumber || '';
+        document.getElementById('tokenInput').value = config.token || '';
+        document.getElementById('tokenTypeInput').value = (config.tokenType !== undefined) ? config.tokenType : 1;
+        document.getElementById('accessoryTypeInput').value = config.accessoryType || 'garageDoor';
+        renderCustomGates();
+      }
+  
+      // Render custom gates.
+      function renderCustomGates() {
+        const container = document.getElementById('customGatesContainer');
+        container.innerHTML = '';
+        const gates = config.customGates || [];
+  
+        gates.forEach((gate, index) => {
+          // Use Bootstrap 4 classes for spacing and layout
+          const gateRow = document.createElement('div');
+          gateRow.className = 'row border rounded p-2 mb-2';
+  
+          gateRow.innerHTML = `
+            <div class="col-md-3 mb-2 mb-md-0">
+              <input type="text" class="form-control gate-device-id" placeholder="Gate ID" value="${gate.deviceId || ''}">
+            </div>
+            <div class="col-md-3 mb-2 mb-md-0">
+              <input type="text" class="form-control gate-name" placeholder="Custom Gate Name" value="${gate.name || ''}">
+            </div>
+            <div class="col-md-2 mb-2 mb-md-0">
+              <div class="form-check">
+                <input class="form-check-input gate-garageDoor" type="checkbox" ${gate.garageDoor ? 'checked' : ''}>
+                <label class="form-check-label">Garage Door</label>
+              </div>
+            </div>
+            <div class="col-md-2 mb-2 mb-md-0">
+              <div class="form-check">
+                <input class="form-check-input gate-switch" type="checkbox" ${gate.switch ? 'checked' : ''}>
+                <label class="form-check-label">Switch</label>
+              </div>
+            </div>
+            <div class="col-md-1 mb-2 mb-md-0">
+              <div class="form-check">
+                <input class="form-check-input gate-hide" type="checkbox" ${gate.hide ? 'checked' : ''}>
+                <label class="form-check-label">Hide</label>
+              </div>
+            </div>
+            <div class="col-md-1 text-right">
+              <button type="button" class="btn btn-danger btn-sm removeGateButton">Remove</button>
+            </div>
+          `;
+  
+          // Remove gate
+          gateRow.querySelector('.removeGateButton').addEventListener('click', () => {
+            config.customGates.splice(index, 1);
+            renderCustomGates();
+          });
+  
+          container.appendChild(gateRow);
+        });
+      }
+  
+      // Decide which section to show first
+      if (config.token && config.phoneNumber && config.tokenType !== undefined) {
+        showConfigSection();
+        renderConfigForm();
+      } else {
+        showLinkingSection();
+      }
+  
+      // Linking flow
+      let pollInterval = null;
+      document.getElementById('initLinkBtn').addEventListener('click', async () => {
+        homebridge.showSpinner();
+        const qrCodeArea = document.getElementById('qrCodeArea');
+        const pollStatus = document.getElementById('pollStatus');
+  
+        qrCodeArea.innerText = 'Generating QR code...';
+        pollStatus.innerText = '';
+  
+        try {
+          // Step 1: Call /link/init
+          const initData = await homebridge.request('/link/init');
+          if (!initData.success) {
+            throw new Error(initData.error || 'Failed to initiate linking.');
+          }
+          const uniqueId = initData.uniqueId;
+          qrCodeArea.innerHTML = `<img src="${initData.qrCode}" alt="QR Code" style="max-width:100%;">`;
+  
+          // Step 2: Poll /link/confirm
+          pollInterval = setInterval(async () => {
+            try {
+              const confirmData = await homebridge.request('/link/confirm', { uniqueId });
+              if (confirmData.success) {
+                clearInterval(pollInterval);
+                homebridge.toast.success('Device linked successfully!', 'Success');
+  
+                // Update config
+                config.phoneNumber = confirmData.phoneNumber;
+                config.token = confirmData.sessionToken;
+                config.tokenType = parseInt(confirmData.tokenType, 10);
+                if (!config.accessoryType) {
+                  config.accessoryType = 'garageDoor';
+                }
+                pluginConfig[0] = config;
+                await homebridge.updatePluginConfig(pluginConfig);
+  
+                // Show config section
+                showConfigSection();
+                renderConfigForm();
+              } else if (confirmData.waiting) {
+                pollStatus.innerText = 'Waiting for scan confirmation...';
+              } else {
+                clearInterval(pollInterval);
+                homebridge.toast.error(confirmData.error || 'Unknown error', 'Error');
+              }
+            } catch (err) {
+              clearInterval(pollInterval);
+              homebridge.toast.error(err.toString(), 'Error');
+            }
+          }, 3000);
+        } catch (err) {
+          homebridge.toast.error(err.toString(), 'Error');
+        } finally {
+          homebridge.hideSpinner();
+        }
+      });
+  
+      // Add gate
+      document.getElementById('addGateButton').addEventListener('click', () => {
+        if (!config.customGates) {
+          config.customGates = [];
+        }
+        config.customGates.push({ deviceId: "", name: "", garageDoor: false, switch: false, hide: false });
+        renderCustomGates();
+      });
+  
+      // Save config
+      document.getElementById('configForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        config.phoneNumber = document.getElementById('phoneNumberInput').value;
+        config.token = document.getElementById('tokenInput').value;
+        config.tokenType = parseInt(document.getElementById('tokenTypeInput').value, 10);
+        config.accessoryType = document.getElementById('accessoryTypeInput').value;
+  
+        // Rebuild custom gates from the rendered rows
+        const gateRows = document.querySelectorAll('#customGatesContainer .row');
+        config.customGates = [];
+        gateRows.forEach(row => {
+          const deviceId = row.querySelector('.gate-device-id').value;
+          const name = row.querySelector('.gate-name').value;
+          const garageDoor = row.querySelector('.gate-garageDoor').checked;
+          const sw = row.querySelector('.gate-switch').checked;
+          const hide = row.querySelector('.gate-hide').checked;
+  
+          if (deviceId.trim().length > 0) {
+            config.customGates.push({
+              deviceId: deviceId.trim(),
+              name: name.trim(),
+              garageDoor: garageDoor,
+              switch: sw,
+              hide: hide
+            });
+          }
+        });
+  
+        pluginConfig[0] = config;
+        await homebridge.updatePluginConfig(pluginConfig);
+        homebridge.toast.success('Configuration saved!', 'Success');
+      });
+    })();
+  </script>
