@@ -4,7 +4,7 @@
   "version": "2.1.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Knilo/homebridge-palgate-opener.git"
+    "url": "git+https://github.com/Knilo/homebridge-palgate-platform.git"
   },
   "license": "MIT",
   "preferGlobal": true,
@@ -28,12 +28,12 @@
   },
   "author": "@Knilo",
   "bugs": {
-    "url": "https://github.com/Knilo/homebridge-palgate-opener/issues"
+    "url": "https://github.com/Knilo/homebridge-homebridge-palgate-platform/issues"
   },
   "bin": {
     "palgate_config": "./palgate-cli.js config --auto"
   },
-  "homepage": "https://github.com/Knilo/homebridge-palgate-opener#readme",
+  "homepage": "https://github.com/Knilo/homebridge-palgate-platform#readme",
   "directories": {
     "lib": "lib",
     "bin": "bin"
