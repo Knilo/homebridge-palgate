@@ -7,7 +7,6 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - [Features](#features)
 - [Installation](#installation)
 - [Automatic Configuration](#automatic-configuration)
-- [CLI Configuration](#automatic-configuration)
 - [Manual Configuration](#manual-configuration)
 - [Usage](#usage)
 - [Credits](#credits)
@@ -37,16 +36,16 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 1. **Install Homebridge:**  
   If you haven’t already installed Homebridge, follow the instructions on [Homebridge’s website](https://homebridge.io/).
   
-2. **Install the PLugin:**  
+2. **Install the Plugin:**  
    Install the plugin using the command below, or through th Homebridge UI.
    ```bash
-   npm install -g homebridge-palgate-platform
+   npm install -g homebridge-palgate
    ```
 
 3. **Restart Homebridge:**  
   Restart Homebridge to load the new plugin and configure it.
 
-## Automatic Configiration
+## Automatic Configuration
 
 ### Using the UI
 
@@ -69,13 +68,13 @@ A CLI tool is provincluded ided to extract the required information using the la
      ```
    - Make the CLI executable:
      ```bash
-     chmod +x palGateCli.js
+     chmod +x ./cli/palgate-cli.js
      ```
 
 2. **Run the Full Setup Command:**
    - To run the device linking flow (which displays a QR code for linking) and then retrieve your device information, run:
      ```bash
-      ./cli/palGateCli.js config --auto
+      ./cli/palgate-cli.js config --auto
      ```
      This command will:
      - Start device linking (displaying a QR code).
