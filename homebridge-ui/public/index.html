@@ -1,7 +1,9 @@
 <div id="linkingContainer">
   <div class="card card-body">
     <h2 style="font-size: 0.9rem; font-weight: 300;">Automatic Configuration</h2>
-    <button class="btn btn-primary" id="generateQR" style="font-weight: 400; padding: .375rem .75rem; font-size: 1rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">Begin Device Linking</button>
+    <button class="btn btn-primary" id="generateQR"
+      style="font-weight: 400; padding: .375rem .75rem; font-size: 1rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">Begin
+      Device Linking</button>
     <!-- Added style to center the QR code -->
     <div id="qrCodeArea" class="mt-3" style="text-align: center;"></div>
     <div id="linkStatus" class="mt-2"></div>
@@ -13,8 +15,8 @@
 
 <script>
   (async () => {
-    // Hide spinner on initial load.
-    homebridge.hideSpinner();
+
+
 
     // Retrieve current plugin configuration.
     const pluginConfig = await homebridge.getPluginConfig();
@@ -22,12 +24,23 @@
     if (!pluginConfig.length) {
       pluginConfig.push(config);
     }
-    homebridge.showSchemaForm();
 
-    // If config is already saved, immediately show the config form below the linking section.
-    //if (config.token && config.phoneNumber && config.tokenType !== undefined) {
-    //  homebridge.showSchemaForm();
-    //}
+    // Define the PalgatePlatform configuration object required for showSchema form to work
+    const baseConfig = {
+      platform: "PalGatePlatform",
+      name: "PalGatePlatform"
+    };
+
+    // Check if the configuration for PalgatePlatform is already present.
+    if (!pluginConfig.some(item => item.platform === "PalGatePlatform" && item.name === "PalGatePlatform")) {
+      pluginConfig.push(baseConfig);
+      // Update the configuration on load.
+      await homebridge.updatePluginConfig(pluginConfig);
+    }
+
+    homebridge.showSchemaForm();
+    homebridge.hideSpinner();
+
 
     // Linking flow variables.
     let uniqueId = null;
@@ -35,69 +48,69 @@
     let linkingComplete = false; // Guard flag to prevent multiple success events
 
     document.getElementById('generateQR').addEventListener('click', async () => {
-  // Clear any existing polling interval and reset linking flag.
-  if (pollInterval) {
-    clearInterval(pollInterval);
-  }
-  linkingComplete = false;
-
-  homebridge.showSpinner();
-  document.getElementById('qrCodeArea').innerText = 'Generating QR code...';
-  document.getElementById('linkStatus').innerText = '';
-
-  try {
-    // Call /link/init to get a new uniqueId and QR code.
-    const initData = await homebridge.request('/link/init');
-    if (!initData.success) {
-      throw new Error(initData.error || 'Failed to initiate linking.');
-    }
-    uniqueId = initData.uniqueId;
-    document.getElementById('qrCodeArea').innerHTML = `
-  <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
-    <img src="${initData.qrCode}" alt="QR Code" style="max-width:100%;">
-    <div style="font-size: 0.9rem; font-weight: 300;">Open the PalGate App and go to Device Linking > Link a Device to scan the QR code and complete the setup.</div>
-  </div>
-`;
-    // Start polling /link/confirm every 3 seconds.
-    pollInterval = setInterval(async () => {
-      try {
-        const confirmData = await homebridge.request('/link/confirm', { uniqueId });
-        if (confirmData.success) {
-          if (!linkingComplete) {
-            linkingComplete = true;
-            clearInterval(pollInterval);
-            // Remove the QR code and update status text.
-            document.getElementById('qrCodeArea').innerHTML = '';
-            document.getElementById('linkStatus').innerText = 'Linking complete, plugin configuration updated.';
-
-            // Update config with the new linking data.
-            config.token = confirmData.sessionToken;
-            config.phoneNumber = confirmData.phoneNumber;
-            config.tokenType = parseInt(confirmData.tokenType, 10);
-            if (!config.accessoryType) {
-              config.accessoryType = 'garageDoor';
-            }
-            pluginConfig[0] = config;
-            await homebridge.updatePluginConfig(pluginConfig);
-            // Re-create the configuration form to reflect updated config.
-            homebridge.showSchemaForm();
-          }
-        } else if (confirmData.waiting) {
-          document.getElementById('linkStatus').innerText = 'Waiting for scan confirmation...';
-        } else {
-          clearInterval(pollInterval);
-          homebridge.toast.error(confirmData.error || 'Unknown error', 'Error');
-        }
-      } catch (err) {
+      // Clear any existing polling interval and reset linking flag.
+      if (pollInterval) {
         clearInterval(pollInterval);
-        homebridge.toast.error(err.toString(), 'Error');
       }
-    }, 3000);
-  } catch (err) {
-    homebridge.toast.error(err.toString(), 'Error');
-  } finally {
-    homebridge.hideSpinner();
-  }
-});
+      linkingComplete = false;
+
+      homebridge.showSpinner();
+      document.getElementById('qrCodeArea').innerText = 'Generating QR code...';
+      document.getElementById('linkStatus').innerText = '';
+
+      try {
+        // Call /link/init to get a new uniqueId and QR code.
+        const initData = await homebridge.request('/link/init');
+        if (!initData.success) {
+          throw new Error(initData.error || 'Failed to initiate linking.');
+        }
+        uniqueId = initData.uniqueId;
+        document.getElementById('qrCodeArea').innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+            <img src="${initData.qrCode}" alt="QR Code" style="max-width:100%;">
+            <div style="font-size: 0.9rem; font-weight: 300;">Open the PalGate App and go to Device Linking > Link a Device to scan the QR code and complete the setup.</div>
+          </div>
+        `;
+        // Start polling /link/confirm every 3 seconds.
+        pollInterval = setInterval(async () => {
+          try {
+            const confirmData = await homebridge.request('/link/confirm', { uniqueId });
+            if (confirmData.success) {
+              if (!linkingComplete) {
+                linkingComplete = true;
+                clearInterval(pollInterval);
+                // Remove the QR code and update status text.
+                document.getElementById('qrCodeArea').innerHTML = '';
+                document.getElementById('linkStatus').innerText = 'Linking complete, plugin configuration updated.';
+
+                // Update config with the new linking data.
+                config.token = confirmData.sessionToken;
+                config.phoneNumber = confirmData.phoneNumber;
+                config.tokenType = parseInt(confirmData.tokenType, 10);
+                if (!config.accessoryType) {
+                  config.accessoryType = 'garageDoor';
+                }
+                pluginConfig[0] = config;
+                await homebridge.updatePluginConfig(pluginConfig);
+                // Re-create the configuration form to reflect updated config.
+                homebridge.showSchemaForm();
+              }
+            } else if (confirmData.waiting) {
+              document.getElementById('linkStatus').innerText = 'Waiting for scan confirmation...';
+            } else {
+              clearInterval(pollInterval);
+              homebridge.toast.error(confirmData.error || 'Unknown error', 'Error');
+            }
+          } catch (err) {
+            clearInterval(pollInterval);
+            homebridge.toast.error(err.toString(), 'Error');
+          }
+        }, 3000);
+      } catch (err) {
+        homebridge.toast.error(err.toString(), 'Error');
+      } finally {
+        homebridge.hideSpinner();
+      }
+    });
   })();
 </script>
