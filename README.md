@@ -37,7 +37,7 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
   If you haven’t already installed Homebridge, follow the instructions on [Homebridge’s website](https://homebridge.io/).
   
 2. **Install the Plugin:**  
-   Install the plugin using the command below, or through th Homebridge UI.
+   Install the plugin using the command below, or through the Homebridge UI.
    ```bash
    npm install -g homebridge-palgate
    ```
@@ -59,7 +59,7 @@ This plugin features an automatic configuration UI that simplifies the device li
 
 ### Using the CLI
 
-A CLI tool is provincluded ided to extract the required information using the latest PalGate API and setup the plugin automatically.
+A CLI tool is included to extract the required information using the latest PalGate API and setup the plugin automatically.
 
 1. **Build and Prepare the CLI Tool:**
    - Install the dependencies:
@@ -80,11 +80,10 @@ A CLI tool is provincluded ided to extract the required information using the la
      - Start device linking (displaying a QR code).
      - Wait for you to scan the QR code using the PalGate App.
      - Once linked, it retrieves your phone number, session token, and token type.
-     - **Final Output:** It prints a JSON object with the following keys:
+     - It prints out the following information:
        - `phoneNumber`
-       - `token` (the permanent session token)
+       - `token`
        - `tokenType`
-       - `deviceIds`
      - Additionally, when you use the `--auto` flag, it appends the platform configuration to your Homebridge config file at `~/.homebridge/config.json` and saves the linking data to a local configuration file (`~/.palgate-cli.json`) for further CLI usage.
 
 ## Manual Configuration
