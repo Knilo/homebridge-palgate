@@ -28,11 +28,11 @@
     // Define the PalgatePlatform configuration object required for showSchema form to work
     const baseConfig = {
       platform: "PalGatePlatform",
-      name: "PalGatePlatform"
+      name: "PalGate Platform"
     };
 
     // Check if the configuration for PalgatePlatform is already present.
-    if (!pluginConfig.some(item => item.platform === "PalGatePlatform" && item.name === "PalGatePlatform")) {
+    if (!pluginConfig.some(item => item.platform === "PalGatePlatform")) {
       pluginConfig.push(baseConfig);
       // Update the configuration on load.
       await homebridge.updatePluginConfig(pluginConfig);
