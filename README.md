@@ -52,7 +52,7 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 This plugin features an automatic configuration UI that simplifies the device linking and configuration process. Follow these steps to configure your device:
 
 1. Open the Homebridge UI
-2. Go to Plugins and clicl Set Up 
+2. Go to Plugins and click Set Up 
 3. Click the Begin Device Linking button. This initiates the linking process and generates a QR code.
 4. Open the PalGate App, and navigate to Device Linking > Link a Device and then scan the QR code.
 5. The linking will complete and configuration will be updated automatically. You can then edit it as you wish.
