@@ -100,6 +100,7 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
       "phoneNumber": "<phone_number>",
       "tokenType": <0|1|2>,
       "accessoryType": "garageDoor",
+      "gateCloseDelay": 5000,    
       "customGates": [
         {
           "deviceId": "DEVICE_ID",
@@ -122,12 +123,14 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 | `phoneNumber`  | Your account’s phone number (e.g., `972500000000`).                                                                                                                                                                                              |
 | `tokenType`    | The linking type. Valid values: <br> - `0` for SMS linking <br> - `1` for primary linking <br> - `2` for secondary linking                                                                                                                      |
 | `accessoryType`| Defines the default type for discovered devices; valid values are `"garageDoor"` or `"switch"`.                                                                                                                                                   |
+| `gateCloseDelay`| Since the PalGate API does not report whether a gate is open, the plugin automatically sets a `garageDoor`’s state to closed after this delay (in milliseconds).                                                                                                                                      |
 | `customGates`  | An optional array for individual gate configuration. Each object in the array may include: <br> - `deviceId`: Unique identifier for the gate (required). <br> - `name`: A custom name for the gate. <br> - `garageDoor`: Set to `true` to expose as a garage door. <br> - `switch`: Set to `true` to expose as a switch. <br> - `hide`: Set to `true` to hide the gate from HomeKit. |
 
 #### Notes on Accesory Types
 - You can expose a gate as both a `garageDoor` and a `switch` by setting both to true. 
 - While you can use a `garageDoor` in automations, due to Apple security restrictions, the automation will need to be approved through a push notification. A `switch` can be used without this step. 
 - CarPlay will automatically surface a `garageDoor` as you approach your home. This does not happen to a `switch`.
+- The state reported by HomeKit does not reflect the actual physical state of the gate. For `garageDoor`s, the accessory will automatically switch to “closed” after the delay specified by `gateCloseDelay`, regardless of the door’s physical state. A `switch` is stateless and is reset to “off” immediately after triggering the gate to open.
 
 ## Credits
 
