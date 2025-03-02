@@ -16,31 +16,23 @@
 <script>
   (async () => {
 
-
-
     // Retrieve current plugin configuration.
     const pluginConfig = await homebridge.getPluginConfig();
-    let config = pluginConfig.length ? pluginConfig[0] : {};
-    if (!pluginConfig.length) {
+    // Look for an existing configuration for PalGatePlatform.
+    let config = pluginConfig.find(item => item.platform === "PalGatePlatform");
+    if (!config) {
+      // If not found, create one.
+      config = {
+        platform: "PalGatePlatform",
+        name: "PalGate Platform",
+        accessoryType: "garageDoor"
+      };
       pluginConfig.push(config);
-    }
-
-    // Define the PalgatePlatform configuration object required for showSchema form to work
-    const baseConfig = {
-      platform: "PalGatePlatform",
-      name: "PalGate Platform"
-    };
-
-    // Check if the configuration for PalgatePlatform is already present.
-    if (!pluginConfig.some(item => item.platform === "PalGatePlatform")) {
-      pluginConfig.push(baseConfig);
-      // Update the configuration on load.
       await homebridge.updatePluginConfig(pluginConfig);
     }
 
     homebridge.showSchemaForm();
     homebridge.hideSpinner();
-
 
     // Linking flow variables.
     let uniqueId = null;
@@ -54,7 +46,6 @@
       }
       linkingComplete = false;
 
-      homebridge.showSpinner();
       document.getElementById('qrCodeArea').innerText = 'Generating QR code...';
       document.getElementById('linkStatus').innerText = '';
 
@@ -68,44 +59,42 @@
         document.getElementById('qrCodeArea').innerHTML = `
           <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
             <img src="${initData.qrCode}" alt="QR Code" style="max-width:100%;">
-            <div style="font-size: 0.9rem; font-weight: 300;">Open the PalGate App and go to Device Linking > Link a Device to scan the QR code and complete the setup.</div>
+            <div style="font-size: 0.9rem; font-weight: 300;">
+              Open the PalGate App and go to Device Linking > Link a Device to scan the QR code and complete the setup.
+            </div>
           </div>
         `;
-        // Start polling /link/confirm every 3 seconds.
-        pollInterval = setInterval(async () => {
-          try {
-            const confirmData = await homebridge.request('/link/confirm', { uniqueId });
-            if (confirmData.success) {
-              if (!linkingComplete) {
-                linkingComplete = true;
-                clearInterval(pollInterval);
-                // Remove the QR code and update status text.
-                document.getElementById('qrCodeArea').innerHTML = '';
-                document.getElementById('linkStatus').innerText = 'Linking complete, plugin configuration updated.';
-
-                // Update config with the new linking data.
-                config.token = confirmData.sessionToken;
-                config.phoneNumber = confirmData.phoneNumber;
-                config.tokenType = parseInt(confirmData.tokenType, 10);
-                if (!config.accessoryType) {
-                  config.accessoryType = 'garageDoor';
-                }
-                pluginConfig[0] = config;
-                await homebridge.updatePluginConfig(pluginConfig);
-                // Re-create the configuration form to reflect updated config.
-                homebridge.showSchemaForm();
-              }
-            } else if (confirmData.waiting) {
-              document.getElementById('linkStatus').innerText = 'Waiting for scan confirmation...';
-            } else {
+        
+        // Start polling /link/confirm.
+        try {
+          const confirmData = await homebridge.request('/link/confirm', { uniqueId });
+          if (confirmData.success) {
+            if (!linkingComplete) {
+              linkingComplete = true;
               clearInterval(pollInterval);
-              homebridge.toast.error(confirmData.error || 'Unknown error', 'Error');
+              // Remove the QR code and update status text.
+              document.getElementById('qrCodeArea').innerHTML = '';
+              document.getElementById('linkStatus').innerText = 'Linking complete, plugin configuration updated.';
+
+              // Update config with the new linking data.
+              config.token = confirmData.sessionToken;
+              config.phoneNumber = confirmData.phoneNumber;
+              config.tokenType = parseInt(confirmData.tokenType, 10);
+              await homebridge.updatePluginConfig(pluginConfig);
+              // Re-create the configuration form to reflect updated config.
+              homebridge.showSchemaForm();
             }
-          } catch (err) {
+          } else if (confirmData.waiting) {
+            document.getElementById('linkStatus').innerText = 'Waiting for scan confirmation...';
+          } else {
             clearInterval(pollInterval);
-            homebridge.toast.error(err.toString(), 'Error');
+            homebridge.toast.error(confirmData.error || 'Unknown error', 'Error');
           }
-        }, 3000);
+        } catch (err) {
+          clearInterval(pollInterval);
+          homebridge.toast.error(err.toString(), 'Error');
+        }
+       
       } catch (err) {
         homebridge.toast.error(err.toString(), 'Error');
       } finally {

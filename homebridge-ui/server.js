@@ -86,19 +86,8 @@
         // Otherwise, call the PalGate API to see if the user has scanned yet.
         const endpoint = `https://api1.pal-es.com/v1/bt/un/secondary/init/${uniqueId}`;
 
-        const apiResponse = await new Promise((resolve, reject) => {
-          callApi(endpoint, '', (err, responseText) => {
-            if (err) {
-              return reject(err);
-            }
-            try {
-              const data = JSON.parse(responseText);
-              resolve(data);
-            } catch (parseErr) {
-              reject(parseErr);
-            }
-          });
-        });
+        // Updated: Use async/await since callApi returns a promise.
+        const apiResponse = await callApi(endpoint, '');
 
         // If the API doesn't yet return user + secondary, the user hasn't scanned yet.
         if (!apiResponse.user || !apiResponse.secondary) {
