@@ -307,7 +307,8 @@ async function startDeviceLinking() {
             "token": linkingData.sessionToken,
             "phoneNumber": linkingData.phoneNumber,
             "tokenType": parseInt(linkingData.tokenType, 10),
-            "accessoryType": "garageDoor"
+            "accessoryType": "garageDoor",
+            "gateCloseDelay": 5000
           };
           hbConfig.platforms.push(platformConfig);
           fs.writeFileSync(homebridgeConfigPath, JSON.stringify(hbConfig, null, 2), 'utf8');
