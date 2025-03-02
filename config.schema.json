@@ -55,6 +55,12 @@
 					}
 				]
 			},
+			"gateCloseDelay": {
+				"title": "Close Gate Delay",
+				"description": "How long in milliseconds, 'garageDoor' gates should show as open in Homekit.",
+				"type": "number",
+				"default": 5000
+			},
 			"customGates": {
 				"title": "Custom Gate Settings",
 				"description": "Optional overrides for individual gates. Each object in this array can specify custom settings for a gate.",
@@ -96,7 +102,8 @@
 			"token",
 			"phoneNumber",
 			"tokenType",
-			"accessoryType"
+			"accessoryType",
+			"gateCloseDelay"
 		]
 	}
 }
