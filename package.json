@@ -20,14 +20,11 @@
   "dependencies": {
     "@homebridge/plugin-ui-utils": "^2.0.1",
     "axios": "^1.8.1",
-    "express": "^4.21.2",
     "https": "^1.0.0",
-    "perf_hooks": "^0.0.1",
     "process": "^0.11.10",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
-    "uuid": "^11.0.5",
-    "xmlhttprequest": "^1.8.0"
+    "uuid": "^11.0.5"
   },
   "main": "index.js",
   "scripts": {
@@ -46,6 +43,7 @@
     "bin": "bin"
   },
   "devDependencies": {
-    "homebridge-config-ui-x": "^4.71.1"
+    "homebridge-config-ui-x": "^4.71.1",
+    "perf_hooks": "^0.0.1"
   }
 }
