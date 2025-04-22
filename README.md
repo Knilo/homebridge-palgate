@@ -1,6 +1,9 @@
+[![verified-by-homebridge](https://img.shields.io/badge/homebridge-verified-blueviolet?color=%23491F59&style=for-the-badge&logoColor=%23FFFFFF&logo=homebridge)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+[![Ko-fi](https://img.shields.io/badge/support_me_on_ko--fi-F16061?style=for-the-badge&logo=kofi&logoColor=f5f5f5)](https://ko-fi.com/Knilo)
+
 # PalGate Platform for Homebridge
 
-PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalGate-controlled gate devices into HomeKit. The plugin supports both garage door and switch accessory types, and provides customizable options for each device.
+PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalGate controlled gate devices into HomeKit. The plugin supports both garage door and switch accessory types, and provides customizable options for each device.
 
 ## Table of Contents
 
@@ -131,6 +134,13 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 - While you can use a `garageDoor` in automations, due to Apple security restrictions, the automation will need to be approved through a push notification. A `switch` can be used without this step. 
 - CarPlay will automatically surface a `garageDoor` as you approach your home. This does not happen to a `switch`.
 - The state reported by HomeKit does not reflect the actual physical state of the gate. For `garageDoor`s, the accessory will automatically switch to “closed” after the delay specified by `gateCloseDelay`, regardless of the door’s physical state. A `switch` is stateless and is reset to “off” immediately after triggering the gate to open.
+
+## Support Me
+
+If you appreciate this contribution the community, [please consider leaving me a tip!](https://ko-fi.com/knilo)
+
+[![Ko-fi](https://img.shields.io/badge/support_me_on_ko--fi-F16061?style=for-the-badge&logo=kofi&logoColor=f5f5f5)](https://ko-fi.com/Knilo)
+
 
 ## Credits
 

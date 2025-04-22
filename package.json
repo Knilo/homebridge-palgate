@@ -31,6 +31,10 @@
     "test": "npm link && sudo hb-service restart"
   },
   "author": "@Knilo",
+  "funding": {
+    "type" : "kofi",
+    "url" : "https://ko-fi.com/knilo"
+  },
   "bugs": {
     "url": "https://github.com/Knilo/homebridge-palgate/issues"
   },
