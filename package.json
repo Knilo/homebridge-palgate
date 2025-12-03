@@ -1,7 +1,7 @@
 {
   "name": "homebridge-palgate",
   "description": "Homebridge plugin for PalGate App",
-  "version": "3.0.0-beta.1",
+  "version": "3.0.0-beta.2",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Knilo/homebridge-palgate.git"
@@ -14,7 +14,7 @@
     "homebridge-palgate-platform"
   ],
   "engines": {
-    "node": ">=10.17.0",
+    "node": "^20.0.0 || ^22.0.0 || ^24.0.0",
     "homebridge": "^1.6.0 || ^2.0.0-beta.0"
   },
   "dependencies": {
@@ -48,7 +48,7 @@
     "bin": "cli"
   },
   "devDependencies": {
-    "homebridge-config-ui-x": "^4.71.1",
+    "homebridge-config-ui-x": "^5.11.1",
     "perf_hooks": "^0.0.1"
   }
 }
