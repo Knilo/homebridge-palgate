@@ -137,40 +137,7 @@
         
         
         // Start polling /link/confirm.
-        try {
-          const confirmData = await homebridge.request('/link/confirm', { uniqueId });
-          if (confirmData.success) {
-            if (!linkingComplete) {
-              linkingComplete = true;
-              clearInterval(pollInterval);
-              // Remove the QR code and update status text.
-              document.getElementById('qrCodeArea').innerHTML = '';
-              setStatus(linkStatusEl, 'success', 'Linking complete, plugin configuration updated.');
-              homebridge.toast.success(
-                `Successfully linked. Session token: ${confirmData.sessionToken}`,
-                'Linking Complete'
-              );
-
-              // Update config with the new linking data.
-              config.token = confirmData.sessionToken;
-              config.phoneNumber = confirmData.phoneNumber;
-              config.tokenType = parseInt(confirmData.tokenType, 10);
-              await persistPluginConfig({ refreshSchema: true });
-            }
-          } else if (confirmData.waiting) {
-            setStatus(linkStatusEl, 'info', 'Waiting for scan confirmation...');
-          } else {
-            clearInterval(pollInterval);
-            const errMsg = confirmData.error || 'Unknown error';
-            setStatus(linkStatusEl, 'error', errMsg);
-            homebridge.toast.error(errMsg, 'Error');
-          }
-        } catch (err) {
-          clearInterval(pollInterval);
-          const friendly = formatError(err);
-          setStatus(linkStatusEl, 'error', friendly);
-          homebridge.toast.error(friendly, 'Error');
-        }
+        startConfirmationPolling(uniqueId);
        
       } catch (err) {
         const friendly = formatError(err);
@@ -444,6 +411,58 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    function startConfirmationPolling(uniqueId) {
+      const poll = async () => {
+        if (linkingComplete) {
+          return;
+        }
+        try {
+          const confirmData = await homebridge.request('/link/confirm', { uniqueId });
+          if (confirmData.success) {
+            if (linkingComplete) {
+              return;
+            }
+            linkingComplete = true;
+            if (pollInterval) {
+              clearInterval(pollInterval);
+              pollInterval = null;
+            }
+            document.getElementById('qrCodeArea').innerHTML = '';
+            setStatus(linkStatusEl, 'success', 'Linking complete, plugin configuration updated.');
+            homebridge.toast.success(
+              `Successfully linked. Session token: ${confirmData.sessionToken}`,
+              'Linking Complete'
+            );
+            config.token = confirmData.sessionToken;
+            config.phoneNumber = confirmData.phoneNumber;
+            config.tokenType = parseInt(confirmData.tokenType, 10);
+            await persistPluginConfig({ refreshSchema: true });
+          } else if (confirmData.waiting) {
+            setStatus(linkStatusEl, 'info', 'Waiting for scan confirmation...');
+          } else {
+            if (pollInterval) {
+              clearInterval(pollInterval);
+              pollInterval = null;
+            }
+            const errMsg = confirmData.error || 'Unknown error';
+            setStatus(linkStatusEl, 'error', errMsg);
+            homebridge.toast.error(errMsg, 'Error');
+          }
+        } catch (err) {
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+          const friendly = formatError(err);
+          setStatus(linkStatusEl, 'error', friendly);
+          homebridge.toast.error(friendly, 'Error');
+        }
+      };
+
+      poll();
+      pollInterval = setInterval(poll, 3000);
     }
 
     function setStatus(element, type, message) {
