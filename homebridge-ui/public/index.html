@@ -11,10 +11,17 @@
     <h2 style="font-size: 0.9rem; font-weight: 300;">Gate Customisation</h2>
     <button class="btn btn-primary" id="discoverGates"
       style="font-weight: 400; padding: .375rem .75rem; font-size: 01rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">
-      Discover and Customise Gates
+      Customise Gates
     </button>
     <div id="gateList" class="mt-3"></div>
   </div>
+</div>
+<br>
+<div >
+  <button class="btn btn-outline-secondary btn-sm" id="toggleManualConfig"
+    style="font-weight: 400; padding: .375rem .75rem; font-size: 0.8rem; line-height: 1.2; border-radius: .25rem; text-transform: uppercase;">
+    Show Manual Config
+  </button>
 </div>
 
 <!-- Removed "display:none;" to always show the form -->
@@ -61,9 +68,6 @@
     }
     config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
 
-    homebridge.showSchemaForm();
-    homebridge.hideSpinner();
-
     // Linking flow variables.
     let uniqueId = null;
     let pollInterval = null;
@@ -72,6 +76,34 @@
     const linkStatusEl = document.getElementById('linkStatus');
     const gateListEl = document.getElementById('gateList');
     const discoverBtn = document.getElementById('discoverGates');
+    const manualConfigToggleBtn = document.getElementById('toggleManualConfig');
+    const manualConfigStorageKey = 'palgateManualConfigVisible';
+    let manualConfigVisible = false;
+
+    try {
+      const storedPreference = localStorage.getItem(manualConfigStorageKey);
+      if (storedPreference !== null) {
+        manualConfigVisible = storedPreference === 'true';
+      }
+    } catch (err) {
+      manualConfigVisible = false;
+    }
+
+    if (manualConfigToggleBtn) {
+      manualConfigToggleBtn.addEventListener('click', () => {
+        manualConfigVisible = !manualConfigVisible;
+        try {
+          localStorage.setItem(manualConfigStorageKey, manualConfigVisible);
+        } catch (err) {
+          // ignore storage write errors
+        }
+        updateManualConfigVisibility();
+      });
+    }
+
+    updateManualConfigVisibility();
+    homebridge.hideSpinner();
+
     let discoveredGates = [];
 
     document.getElementById('generateQR').addEventListener('click', async () => {
@@ -362,9 +394,30 @@
       await homebridge.updatePluginConfig(pluginConfig);
       await homebridge.savePluginConfig();
       if (options.refreshSchema) {
-        await homebridge.showSchemaForm();
+        if (manualConfigVisible) {
+          await homebridge.showSchemaForm();
+        } else {
+          hideSchemaFormIfSupported();
+        }
       }
       await reloadPluginConfigState();
+    }
+
+    function updateManualConfigVisibility() {
+      if (manualConfigToggleBtn) {
+        manualConfigToggleBtn.textContent = manualConfigVisible ? 'Hide Manual Config' : 'Show Manual Config';
+      }
+      if (manualConfigVisible) {
+        homebridge.showSchemaForm();
+      } else {
+        hideSchemaFormIfSupported();
+      }
+    }
+
+    function hideSchemaFormIfSupported() {
+      if (typeof homebridge.hideSchemaForm === 'function') {
+        homebridge.hideSchemaForm();
+      }
     }
 
     function escapeHtml(str) {
