@@ -32,6 +32,7 @@
     align-items: center;
     gap: 12px;
     margin-bottom: 12px;
+    margin-top: 4px;
   }
   .customize-toggle-label {
     color: rgb(255, 255, 255);
@@ -292,26 +293,28 @@
             "
           />
         </div>
-        <div class="customize-toggle">
+        <div class="form-group schema-form-checkbox">
           <label class="hb-uix-switch">
             <input type="checkbox" id="garage-${sanitizedId}" ${defaultGarageDoor ? 'checked' : ''}>
             <span class="hb-uix-slider hb-uix-round"></span>
+            <span class="customize-toggle-label">Expose as Garage Door</span>
           </label>
-          <span class="customize-toggle-label">Expose as Garage Door</span>
+
         </div>
-        <div class="customize-toggle">
+        <div class="form-group schema-form-checkbox">
           <label class="hb-uix-switch">
             <input type="checkbox" id="switch-${sanitizedId}" ${defaultSwitch ? 'checked' : ''}>
-            <span class="hb-uix-slider hb-uix-round"></span>
+            <span class="hb-uix-slider hb-uix-round"></span>         
+            <span class="customize-toggle-label">Expose as Switch</span>
           </label>
-          <span class="customize-toggle-label">Expose as Switch</span>
+
         </div>
-        <div class="customize-toggle">
+        <div class="form-group schema-form-checkbox">
           <label class="hb-uix-switch">
             <input type="checkbox" id="hide-${sanitizedId}" ${hideGate ? 'checked' : ''}>
             <span class="hb-uix-slider hb-uix-round"></span>
+            <span class="customize-toggle-label">Hide Gate</span>
           </label>
-          <span class="customize-toggle-label">Hide Gate</span>
         </div>
         <div class="mt-3">
           <button class="btn btn-primary btn-sm save-custom" style="margin-right: 0.5rem;">Save</button>
