@@ -30,7 +30,7 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - **Custom Gate Settings:**  
   Use the Homebridge UI or the `customGates` configuration option to rename, hide, or change the behavior of individual gates.
 
-- **Multigate Device Support:**  
+- **Multi-Gate Device Support:**  
   The plugin supports PalGate devices that control multiple gates as well as devices controlling a single gate.
 
 - **CLI Support:**  
