@@ -28,7 +28,10 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
   Configure each discovered gate as either a garage door or a switch. The default behavior can be overridden on a per-device basis.
 
 - **Custom Gate Settings:**  
-  Use the `customGates` configuration option to rename, hide, or change the behavior of individual gates.
+  Use the Homebridge UI or the `customGates` configuration option to rename, hide, or change the behavior of individual gates.
+
+- **Multigate Device Support:**  
+  The plugin supports PalGate devices that control multiple gates as well as devices controlling a single gate.
 
 - **CLI Support:**  
   All the main PalGate API features are supported through the custom CLI. 
@@ -59,7 +62,8 @@ This plugin features an automatic configuration UI that simplifies the device li
 2. Go to Plugins and click Set Up 
 3. Click the Begin Device Linking button. This initiates the linking process and generates a QR code.
 4. Open the PalGate App, and navigate to Device Linking > Link a Device and then scan the QR code.
-5. The linking will complete and configuration will be updated automatically. You can then edit it as you wish.
+5. The linking will complete and configuration will be updated automatically. 
+6. Once linked, you can use Customise Gates button to change the name or accessory type of each gate connected to your account.
 
 ### Using the CLI
 
