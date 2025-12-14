@@ -3,7 +3,9 @@
   const qrcodeModule = await import('qrcode');
   const qrcode = qrcodeModule.default;
   const { v4: uuidv4 } = await import('uuid');
-  const { callApi } = require('../lib/api.js'); // adjust path if needed
+  const { callApi, getDevices } = require('../lib/api.js'); // adjust path if needed
+  const { generateToken } = require('../lib/token-gen.js');
+  const { detectMultiOutputDevices, generateGateEntries } = require('../lib/utils/helpers.js');
 
   class UiServer extends HomebridgePluginUiServer {
     constructor() {
@@ -16,6 +18,7 @@
       // Register endpoints:
       this.onRequest('/link/init', this.initLinkDevice.bind(this));
       this.onRequest('/link/confirm', this.confirmLinkDevice.bind(this));
+      this.onRequest('/devices/discover', this.discoverDevices.bind(this));
 
       // Signal that the UI is ready.
       this.ready();
@@ -110,6 +113,51 @@
         return {
           success: false,
           error: err.message,
+        };
+      }
+    }
+
+    /**
+     * Discover gates using saved credentials.
+     */
+    async discoverDevices(payload = {}) {
+      try {
+        const { token, phoneNumber, tokenType } = payload;
+        if (!token || !phoneNumber || tokenType === undefined || tokenType === null) {
+          throw new Error('Missing credentials for discovery.');
+        }
+
+        const temporalToken = generateToken(
+          Buffer.from(token, 'hex'),
+          parseInt(phoneNumber, 10),
+          parseInt(tokenType, 10)
+        );
+
+        const response = await getDevices(temporalToken);
+        const devices = Array.isArray(response.devices) ? response.devices : [];
+
+        const gates = devices.flatMap((deviceData) => {
+          const deviceId = deviceData.id || deviceData._id;
+          if (!deviceId) {
+            return [];
+          }
+          const defaultName = deviceData.name1 || deviceData.name || deviceId;
+          const outputs = detectMultiOutputDevices(deviceData);
+          const gateEntries = generateGateEntries(deviceId, outputs, defaultName, deviceData);
+          return gateEntries.map(entry => ({
+            deviceId: entry.deviceId,
+            defaultName: entry.name
+          }));
+        });
+
+        return {
+          success: true,
+          gates
+        };
+      } catch (err) {
+        return {
+          success: false,
+          error: err.message
         };
       }
     }
