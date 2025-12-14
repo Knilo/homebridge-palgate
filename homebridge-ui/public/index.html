@@ -1,14 +1,13 @@
 <div id="linkingContainer">
   <div class="card card-body">
-    <h2 style="font-size: 0.9rem; font-weight: 300;">Automatic Linking</h2>
+    <h2 style="font-size: 0.9rem; font-weight: 300;">Device Linking</h2>
     <button class="btn btn-primary" id="generateQR"
-      style="font-weight: 400; padding: .375rem .75rem; font-size: 1rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">Begin
-      Device Linking</button>
+      style="font-weight: 400; padding: .375rem .75rem; font-size: 1rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">Connect to PalGate</button>
     <!-- Added style to center the QR code -->
     <div id="qrCodeArea" class="mt-3" style="text-align: center;"></div>
     <div id="linkStatus" class="mt-2"></div>
     <br>
-    <h2 style="font-size: 0.9rem; font-weight: 300;">Gate Customisation</h2>
+    <h2 style="font-size: 0.9rem; font-weight: 300;">Customise Gates</h2>
     <button class="btn btn-primary" id="discoverGates"
       style="font-weight: 400; padding: .375rem .75rem; font-size: 01rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">
       Customise Gates
@@ -103,6 +102,7 @@
     }
 
     updateManualConfigVisibility();
+    updateDiscoverButtonState();
     homebridge.hideSpinner();
 
     let discoveredGates = [];
@@ -183,7 +183,7 @@
 
     if (discoverBtn) {
       discoverBtn.addEventListener('click', async () => {
-        if (!config.token || !config.phoneNumber || config.tokenType === undefined || config.tokenType === null) {
+        if (!hasLinkingCredentials()) {
           homebridge.toast.error('Please link your device before discovering gates.', 'Missing Credentials');
           return;
         }
@@ -404,6 +404,7 @@
         }
       }
       await reloadPluginConfigState();
+      updateDiscoverButtonState();
     }
 
     function updateManualConfigVisibility() {
@@ -421,6 +422,19 @@
       if (typeof homebridge.hideSchemaForm === 'function') {
         homebridge.hideSchemaForm();
       }
+    }
+
+    function hasLinkingCredentials() {
+      return Boolean(config.token && config.phoneNumber && (config.tokenType !== undefined && config.tokenType !== null));
+    }
+
+    function updateDiscoverButtonState() {
+      if (!discoverBtn) {
+        return;
+      }
+      const enabled = hasLinkingCredentials();
+      discoverBtn.disabled = !enabled;
+      discoverBtn.title = enabled ? '' : 'Link your device to discover gates';
     }
 
     function escapeHtml(str) {
