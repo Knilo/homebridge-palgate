@@ -52,6 +52,12 @@
 						"enum": [
 							"switch"
 						]
+					},
+					{
+						"title": "Lock Mechanism",
+						"enum": [
+							"lock"
+						]
 					}
 				]
 			},
@@ -87,6 +93,11 @@
 						"switch": {
 							"title": "Expose as Switch",
 							"description": "Set to true to expose this gate as a switch.",
+							"type": "boolean"
+						},
+						"lock": {
+							"title": "Expose as Lock",
+							"description": "Set to true to expose this gate as a lock.",
 							"type": "boolean"
 						},
 						"hide": {
