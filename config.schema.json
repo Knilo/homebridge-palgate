@@ -151,7 +151,13 @@
 		"required": [
 			"token",
 			"phoneNumber",
-			"tokenType"
+			"tokenType",
+			"accessoryType",
+			"gateOpeningDelay",
+			"gateOpenDelay",
+			"enableRelayLocks",
+			"relayAccessoryType",
+			"pollInterval"
 		]
 	}
 }

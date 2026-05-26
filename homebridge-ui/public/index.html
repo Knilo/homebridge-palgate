@@ -64,7 +64,7 @@
         accessoryType: "garageDoor"
       };
       pluginConfig.push(config);
-      await homebridge.updatePluginConfig(pluginConfig);
+      homebridge.updatePluginConfig(pluginConfig);
     }
     config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
 
@@ -373,11 +373,11 @@
     }
 
     async function persistPluginConfig(options = {}) {
-      await homebridge.updatePluginConfig(pluginConfig);
-      await homebridge.savePluginConfig();
+      homebridge.updatePluginConfig(pluginConfig);
+      homebridge.savePluginConfig();
       if (options.refreshSchema) {
         if (manualConfigVisible) {
-          await homebridge.showSchemaForm();
+          homebridge.showSchemaForm();
         } else {
           hideSchemaFormIfSupported();
         }
