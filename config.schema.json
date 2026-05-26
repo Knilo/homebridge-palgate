@@ -73,11 +73,18 @@
 				"type": "number",
 				"default": 5000
 			},
-			"gateClosingDelay": {
-				"title": "Gate Closing Duration",
-				"description": "How long in milliseconds the gate should show as 'Closing' before becoming fully 'Closed'.",
+			"enableRelayLocks": {
+				"title": "Enable Relay Mode Locks",
+				"description": "Expose two virtual Lock accessories (Hold Open / Hold Closed) for gates where you have admin/latching permissions.",
+				"type": "boolean",
+				"default": false
+			},
+			"pollInterval": {
+				"title": "Poll Interval (Seconds)",
+				"description": "How often in seconds the plugin should check the PalGate API for external state updates (e.g. Hold Open toggled by another admin). Default is 60.",
 				"type": "number",
-				"default": 0
+				"default": 60,
+				"minimum": 10
 			},
 			"customGates": {
 				"title": "Custom Gate Settings",
@@ -128,7 +135,8 @@
 			"accessoryType",
 			"gateOpeningDelay",
 			"gateOpenDelay",
-			"gateClosingDelay"
+			"enableRelayLocks",
+			"pollInterval"
 		]
 	}
 }

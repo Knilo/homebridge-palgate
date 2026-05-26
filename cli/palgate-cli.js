@@ -310,7 +310,8 @@ async function startDeviceLinking() {
             "accessoryType": "garageDoor",
             "gateOpeningDelay": 0,
             "gateOpenDelay": 5000,
-            "gateClosingDelay": 0
+            "enableRelayLocks": false,
+            "pollInterval": 60
           };
           hbConfig.platforms.push(platformConfig);
           fs.writeFileSync(homebridgeConfigPath, JSON.stringify(hbConfig, null, 2), 'utf8');
