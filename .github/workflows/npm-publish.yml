@@ -8,6 +8,7 @@ on:
     tags:
       - 'v*'      # Triggers on v1.0.0, v2.1.0, etc.
       - '[0-9]*'  # Triggers on 1.0.0, 2.0.0, etc.
+  workflow_dispatch: 
 
 permissions:
   contents: read
