@@ -311,6 +311,7 @@ async function startDeviceLinking() {
             "gateOpeningDelay": 0,
             "gateOpenDelay": 5000,
             "enableRelayLocks": false,
+            "relayAccessoryType": "lock",
             "pollInterval": 60
           };
           hbConfig.platforms.push(platformConfig);

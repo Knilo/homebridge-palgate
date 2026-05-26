@@ -74,10 +74,30 @@
 				"default": 5000
 			},
 			"enableRelayLocks": {
-				"title": "Enable Relay Mode Locks",
-				"description": "Expose two virtual Lock accessories (Hold Open / Hold Closed) for gates where you have admin/latching permissions.",
+				"title": "Enable Relay Mode Accessories",
+				"description": "Expose two virtual relay accessories (Hold Open / Hold Closed) for gates where you have admin/latching permissions.",
 				"type": "boolean",
 				"default": false
+			},
+			"relayAccessoryType": {
+				"title": "Relay Accessory Type",
+				"description": "The accessory type to use for virtual relay controllers. Default is 'lock'.",
+				"type": "string",
+				"default": "lock",
+				"oneOf": [
+					{
+						"title": "Lock",
+						"enum": [
+							"lock"
+						]
+					},
+					{
+						"title": "Switch",
+						"enum": [
+							"switch"
+						]
+					}
+				]
 			},
 			"pollInterval": {
 				"title": "Poll Interval (Seconds)",
@@ -136,6 +156,7 @@
 			"gateOpeningDelay",
 			"gateOpenDelay",
 			"enableRelayLocks",
+			"relayAccessoryType",
 			"pollInterval"
 		]
 	}
