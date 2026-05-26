@@ -308,8 +308,8 @@ async function startDeviceLinking() {
             "phoneNumber": linkingData.phoneNumber,
             "tokenType": parseInt(linkingData.tokenType, 10),
             "accessoryType": "garageDoor",
-            "gateOpeningDelay": 0,
-            "gateOpenDelay": 5000,
+            "gateOpeningDelay": 1000,
+            "gateCloseDelay": 5000,
             "enableRelayLocks": false,
             "relayAccessoryType": "lock",
             "pollInterval": 60

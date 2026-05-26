@@ -65,10 +65,10 @@
 				"title": "Gate Opening Duration",
 				"description": "How long in milliseconds the gate should show as 'Opening' before becoming fully 'Open'.",
 				"type": "number",
-				"default": 0
+				"default": 1000
 			},
-			"gateOpenDelay": {
-				"title": "Gate Open Duration",
+			"gateCloseDelay": {
+				"title": "Gate Close Duration",
 				"description": "How long in milliseconds the gate stays in the fully 'Open' state before closing automatically.",
 				"type": "number",
 				"default": 5000
@@ -149,8 +149,8 @@
 							"description": "How long in milliseconds this specific gate should show as 'Opening'. Defaults to global setting.",
 							"type": "number"
 						},
-						"gateOpenDelay": {
-							"title": "Gate Open Duration Override",
+						"gateCloseDelay": {
+							"title": "Gate Close Duration Override",
 							"description": "How long in milliseconds this specific gate stays 'Open'. Defaults to global setting.",
 							"type": "number"
 						},
@@ -174,7 +174,7 @@
 			"tokenType",
 			"accessoryType",
 			"gateOpeningDelay",
-			"gateOpenDelay",
+			"gateCloseDelay",
 			"enableRelayLocks",
 			"relayAccessoryType",
 			"pollInterval"
