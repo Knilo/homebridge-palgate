@@ -144,10 +144,19 @@
           const defaultName = deviceData.name1 || deviceData.name || deviceId;
           const outputs = detectMultiOutputDevices(deviceData);
           const gateEntries = generateGateEntries(deviceId, outputs, defaultName, deviceData);
-          return gateEntries.map(entry => ({
-            deviceId: entry.deviceId,
-            defaultName: entry.name
-          }));
+          return gateEntries.map(entry => {
+            let outputNum = 1;
+            if (typeof entry.deviceId === 'string' && entry.deviceId.includes(':')) {
+              outputNum = parseInt(entry.deviceId.split(':').pop(), 10);
+            }
+            const isLatchPermitted = outputNum === 2 ? deviceData.output2Latch === true : deviceData.output1Latch === true;
+            return {
+              deviceId: entry.deviceId,
+              defaultName: entry.name,
+              admin: deviceData.admin === true,
+              latch: isLatchPermitted === true
+            };
+          });
         });
 
         return {

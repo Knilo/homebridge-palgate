@@ -308,7 +308,11 @@ async function startDeviceLinking() {
             "phoneNumber": linkingData.phoneNumber,
             "tokenType": parseInt(linkingData.tokenType, 10),
             "accessoryType": "garageDoor",
-            "gateCloseDelay": 5000
+            "gateOpeningDelay": 1000,
+            "gateCloseDelay": 5000,
+            "enableRelayLocks": false,
+            "relayAccessoryType": "lock",
+            "pollInterval": 60
           };
           hbConfig.platforms.push(platformConfig);
           fs.writeFileSync(homebridgeConfigPath, JSON.stringify(hbConfig, null, 2), 'utf8');

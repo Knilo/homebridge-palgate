@@ -1,5 +1,5 @@
 {
-	"pluginAlias": "PalGatePlatform", 
+	"pluginAlias": "PalGatePlatform",
 	"platform": true,
 	"pluginType": "platform",
 	"singular": true,
@@ -14,7 +14,7 @@
 				"description": "The name of the platform instance.",
 				"type": "string",
 				"default": "PalGate Platform"
-			  },
+			},
 			"token": {
 				"title": "Session Token",
 				"description": "The session token generated during device linking.",
@@ -61,11 +61,50 @@
 					}
 				]
 			},
+			"gateOpeningDelay": {
+				"title": "Gate Opening Duration",
+				"description": "How long in milliseconds the gate should show as 'Opening' before becoming fully 'Open'.",
+				"type": "number",
+				"default": 1000
+			},
 			"gateCloseDelay": {
-				"title": "Close Gate Delay",
-				"description": "How long in milliseconds, 'garageDoor' gates should show as open in Homekit.",
+				"title": "Gate Close Duration",
+				"description": "How long in milliseconds the gate stays in the fully 'Open' state before closing automatically.",
 				"type": "number",
 				"default": 5000
+			},
+			"enableRelayLocks": {
+				"title": "Enable Relay Mode Accessories",
+				"description": "Expose two virtual relay accessories (Hold Open / Hold Closed) for gates where you have admin/latching permissions.",
+				"type": "boolean",
+				"default": false
+			},
+			"relayAccessoryType": {
+				"title": "Relay Accessory Type",
+				"description": "The accessory type to use for virtual relay controllers. Default is 'lock'.",
+				"type": "string",
+				"default": "lock",
+				"oneOf": [
+					{
+						"title": "Lock",
+						"enum": [
+							"lock"
+						]
+					},
+					{
+						"title": "Switch",
+						"enum": [
+							"switch"
+						]
+					}
+				]
+			},
+			"pollInterval": {
+				"title": "Poll Interval (Seconds)",
+				"description": "How often in seconds the plugin should check the PalGate API for external state updates (e.g. Hold Open toggled by another admin). Default is 60.",
+				"type": "number",
+				"default": 60,
+				"minimum": 10
 			},
 			"customGates": {
 				"title": "Custom Gate Settings",
@@ -104,6 +143,26 @@
 							"title": "Hide Gate",
 							"description": "Set to true to hide this gate from HomeKit.",
 							"type": "boolean"
+						},
+						"gateOpeningDelay": {
+							"title": "Gate Opening Duration Override",
+							"description": "How long in milliseconds this specific gate should show as 'Opening'. Defaults to global setting.",
+							"type": "number"
+						},
+						"gateCloseDelay": {
+							"title": "Gate Close Duration Override",
+							"description": "How long in milliseconds this specific gate stays 'Open'. Defaults to global setting.",
+							"type": "number"
+						},
+						"relaySwitch": {
+							"title": "Expose Relay as Switch",
+							"description": "Set to true to expose the virtual relays for this gate as Switches.",
+							"type": "boolean"
+						},
+						"relayLock": {
+							"title": "Expose Relay as Lock",
+							"description": "Set to true to expose the virtual relays for this gate as Locks.",
+							"type": "boolean"
 						}
 					}
 				}
@@ -114,7 +173,11 @@
 			"phoneNumber",
 			"tokenType",
 			"accessoryType",
-			"gateCloseDelay"
+			"gateOpeningDelay",
+			"gateCloseDelay",
+			"enableRelayLocks",
+			"relayAccessoryType",
+			"pollInterval"
 		]
 	}
 }
