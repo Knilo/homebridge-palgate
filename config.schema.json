@@ -1,5 +1,5 @@
 {
-	"pluginAlias": "PalGatePlatform", 
+	"pluginAlias": "PalGatePlatform",
 	"platform": true,
 	"pluginType": "platform",
 	"singular": true,
@@ -14,7 +14,7 @@
 				"description": "The name of the platform instance.",
 				"type": "string",
 				"default": "PalGate Platform"
-			  },
+			},
 			"token": {
 				"title": "Session Token",
 				"description": "The session token generated during device linking.",
@@ -61,11 +61,23 @@
 					}
 				]
 			},
-			"gateCloseDelay": {
-				"title": "Close Gate Delay",
-				"description": "How long in milliseconds, 'garageDoor' gates should show as open in Homekit.",
+			"gateOpeningDelay": {
+				"title": "Gate Opening Duration",
+				"description": "How long in milliseconds the gate should show as 'Opening' before becoming fully 'Open'.",
+				"type": "number",
+				"default": 0
+			},
+			"gateOpenDelay": {
+				"title": "Gate Open Duration",
+				"description": "How long in milliseconds the gate stays in the fully 'Open' state before closing automatically.",
 				"type": "number",
 				"default": 5000
+			},
+			"gateClosingDelay": {
+				"title": "Gate Closing Duration",
+				"description": "How long in milliseconds the gate should show as 'Closing' before becoming fully 'Closed'.",
+				"type": "number",
+				"default": 0
 			},
 			"customGates": {
 				"title": "Custom Gate Settings",
@@ -114,7 +126,9 @@
 			"phoneNumber",
 			"tokenType",
 			"accessoryType",
-			"gateCloseDelay"
+			"gateOpeningDelay",
+			"gateOpenDelay",
+			"gateClosingDelay"
 		]
 	}
 }
