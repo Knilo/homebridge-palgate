@@ -96,7 +96,7 @@ A CLI tool is included to extract the required information using the latest PalG
 
 ## Manual Configuration
 
-To configure the PalGate Platform, add the following snippet to your Homebridge config.json file under the platforms section. You can use the included `palgate-cli.js` to extract the neccesary config:
+To configure the PalGate Platform, add the following snippet to your Homebridge config.json file under the platforms section. You can use the included `palgate-cli.js` to extract the necessary config:
 
 ```json
 {
@@ -108,14 +108,22 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
       "phoneNumber": "<phone_number>",
       "tokenType": <0|1|2>,
       "accessoryType": "garageDoor",
-      "gateCloseDelay": 5000,    
+      "gateOpeningDelay": 0,
+      "gateOpenDelay": 5000,
+      "enableRelayLocks": true,
+      "relayAccessoryType": "lock",
       "customGates": [
         {
           "deviceId": "DEVICE_ID",
           "name": "Custom Gate Name",
           "garageDoor": true,
           "switch": false,
-          "hide": false
+          "lock": false,
+          "hide": false,
+          "gateOpeningDelay": 1000,
+          "gateOpenDelay": 8000,
+          "relaySwitch": false,
+          "relayLock": true
         }
       ]
     }
@@ -125,20 +133,29 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 
 ### Options
 
-| Option         | Description                                                                                                                                                                                                                                      |
-|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `token`        | Your session token generated during device linking.                                                                                                                                                                                            |
-| `phoneNumber`  | Your account’s phone number (e.g., `972500000000`).                                                                                                                                                                                              |
-| `tokenType`    | The linking type. Valid values: <br> - `0` for SMS linking <br> - `1` for primary linking <br> - `2` for secondary linking                                                                                                                      |
-| `accessoryType`| Defines the default type for discovered devices; valid values are `"garageDoor"` or `"switch"`.                                                                                                                                                   |
-| `gateCloseDelay`| Since the PalGate API does not report whether a gate is open, the plugin automatically sets a `garageDoor`’s state to closed after this delay (in milliseconds).                                                                                                                                      |
-| `customGates`  | An optional array for individual gate configuration. Each object in the array may include: <br> - `deviceId`: Unique identifier for the gate (required). For devices with multiple outputs, use format `deviceId:outputNum` (e.g., `"ABC123:2"` for output 2). <br> - `name`: A custom name for the gate. <br> - `garageDoor`: Set to `true` to expose as a garage door. <br> - `switch`: Set to `true` to expose as a switch. <br> - `hide`: Set to `true` to hide the gate from HomeKit. |
+| Option | Description |
+|---|---|
+| `token` | Your session token generated during device linking. |
+| `phoneNumber` | Your account’s phone number (e.g., `972500000000`). |
+| `tokenType` | The linking type. Valid values: <br> - `0` for SMS linking <br> - `1` for primary linking <br> - `2` for secondary linking |
+| `accessoryType`| Defines the default type for discovered devices; valid values are `"garageDoor"`, `"switch"`, or `"lock"`. |
+| `gateOpeningDelay` | The delay in milliseconds between triggering the gate and transitioning the accessory state to opening/open. Default is `0`. |
+| `gateOpenDelay` | The duration in milliseconds that a `garageDoor` or `lock` accessory remains in the open/unsecured state before automatically transitioning back to closed/locked. Default is `5000`. |
+| `enableRelayLocks` | Expose virtual relay accessories (Hold Open / Hold Closed) for gates where you have admin/latching permissions. Default is `true`. |
+| `relayAccessoryType` | The accessory type to use for global virtual relay controllers. Valid values are `"lock"` or `"switch"`. Default is `"lock"`. |
+| `customGates` | An optional array for individual gate configuration. Each object in the array may include: <br> - `deviceId`: Unique identifier for the gate (required). For devices with multiple outputs, use format `deviceId:outputNum` (e.g., `"ABC123:2"` for output 2). <br> - `name`: A custom name for the gate. <br> - `garageDoor`: Set to `true` to expose as a garage door. <br> - `switch`: Set to `true` to expose as a switch. <br> - `lock`: Set to `true` to expose as a lock. <br> - `hide`: Set to `true` to hide the gate from HomeKit. <br> - `gateOpeningDelay`: Override the opening delay (in ms) for this specific gate. <br> - `gateOpenDelay`: Override the open duration (in ms) for this specific gate. <br> - `relaySwitch`: Set to `true` to override global defaults and expose the virtual relays for this gate as Switches. <br> - `relayLock`: Set to `true` to override global defaults and expose the virtual relays for this gate as Locks. |
 
-#### Notes on Accesory Types
-- You can expose a gate as both a `garageDoor` and a `switch` by setting both to true. 
-- While you can use a `garageDoor` in automations, due to Apple security restrictions, the automation will need to be approved through a push notification. A `switch` can be used without this step. 
-- CarPlay will automatically surface a `garageDoor` as you approach your home. This does not happen to a `switch`.
-- The state reported by HomeKit does not reflect the actual physical state of the gate. For `garageDoor`s, the accessory will automatically switch to “closed” after the delay specified by `gateCloseDelay`, regardless of the door’s physical state. A `switch` is stateless and is reset to “off” immediately after triggering the gate to open.
+#### Notes on Accessory Types
+- You can expose a gate as a combination of `garageDoor`, `switch`, and `lock` simultaneously by setting the respective fields to true. 
+- While you can use a `garageDoor` or `lock` in automations, due to Apple security restrictions, the automation will need to be approved through a push notification. A `switch` can be used without this step. 
+- CarPlay will automatically surface a `garageDoor` as you approach your home. This does not happen to a `switch` or `lock`.
+- The state reported by HomeKit does not reflect the actual physical state of the gate. For `garageDoor`s and `lock`s, the accessory will automatically switch to “closed”/”locked” after the delay specified by `gateOpenDelay` (and `gateOpeningDelay`), regardless of the door’s physical state. A `switch` is stateless and is reset to “off” immediately after triggering the gate to open.
+
+#### Notes on Relay Mode Controllers
+Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (latch/hold open) or "Always Closed" (hold closed) state.
+* **Important Permissions Required**: 
+  Make sure the user (phone) that this gate is linked through, has the special permission for this action (on Palgate app, admin user: **Gate settings** -> **Manager Options** -> **Users** -> **Selected user** -> **"Latch Output 1"**).
+* ➡️ **Availability**: If the linked phone's user does not have the right permission, the selector entity will be marked unavailable. Once permission is granted, it will become operational.
 
 ## Support Me
 
