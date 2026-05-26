@@ -265,9 +265,8 @@
       const openingDelayOverride = customEntry && customEntry.gateOpeningDelay !== undefined ? customEntry.gateOpeningDelay : '';
       const openDelayOverride = customEntry && customEntry.gateOpenDelay !== undefined ? customEntry.gateOpenDelay : '';
 
-      const defaultRelayEnable = customEntry && customEntry.enableRelayLocks !== undefined ? customEntry.enableRelayLocks : '';
-      const relayAccessoryOverride = customEntry && customEntry.relayAccessoryType !== undefined ? customEntry.relayAccessoryType : '';
-      const isRelayActive = defaultRelayEnable === 'enabled' || (defaultRelayEnable === '' && config.enableRelayLocks === true);
+      const defaultRelayEnable = customEntry && customEntry.enableRelayLocks !== undefined ? customEntry.enableRelayLocks === true : config.enableRelayLocks === true;
+      const relayAccessoryOverride = customEntry && customEntry.relayAccessoryType !== undefined ? customEntry.relayAccessoryType : (config.relayAccessoryType !== undefined ? config.relayAccessoryType : 'lock');
 
       container.innerHTML = `
         <div class="master-switch-container">
@@ -346,23 +345,19 @@
           <!-- Dynamic relay mode section: only rendered if API reports user has admin/latch permissions -->
           ${(gate.admin || gate.latch) ? `
             <div style="font-size: 0.85rem; font-weight: 500; text-transform: uppercase; color: #8a8a8f; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-top: 12px; padding-bottom: 4px;">Relay Mode Controllers (Admin)</div>
-            <div class="form-group mt-2">
-              <label for="relayEnable-${sanitizedId}" style="display: block; margin-bottom: 4px; font-size: 13.5px; color: #8a8a8f;">
-                Relay Mode Controllers
+            <div class="form-group schema-form-checkbox">
+              <label class="hb-uix-switch">
+                <input type="checkbox" id="relayEnable-${sanitizedId}" ${defaultRelayEnable ? 'checked' : ''}>
+                <span class="hb-uix-slider hb-uix-round"></span>
+                <span class="customize-toggle-label">Expose Relay Mode Controllers</span>
               </label>
-              <select class="form-control" id="relayEnable-${sanitizedId}" style="background-color: rgb(36, 36, 36); border: 1px solid rgb(36, 36, 36); border-radius: 6px; color: rgb(255, 255, 255); height: 38px; padding: 6px 12px; width: 100%; margin-top: 4px;">
-                <option value="" ${defaultRelayEnable === '' ? 'selected' : ''}>Default (Inherit global setting)</option>
-                <option value="enabled" ${defaultRelayEnable === 'enabled' ? 'selected' : ''}>Enabled</option>
-                <option value="disabled" ${defaultRelayEnable === 'disabled' ? 'selected' : ''}>Disabled</option>
-              </select>
             </div>
-            <div class="form-group mt-2" id="relayTypeGroup-${sanitizedId}" style="display: ${isRelayActive ? 'block' : 'none'};">
+            <div class="form-group mt-2" id="relayTypeGroup-${sanitizedId}" style="display: ${defaultRelayEnable ? 'block' : 'none'};">
               <label for="relayType-${sanitizedId}" style="display: block; margin-bottom: 4px; font-size: 13.5px; color: #8a8a8f;">
                 Relay Controller Type
               </label>
               <select class="form-control" id="relayType-${sanitizedId}" style="background-color: rgb(36, 36, 36); border: 1px solid rgb(36, 36, 36); border-radius: 6px; color: rgb(255, 255, 255); height: 38px; padding: 6px 12px; width: 100%; margin-top: 4px;">
-                <option value="" ${relayAccessoryOverride === '' ? 'selected' : ''}>Default (Global setting)</option>
-                <option value="lock" ${relayAccessoryOverride === 'lock' ? 'selected' : ''}>Lock</option>
+                <option value="lock" ${relayAccessoryOverride === 'lock' ? 'selected' : ''}>Lock Mechanism</option>
                 <option value="switch" ${relayAccessoryOverride === 'switch' ? 'selected' : ''}>Switch</option>
               </select>
             </div>
@@ -423,9 +418,7 @@
 
       if (relayEnableInput && relayTypeGroup) {
         relayEnableInput.addEventListener('change', () => {
-          const val = relayEnableInput.value;
-          const active = val === 'enabled' || (val === '' && config.enableRelayLocks === true);
-          relayTypeGroup.style.display = active ? 'block' : 'none';
+          relayTypeGroup.style.display = relayEnableInput.checked ? 'block' : 'none';
         });
       }
 
@@ -444,7 +437,7 @@
           switchDevice: switchInput.checked,
           lockDevice: lockInput.checked,
           hide: !enableInput.checked,
-          enableRelayLocks: (relayEnableInput && relayEnableInput.value !== '') ? relayEnableInput.value : undefined,
+          enableRelayLocks: relayEnableInput ? relayEnableInput.checked : undefined,
           relayAccessoryType: (relayTypeInput && relayTypeInput.value !== '') ? relayTypeInput.value : undefined
         }, container);
       });
