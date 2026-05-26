@@ -143,6 +143,16 @@
 							"title": "Hide Gate",
 							"description": "Set to true to hide this gate from HomeKit.",
 							"type": "boolean"
+						},
+						"gateOpeningDelay": {
+							"title": "Gate Opening Duration Override",
+							"description": "How long in milliseconds this specific gate should show as 'Opening'. Defaults to global setting.",
+							"type": "number"
+						},
+						"gateOpenDelay": {
+							"title": "Gate Open Duration Override",
+							"description": "How long in milliseconds this specific gate stays 'Open'. Defaults to global setting.",
+							"type": "number"
 						}
 					}
 				}

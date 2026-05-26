@@ -253,6 +253,11 @@
       const hideGate = customEntry ? customEntry.hide === true : false;
       const isEnabled = !hideGate;
 
+      const globalOpeningDelay = config.gateOpeningDelay !== undefined ? config.gateOpeningDelay : 0;
+      const globalOpenDelay = config.gateOpenDelay !== undefined ? config.gateOpenDelay : 5000;
+      const openingDelayOverride = customEntry && customEntry.gateOpeningDelay !== undefined ? customEntry.gateOpeningDelay : '';
+      const openDelayOverride = customEntry && customEntry.gateOpenDelay !== undefined ? customEntry.gateOpenDelay : '';
+
       container.innerHTML = `
         <div class="master-switch-container">
           <div>
@@ -296,6 +301,37 @@
               "
             />
           </div>
+
+          <div style="font-size: 0.85rem; font-weight: 500; text-transform: uppercase; color: #8a8a8f; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">Gate Delays / Timers Override</div>
+          <div class="row" style="margin-bottom: 16px;">
+            <div class="col-6">
+              <label for="openingDelay-${sanitizedId}" style="display: block; margin-bottom: 4px; font-size: 13.5px; color: #8a8a8f;">
+                Opening Delay (ms)
+              </label>
+              <input
+                type="number"
+                class="form-control"
+                id="openingDelay-${sanitizedId}"
+                value="${openingDelayOverride}"
+                placeholder="${globalOpeningDelay}"
+                style="appearance: none; background-color: rgb(36, 36, 36); border: 1px solid rgb(36, 36, 36); border-radius: 6px; color: rgb(255, 255, 255); height: 38px; padding: 6px 12px; width: 100%; margin-top: 4px;"
+              />
+            </div>
+            <div class="col-6">
+              <label for="openDelay-${sanitizedId}" style="display: block; margin-bottom: 4px; font-size: 13.5px; color: #8a8a8f;">
+                Open Duration (ms)
+              </label>
+              <input
+                type="number"
+                class="form-control"
+                id="openDelay-${sanitizedId}"
+                value="${openDelayOverride}"
+                placeholder="${globalOpenDelay}"
+                style="appearance: none; background-color: rgb(36, 36, 36); border: 1px solid rgb(36, 36, 36); border-radius: 6px; color: rgb(255, 255, 255); height: 38px; padding: 6px 12px; width: 100%; margin-top: 4px;"
+              />
+            </div>
+          </div>
+
           <div style="font-size: 0.85rem; font-weight: 500; text-transform: uppercase; color: #8a8a8f; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">Accessory Service Mappings</div>
           <div class="form-group schema-form-checkbox">
             <label class="hb-uix-switch">
@@ -330,6 +366,8 @@
       const enableInput = container.querySelector(`#enable-${sanitizedId}`);
       const optionsGroup = container.querySelector(`#optionsGroup-${sanitizedId}`);
       const nameInput = container.querySelector(`#customName-${sanitizedId}`);
+      const openingDelayInput = container.querySelector(`#openingDelay-${sanitizedId}`);
+      const openDelayInput = container.querySelector(`#openDelay-${sanitizedId}`);
       const garageInput = container.querySelector(`#garage-${sanitizedId}`);
       const switchInput = container.querySelector(`#switch-${sanitizedId}`);
       const lockInput = container.querySelector(`#lock-${sanitizedId}`);
@@ -352,6 +390,8 @@
         event.preventDefault();
         await saveCustomGate(gate, {
           name: nameInput.value.trim(),
+          openingDelay: openingDelayInput.value.trim() !== '' ? parseInt(openingDelayInput.value, 10) : undefined,
+          openDelay: openDelayInput.value.trim() !== '' ? parseInt(openDelayInput.value, 10) : undefined,
           garageDoor: garageInput.checked,
           switchDevice: switchInput.checked,
           lockDevice: lockInput.checked,
@@ -372,6 +412,16 @@
         entry.name = values.name;
       } else {
         delete entry.name;
+      }
+      if (values.openingDelay !== undefined && !isNaN(values.openingDelay)) {
+        entry.gateOpeningDelay = values.openingDelay;
+      } else {
+        delete entry.gateOpeningDelay;
+      }
+      if (values.openDelay !== undefined && !isNaN(values.openDelay)) {
+        entry.gateOpenDelay = values.openDelay;
+      } else {
+        delete entry.gateOpenDelay;
       }
 
       config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
