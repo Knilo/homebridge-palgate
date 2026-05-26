@@ -47,6 +47,28 @@
   .customize-toggle .hb-uix-switch {
     margin-left: 0;
   }
+  .master-switch-container {
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .master-switch-title {
+    font-weight: 500 !important;
+    font-size: 15.5px !important;
+  }
+  .options-group-container {
+    transition: opacity 0.25s ease, filter 0.25s ease;
+  }
+  .options-group-container.disabled-group {
+    opacity: 0.35;
+    pointer-events: none;
+    filter: grayscale(0.8);
+  }
 </style>
 
 <script>
@@ -229,81 +251,97 @@
       const defaultSwitch = customEntry ? customEntry.switch === true : config.accessoryType === 'switch';
       const defaultLock = customEntry ? customEntry.lock === true : config.accessoryType === 'lock';
       const hideGate = customEntry ? customEntry.hide === true : false;
+      const isEnabled = !hideGate;
 
       container.innerHTML = `
-        <div class="form-group">
-          <label for="customName-${sanitizedId}" style="display: block; height: 24px; line-height: 24px; margin-bottom: 4px; font-size: 14.4px;">
-            Custom Gate Name
-          </label>
-          <input
-            type="text"
-            class="form-control"
-            id="customName-${sanitizedId}"
-            value="${escapeHtml(customName)}"
-            placeholder="${escapeHtml(gate.defaultName || gate.deviceId)}"
-            style="
-              appearance: none;
-              background-color: rgb(36, 36, 36);
-              border: 1px solid rgb(36, 36, 36);
-              border-radius: 6px;
-              box-sizing: border-box;
-              color: rgb(255, 255, 255);
-              font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-              font-size: 16px;
-              font-weight: 400;
-              height: 38px;
-              line-height: 24px;
-              padding: 6px 12px;
-              transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-              width: 100%;
-              margin-bottom: 16px;
-              margin-top: 4px;
-            "
-          />
-        </div>
-        <div class="form-group schema-form-checkbox">
+        <div class="master-switch-container">
+          <div>
+            <span class="master-switch-title">Enable Gate Accessory</span>
+            <div style="font-size: 0.8rem; color: #8a8a8f; margin-top: 2px;">Expose this gate and its controllers in HomeKit</div>
+          </div>
           <label class="hb-uix-switch">
-            <input type="checkbox" id="garage-${sanitizedId}" ${defaultGarageDoor ? 'checked' : ''}>
+            <input type="checkbox" id="enable-${sanitizedId}" ${isEnabled ? 'checked' : ''}>
             <span class="hb-uix-slider hb-uix-round"></span>
-            <span class="customize-toggle-label">Expose as Garage Door</span>
           </label>
+        </div>
 
+        <div id="optionsGroup-${sanitizedId}" class="options-group-container ${isEnabled ? '' : 'disabled-group'}">
+          <div class="form-group">
+            <label for="customName-${sanitizedId}" style="display: block; height: 24px; line-height: 24px; margin-bottom: 4px; font-size: 14.4px;">
+              Custom Gate Name
+            </label>
+            <input
+              type="text"
+              class="form-control"
+              id="customName-${sanitizedId}"
+              value="${escapeHtml(customName)}"
+              placeholder="${escapeHtml(gate.defaultName || gate.deviceId)}"
+              style="
+                appearance: none;
+                background-color: rgb(36, 36, 36);
+                border: 1px solid rgb(36, 36, 36);
+                border-radius: 6px;
+                box-sizing: border-box;
+                color: rgb(255, 255, 255);
+                font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+                font-size: 16px;
+                font-weight: 400;
+                height: 38px;
+                line-height: 24px;
+                padding: 6px 12px;
+                transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+                width: 100%;
+                margin-bottom: 16px;
+                margin-top: 4px;
+              "
+            />
+          </div>
+          <div style="font-size: 0.85rem; font-weight: 500; text-transform: uppercase; color: #8a8a8f; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">Accessory Service Mappings</div>
+          <div class="form-group schema-form-checkbox">
+            <label class="hb-uix-switch">
+              <input type="checkbox" id="garage-${sanitizedId}" ${defaultGarageDoor ? 'checked' : ''}>
+              <span class="hb-uix-slider hb-uix-round"></span>
+              <span class="customize-toggle-label">Expose as Garage Door</span>
+            </label>
+          </div>
+          <div class="form-group schema-form-checkbox">
+            <label class="hb-uix-switch">
+              <input type="checkbox" id="switch-${sanitizedId}" ${defaultSwitch ? 'checked' : ''}>
+              <span class="hb-uix-slider hb-uix-round"></span>         
+              <span class="customize-toggle-label">Expose as Switch</span>
+            </label>
+          </div>
+          <div class="form-group schema-form-checkbox">
+            <label class="hb-uix-switch">
+              <input type="checkbox" id="lock-${sanitizedId}" ${defaultLock ? 'checked' : ''}>
+              <span class="hb-uix-slider hb-uix-round"></span>
+              <span class="customize-toggle-label">Expose as Lock</span>
+            </label>
+          </div>
         </div>
-        <div class="form-group schema-form-checkbox">
-          <label class="hb-uix-switch">
-            <input type="checkbox" id="switch-${sanitizedId}" ${defaultSwitch ? 'checked' : ''}>
-            <span class="hb-uix-slider hb-uix-round"></span>         
-            <span class="customize-toggle-label">Expose as Switch</span>
-          </label>
 
-        </div>
-        <div class="form-group schema-form-checkbox">
-          <label class="hb-uix-switch">
-            <input type="checkbox" id="lock-${sanitizedId}" ${defaultLock ? 'checked' : ''}>
-            <span class="hb-uix-slider hb-uix-round"></span>
-            <span class="customize-toggle-label">Expose as Lock</span>
-          </label>
-
-        </div>
-        <div class="form-group schema-form-checkbox">
-          <label class="hb-uix-switch">
-            <input type="checkbox" id="hide-${sanitizedId}" ${hideGate ? 'checked' : ''}>
-            <span class="hb-uix-slider hb-uix-round"></span>
-            <span class="customize-toggle-label">Hide Gate</span>
-          </label>
-        </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <button class="btn btn-primary btn-sm save-custom" style="margin-right: 0.5rem;">Save</button>
           <button class="btn btn-outline-secondary btn-sm cancel-custom">Cancel</button>
         </div>
       `;
       container.style.display = 'block';
 
+      const enableInput = container.querySelector(`#enable-${sanitizedId}`);
+      const optionsGroup = container.querySelector(`#optionsGroup-${sanitizedId}`);
       const nameInput = container.querySelector(`#customName-${sanitizedId}`);
       const garageInput = container.querySelector(`#garage-${sanitizedId}`);
       const switchInput = container.querySelector(`#switch-${sanitizedId}`);
       const lockInput = container.querySelector(`#lock-${sanitizedId}`);
-      const hideInput = container.querySelector(`#hide-${sanitizedId}`);
+
+      // Add dynamic listener to Enable switch to toggle options group visibility state instantly
+      enableInput.addEventListener('change', () => {
+        if (enableInput.checked) {
+          optionsGroup.classList.remove('disabled-group');
+        } else {
+          optionsGroup.classList.add('disabled-group');
+        }
+      });
 
       container.querySelector('.cancel-custom').addEventListener('click', (event) => {
         event.preventDefault();
@@ -317,7 +355,7 @@
           garageDoor: garageInput.checked,
           switchDevice: switchInput.checked,
           lockDevice: lockInput.checked,
-          hide: hideInput.checked
+          hide: !enableInput.checked
         }, container);
       });
     }
