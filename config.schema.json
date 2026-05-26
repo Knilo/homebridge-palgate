@@ -156,8 +156,28 @@
 						},
 						"enableRelayLocks": {
 							"title": "Enable Relay Mode Accessories Override",
-							"description": "Override global setting: set to true/false to enable or disable virtual relays specifically for this gate.",
-							"type": "boolean"
+							"description": "Choose whether to enable or disable virtual relays specifically for this gate, or select 'Default' to inherit the global setting.",
+							"type": "string",
+							"oneOf": [
+								{
+									"title": "Default (Inherit global setting)",
+									"enum": [
+										""
+									]
+								},
+								{
+									"title": "Enabled",
+									"enum": [
+										"enabled"
+									]
+								},
+								{
+									"title": "Disabled",
+									"enum": [
+										"disabled"
+									]
+								}
+							]
 						},
 						"relayAccessoryType": {
 							"title": "Relay Accessory Type Override",

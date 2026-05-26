@@ -2,7 +2,8 @@
   <div class="card card-body">
     <h2 style="font-size: 0.9rem; font-weight: 300;">Device Linking</h2>
     <button class="btn btn-primary" id="generateQR"
-      style="font-weight: 400; padding: .375rem .75rem; font-size: 1rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">Connect to PalGate</button>
+      style="font-weight: 400; padding: .375rem .75rem; font-size: 1rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">Connect
+      to PalGate</button>
     <!-- Added style to center the QR code -->
     <div id="qrCodeArea" class="mt-3" style="text-align: center;"></div>
     <div id="linkStatus" class="mt-2"></div>
@@ -16,7 +17,7 @@
   </div>
 </div>
 <br>
-<div >
+<div>
   <button class="btn btn-outline-secondary btn-sm" id="toggleManualConfig"
     style="font-weight: 400; padding: .375rem .75rem; font-size: 0.8rem; line-height: 1.2; border-radius: .25rem; text-transform: uppercase;">
     Show Manual Config
@@ -33,6 +34,7 @@
     margin-bottom: 12px;
     margin-top: 4px;
   }
+
   .customize-toggle-label {
     color: rgb(255, 255, 255);
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
@@ -44,9 +46,11 @@
     flex: 1;
     margin-right: 0;
   }
+
   .customize-toggle .hb-uix-switch {
     margin-left: 0;
   }
+
   .master-switch-container {
     background-color: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -57,13 +61,16 @@
     align-items: center;
     justify-content: space-between;
   }
+
   .master-switch-title {
     font-weight: 500 !important;
     font-size: 15.5px !important;
   }
+
   .options-group-container {
     transition: opacity 0.25s ease, filter 0.25s ease;
   }
+
   .options-group-container.disabled-group {
     opacity: 0.35;
     pointer-events: none;
@@ -156,11 +163,11 @@
         `;
         homebridge.hideSpinner();
         setStatus(linkStatusEl);
-        
-        
+
+
         // Start polling /link/confirm.
         startConfirmationPolling(uniqueId);
-       
+
       } catch (err) {
         const friendly = formatError(err);
         setStatus(linkStatusEl, 'error', friendly);
@@ -258,8 +265,9 @@
       const openingDelayOverride = customEntry && customEntry.gateOpeningDelay !== undefined ? customEntry.gateOpeningDelay : '';
       const openDelayOverride = customEntry && customEntry.gateOpenDelay !== undefined ? customEntry.gateOpenDelay : '';
 
-      const defaultRelayEnable = customEntry && customEntry.enableRelayLocks !== undefined ? customEntry.enableRelayLocks === true : config.enableRelayLocks === true;
+      const defaultRelayEnable = customEntry && customEntry.enableRelayLocks !== undefined ? customEntry.enableRelayLocks : '';
       const relayAccessoryOverride = customEntry && customEntry.relayAccessoryType !== undefined ? customEntry.relayAccessoryType : '';
+      const isRelayActive = defaultRelayEnable === 'enabled' || (defaultRelayEnable === '' && config.enableRelayLocks === true);
 
       container.innerHTML = `
         <div class="master-switch-container">
@@ -338,20 +346,23 @@
           <!-- Dynamic relay mode section: only rendered if API reports user has admin/latch permissions -->
           ${(gate.admin || gate.latch) ? `
             <div style="font-size: 0.85rem; font-weight: 500; text-transform: uppercase; color: #8a8a8f; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-top: 12px; padding-bottom: 4px;">Relay Mode Controllers (Admin)</div>
-            <div class="form-group schema-form-checkbox">
-              <label class="hb-uix-switch">
-                <input type="checkbox" id="relayEnable-${sanitizedId}" ${defaultRelayEnable ? 'checked' : ''}>
-                <span class="hb-uix-slider hb-uix-round"></span>
-                <span class="customize-toggle-label">Expose Relay Mode Controllers</span>
+            <div class="form-group mt-2">
+              <label for="relayEnable-${sanitizedId}" style="display: block; margin-bottom: 4px; font-size: 13.5px; color: #8a8a8f;">
+                Relay Mode Controllers
               </label>
+              <select class="form-control" id="relayEnable-${sanitizedId}" style="background-color: rgb(36, 36, 36); border: 1px solid rgb(36, 36, 36); border-radius: 6px; color: rgb(255, 255, 255); height: 38px; padding: 6px 12px; width: 100%; margin-top: 4px;">
+                <option value="" ${defaultRelayEnable === '' ? 'selected' : ''}>Default (Inherit global setting)</option>
+                <option value="enabled" ${defaultRelayEnable === 'enabled' ? 'selected' : ''}>Enabled</option>
+                <option value="disabled" ${defaultRelayEnable === 'disabled' ? 'selected' : ''}>Disabled</option>
+              </select>
             </div>
-            <div class="form-group mt-2" id="relayTypeGroup-${sanitizedId}" style="display: ${defaultRelayEnable ? 'block' : 'none'};">
+            <div class="form-group mt-2" id="relayTypeGroup-${sanitizedId}" style="display: ${isRelayActive ? 'block' : 'none'};">
               <label for="relayType-${sanitizedId}" style="display: block; margin-bottom: 4px; font-size: 13.5px; color: #8a8a8f;">
                 Relay Controller Type
               </label>
               <select class="form-control" id="relayType-${sanitizedId}" style="background-color: rgb(36, 36, 36); border: 1px solid rgb(36, 36, 36); border-radius: 6px; color: rgb(255, 255, 255); height: 38px; padding: 6px 12px; width: 100%; margin-top: 4px;">
                 <option value="" ${relayAccessoryOverride === '' ? 'selected' : ''}>Default (Global setting)</option>
-                <option value="lock" ${relayAccessoryOverride === 'lock' ? 'selected' : ''}>Lock Mechanism</option>
+                <option value="lock" ${relayAccessoryOverride === 'lock' ? 'selected' : ''}>Lock</option>
                 <option value="switch" ${relayAccessoryOverride === 'switch' ? 'selected' : ''}>Switch</option>
               </select>
             </div>
@@ -412,7 +423,9 @@
 
       if (relayEnableInput && relayTypeGroup) {
         relayEnableInput.addEventListener('change', () => {
-          relayTypeGroup.style.display = relayEnableInput.checked ? 'block' : 'none';
+          const val = relayEnableInput.value;
+          const active = val === 'enabled' || (val === '' && config.enableRelayLocks === true);
+          relayTypeGroup.style.display = active ? 'block' : 'none';
         });
       }
 
@@ -431,7 +444,7 @@
           switchDevice: switchInput.checked,
           lockDevice: lockInput.checked,
           hide: !enableInput.checked,
-          enableRelayLocks: relayEnableInput ? relayEnableInput.checked : undefined,
+          enableRelayLocks: (relayEnableInput && relayEnableInput.value !== '') ? relayEnableInput.value : undefined,
           relayAccessoryType: (relayTypeInput && relayTypeInput.value !== '') ? relayTypeInput.value : undefined
         }, container);
       });
