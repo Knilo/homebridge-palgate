@@ -357,7 +357,7 @@
                 Relay Controller Type
               </label>
               <select class="form-control" id="relayType-${sanitizedId}" style="background-color: rgb(36, 36, 36); border: 1px solid rgb(36, 36, 36); border-radius: 6px; color: rgb(255, 255, 255); height: 38px; padding: 6px 12px; width: 100%; margin-top: 4px;">
-                <option value="lock" ${relayAccessoryOverride === 'lock' ? 'selected' : ''}>Lock Mechanism</option>
+                <option value="lock" ${relayAccessoryOverride === 'lock' ? 'selected' : ''}>Lock</option>
                 <option value="switch" ${relayAccessoryOverride === 'switch' ? 'selected' : ''}>Switch</option>
               </select>
             </div>
@@ -488,7 +488,7 @@
       try {
         homebridge.showSpinner();
         await persistPluginConfig({ refreshSchema: true });
-        homebridge.toast.success('Custom gate settings saved.', gate.defaultName || gate.deviceId);
+        homebridge.toast.success('Settings saved. Please restart Homebridge for changes to take effect.', gate.defaultName || gate.deviceId);
         container.style.display = 'none';
         renderGateList(discoveredGates);
       } catch (err) {
