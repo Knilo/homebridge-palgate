@@ -154,19 +154,15 @@
 							"description": "How long in milliseconds this specific gate stays 'Open'. Defaults to global setting.",
 							"type": "number"
 						},
-						"enableRelayLocks": {
-							"title": "Enable Relay Mode Accessories Override",
-							"description": "Set to true/false to enable or disable virtual relays specifically for this gate.",
+						"relaySwitch": {
+							"title": "Expose Relay as Switch",
+							"description": "Set to true to expose the virtual relays for this gate as Switches.",
 							"type": "boolean"
 						},
-						"relayAccessoryType": {
-							"title": "Relay Accessory Type Override",
-							"description": "Set to 'lock' or 'switch' to use that accessory type for this gate's virtual relays.",
-							"type": "string",
-							"enum": [
-								"lock",
-								"switch"
-							]
+						"relayLock": {
+							"title": "Expose Relay as Lock",
+							"description": "Set to true to expose the virtual relays for this gate as Locks.",
+							"type": "boolean"
 						}
 					}
 				}
