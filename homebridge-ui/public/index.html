@@ -225,8 +225,9 @@
       const customEntry = (config.customGates || []).find(item => item.deviceId === gate.deviceId);
       const sanitizedId = gate.deviceId.replace(/[^a-zA-Z0-9_-]/g, '_');
       const customName = customEntry && customEntry.name ? customEntry.name : '';
-      const defaultGarageDoor = customEntry ? customEntry.garageDoor === true : config.accessoryType !== 'switch';
+      const defaultGarageDoor = customEntry ? customEntry.garageDoor === true : (config.accessoryType !== 'switch' && config.accessoryType !== 'lock');
       const defaultSwitch = customEntry ? customEntry.switch === true : config.accessoryType === 'switch';
+      const defaultLock = customEntry ? customEntry.lock === true : config.accessoryType === 'lock';
       const hideGate = customEntry ? customEntry.hide === true : false;
 
       container.innerHTML = `
@@ -278,6 +279,14 @@
         </div>
         <div class="form-group schema-form-checkbox">
           <label class="hb-uix-switch">
+            <input type="checkbox" id="lock-${sanitizedId}" ${defaultLock ? 'checked' : ''}>
+            <span class="hb-uix-slider hb-uix-round"></span>
+            <span class="customize-toggle-label">Expose as Lock</span>
+          </label>
+
+        </div>
+        <div class="form-group schema-form-checkbox">
+          <label class="hb-uix-switch">
             <input type="checkbox" id="hide-${sanitizedId}" ${hideGate ? 'checked' : ''}>
             <span class="hb-uix-slider hb-uix-round"></span>
             <span class="customize-toggle-label">Hide Gate</span>
@@ -293,6 +302,7 @@
       const nameInput = container.querySelector(`#customName-${sanitizedId}`);
       const garageInput = container.querySelector(`#garage-${sanitizedId}`);
       const switchInput = container.querySelector(`#switch-${sanitizedId}`);
+      const lockInput = container.querySelector(`#lock-${sanitizedId}`);
       const hideInput = container.querySelector(`#hide-${sanitizedId}`);
 
       container.querySelector('.cancel-custom').addEventListener('click', (event) => {
@@ -306,6 +316,7 @@
           name: nameInput.value.trim(),
           garageDoor: garageInput.checked,
           switchDevice: switchInput.checked,
+          lockDevice: lockInput.checked,
           hide: hideInput.checked
         }, container);
       });
@@ -316,7 +327,8 @@
         deviceId: gate.deviceId,
         hide: values.hide,
         garageDoor: values.garageDoor,
-        switch: values.switchDevice
+        switch: values.switchDevice,
+        lock: values.lockDevice
       };
       if (values.name && values.name.length > 0) {
         entry.name = values.name;
