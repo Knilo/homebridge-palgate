@@ -1042,7 +1042,7 @@
 
   async function persistPluginConfig(options = {}) {
     homebridge.updatePluginConfig(pluginConfig);
-    homebridge.savePluginConfig();
+    await homebridge.savePluginConfig();
     if (options.refreshSchema) {
       if (manualConfigVisible) homebridge.showSchemaForm();
       else if (typeof homebridge.hideSchemaForm === 'function') homebridge.hideSchemaForm();
@@ -1110,5 +1110,8 @@
     if (/504/.test(msg)) return 'The PalGate server timed out. Please try again.';
     return msg || 'Unknown error occurred.';
   }
-})();
+})().catch(err => {
+  homebridge.hideSpinner();
+  homebridge.toast.error((err && err.message) || 'Failed to initialise plugin UI.', 'Error');
+});
 </script>
