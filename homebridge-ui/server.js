@@ -1,4 +1,4 @@
-const { callApi, getDevices } = require('../lib/api.js');
+const { callApi, callApiOnce, getDevices } = require('../lib/api.js');
 const { generateToken } = require('../lib/token-gen.js');
 const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require('../lib/utils/helpers.js');
 
@@ -20,6 +20,7 @@ const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require
       this.onRequest('/link/init', this.initLinkDevice.bind(this));
       this.onRequest('/link/confirm', this.confirmLinkDevice.bind(this));
       this.onRequest('/devices/discover', this.discoverDevices.bind(this));
+      this.onRequest('/gate-meta', this.getGateMeta.bind(this));
 
       // Signal that the UI is ready.
       this.ready();
@@ -62,59 +63,80 @@ const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require
 
     /**
      * Step 2: /link/confirm
-     * Checks if the user has scanned the QR code. If not, we return { success: false, waiting: true }.
-     * If the user has scanned, the PalGate API should return user + secondary fields.
+     * Polls whether the user has scanned the QR code.
+     * Returns { waiting: true } while pending, { success: true, ... } on completion,
+     * or { success: false, error } only for permanent failures (bad uniqueId).
      */
     async confirmLinkDevice(payload) {
-      try {
-        const { uniqueId } = payload;
-        if (!uniqueId) {
-          throw new Error("No uniqueId provided.");
-        }
+      const { uniqueId } = payload;
+      if (!uniqueId) {
+        return { success: false, error: 'No uniqueId provided.' };
+      }
 
-        const session = this.linkSessions[uniqueId];
-        if (!session) {
-          throw new Error(`No link session found for uniqueId: ${uniqueId}`);
-        }
+      const session = this.linkSessions[uniqueId];
+      if (!session) {
+        // Permanent failure — the session never existed or was already cleaned up.
+        return { success: false, error: 'Link session not found. Please start the QR flow again.' };
+      }
 
-        // If we already have a successful link, just return it immediately.
-        if (session.done) {
-          return {
-            success: true,
-            phoneNumber: session.phoneNumber,
-            sessionToken: session.sessionToken,
-            tokenType: session.tokenType,
-          };
-        }
-
-        // Otherwise, call the PalGate API to see if the user has scanned yet.
-        const endpoint = `un/secondary/init/${uniqueId}`;
-
-        // Updated: Use async/await since callApi returns a promise.
-        const apiResponse = await callApi(endpoint, '');
-
-        // If the API doesn't yet return user + secondary, the user hasn't scanned yet.
-        if (!apiResponse.user || !apiResponse.secondary) {
-          return { success: false, waiting: true };
-        }
-
-        // The user has scanned and the server returned the final data.
-        session.done = true;
-        session.phoneNumber = apiResponse.user.id;
-        session.sessionToken = apiResponse.user.token;
-        session.tokenType = apiResponse.secondary;
-
-        return {
+      // Already completed — return cached result immediately.
+      if (session.done) {
+        const result = {
           success: true,
           phoneNumber: session.phoneNumber,
           sessionToken: session.sessionToken,
           tokenType: session.tokenType,
         };
-      } catch (err) {
+        delete this.linkSessions[uniqueId];
+        return result;
+      }
+
+      try {
+        // Use callApiOnce (no retries) — the client's poll loop handles retry cadence.
+        // Retrying inside callApi while the client also polls compounds requests fast
+        // enough to trigger PalGate's rate limiter (429).
+        const apiResponse = await callApiOnce(`un/secondary/init/${uniqueId}`, '');
+
+        // User hasn't scanned yet.
+        if (!apiResponse.user || !apiResponse.secondary) {
+          return { success: false, waiting: true };
+        }
+
+        // Scan complete — normalize tokenType to a number before storing.
+        const tokenType = parseInt(apiResponse.secondary, 10);
+        delete this.linkSessions[uniqueId];
+
         return {
-          success: false,
-          error: err.message,
+          success: true,
+          phoneNumber: apiResponse.user.id,
+          sessionToken: apiResponse.user.token,
+          tokenType,
         };
+      } catch (err) {
+        const msg = err.message || '';
+        if (msg.includes('429')) {
+          // Rate limited — surface this to the client so it can stop and warn the user
+          return { success: false, error: 'Rate limited by PalGate. Please wait a moment before trying again.' };
+        }
+        // Other transient errors (network, timeout, 5xx): keep the poll alive
+        return { success: false, waiting: true };
+      }
+    }
+
+    /**
+     * Returns the admin/latch metadata cache written by the plugin at startup.
+     * Keyed by deviceId: { admin: bool, latch: bool }
+     */
+    async getGateMeta() {
+      const fs = require('fs');
+      const path = require('path');
+      try {
+        const metaPath = path.join(this.homebridgeStoragePath, 'palgate-gate-meta.json');
+        if (!fs.existsSync(metaPath)) return { success: true, meta: {} };
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        return { success: true, meta };
+      } catch (_) {
+        return { success: true, meta: {} };
       }
     }
 

@@ -27,12 +27,12 @@
 			},
 			"tokenType": {
 				"title": "Token Type",
-				"description": "Set to 0 for SMS, 1 for Primary linking, or 2 for Secondary linking.",
+				"description": "How this Homebridge instance is linked. SMS uses a one-time code; each PalGate account supports two device link slots (1 and 2).",
 				"type": "number",
-				"enum": [
-					0,
-					1,
-					2
+				"oneOf": [
+					{ "title": "SMS", "enum": [0] },
+					{ "title": "Linked Device 1", "enum": [1] },
+					{ "title": "Linked Device 2", "enum": [2] }
 				]
 			},
 			"accessoryType": {
@@ -54,7 +54,7 @@
 						]
 					},
 					{
-						"title": "Lock Mechanism",
+						"title": "Lock",
 						"enum": [
 							"lock"
 						]
@@ -62,15 +62,15 @@
 				]
 			},
 			"gateOpeningDelay": {
-				"title": "Gate Opening Duration",
-				"description": "How long in milliseconds the gate should show as 'Opening' before becoming fully 'Open'.",
+				"title": "Gate Opening Duration (ms)",
+				"description": "How long in milliseconds the gate shows as 'Opening' before becoming fully 'Open'. Default: 1000ms.",
 				"type": "integer",
 				"default": 1000,
 				"minimum": 0
 			},
 			"gateCloseDelay": {
-				"title": "Gate Close Duration",
-				"description": "How long in milliseconds the gate stays in the fully 'Open' state before closing automatically.",
+				"title": "Gate Close Duration (ms)",
+				"description": "How long in milliseconds the gate stays in the fully 'Open' state before closing automatically. Default: 5000ms.",
 				"type": "integer",
 				"default": 5000,
 				"minimum": 0
@@ -83,7 +83,7 @@
 			},
 			"relayAccessoryType": {
 				"title": "Relay Accessory Type",
-				"description": "The accessory type to use for virtual relay controllers. Default is 'lock'.",
+				"description": "The accessory type for virtual relay controllers (Hold Open / Hold Closed). Only applies when Relay Mode is enabled.",
 				"type": "string",
 				"default": "lock",
 				"oneOf": [
@@ -157,6 +157,12 @@
 							"description": "How long in milliseconds this specific gate stays 'Open'. Defaults to global setting.",
 							"type": "integer",
 							"minimum": 0
+						},
+						"relayEnabled": {
+							"title": "Enable Relay for this Gate",
+							"description": "When disabled, relay accessories will not be created for this gate even if Relay Mode is globally enabled. Defaults to true.",
+							"type": "boolean",
+							"default": true
 						},
 						"relaySwitch": {
 							"title": "Expose Relay as Switch",

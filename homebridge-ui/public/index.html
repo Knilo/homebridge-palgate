@@ -1,644 +1,1107 @@
-<div id="linkingContainer">
-  <div class="card card-body">
-    <h2 style="font-size: 0.9rem; font-weight: 300;">Device Linking</h2>
-    <button class="btn btn-primary" id="generateQR"
-      style="font-weight: 400; padding: .375rem .75rem; font-size: 1rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">Connect
-      to PalGate</button>
-    <!-- Added style to center the QR code -->
-    <div id="qrCodeArea" class="mt-3" style="text-align: center;"></div>
-    <div id="linkStatus" class="mt-2"></div>
-    <br>
-    <h2 style="font-size: 0.9rem; font-weight: 300;">Customise Gates</h2>
-    <button class="btn btn-primary" id="discoverGates"
-      style="font-weight: 400; padding: .375rem .75rem; font-size: 01rem; line-height: 1.5; border-radius: .25rem; text-transform: uppercase;">
-      Customise Gates
+<style>
+  /*
+   * Bootstrap 5 form controls render with light backgrounds by default and don't
+   * auto-inherit Homebridge's dark theme inside the iframe. These overrides match
+   * the exact colour palette that config-ui-x uses for its own form elements.
+   */
+  .form-control,
+  .form-control:focus,
+  .form-control-sm,
+  .form-control-sm:focus,
+  input[type="text"],
+  input[type="number"] {
+    appearance: none;
+    background-color: #242424;
+    border: 1px solid #3d3d3d;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 400;
+    padding: 6px 12px;
+  }
+  .form-control:focus,
+  .form-control-sm:focus {
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 0.2rem rgba(108, 99, 255, 0.2);
+    outline: none;
+  }
+  .form-control::placeholder,
+  .form-control-sm::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+  }
+
+  .form-select {
+    appearance: none;
+    background-color: #242424;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238a8a8f' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px 12px;
+    border: 1px solid #3d3d3d;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 400;
+    padding: 6px 2.25rem 6px 12px;
+  }
+  .form-select:focus {
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 0.2rem rgba(108, 99, 255, 0.2);
+    outline: none;
+  }
+  .form-select option {
+    background-color: #2d2d2d;
+    color: #fff;
+  }
+
+  /* Labels — the Homebridge palette uses weight 300, pure white */
+  .form-label {
+    color: #fff;
+    font-size: 14.4px;
+    font-weight: 300;
+    margin-bottom: 4px;
+  }
+
+  /* Section headers — same style as config-ui-x uses for fieldset titles */
+  .section-divider {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #8a8a8f;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 5px;
+    margin: 16px 0 10px;
+  }
+  .section-divider:first-child { margin-top: 0; }
+
+  /* Greyed-out options group when gate is disabled */
+  .options-disabled {
+    opacity: 0.38;
+    pointer-events: none;
+    filter: grayscale(0.5);
+    transition: opacity 0.2s ease, filter 0.2s ease;
+  }
+
+  /* Inline expand form separator */
+  .gate-expand-form {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 14px;
+    margin-top: 12px;
+  }
+
+  .form-check-input { cursor: pointer; }
+  .form-check-label {
+    cursor: pointer;
+    color: #fff;
+    font-weight: 300;
+  }
+
+  .text-muted { color: #8a8a8f !important; }
+
+  /* Small reset link — only visible when a timing field has a per-gate value */
+  .reset-link {
+    font-size: 0.72rem;
+    color: #8a8a8f;
+    text-decoration: none;
+  }
+  .reset-link:hover { color: #fff; }
+</style>
+
+<!-- ── Account Section ─────────────────────────────────────────── -->
+<div class="card card-body mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h6 class="mb-0"><i class="fas fa-link me-2"></i>PalGate Account</h6>
+    <span class="badge bg-success d-none" id="linkedBadge">
+      <i class="fas fa-check me-1"></i>Linked
+    </span>
+  </div>
+
+  <!-- Shown when already linked -->
+  <div id="linkedStateArea" class="d-none">
+    <div class="d-flex align-items-center justify-content-between">
+      <div>
+        <div class="fw-bold small" id="linkedPhone"></div>
+        <div class="text-muted" style="font-size: 0.8rem;" id="linkedTokenType"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="relinkBtn">
+        <i class="fas fa-sync me-1"></i>Re-link
+      </button>
+    </div>
+  </div>
+
+  <!-- Shown when not linked (or re-linking) -->
+  <div id="linkingFlowArea">
+    <p class="text-muted small mb-3">
+      Connect your PalGate account by scanning a QR code in the PalGate app
+      (<strong>Device Linking → Link a Device</strong>).
+    </p>
+    <button class="btn btn-primary" id="generateQR">
+      <i class="fas fa-qrcode me-2"></i>Connect to PalGate
     </button>
-    <div id="gateList" class="mt-3"></div>
+    <div id="qrCodeArea" class="mt-3 text-center"></div>
+    <div id="linkStatus" class="mt-2"></div>
   </div>
 </div>
-<br>
-<div>
-  <button class="btn btn-outline-secondary btn-sm" id="toggleManualConfig"
-    style="font-weight: 400; padding: .375rem .75rem; font-size: 0.8rem; line-height: 1.2; border-radius: .25rem; text-transform: uppercase;">
-    Show Manual Config
+
+<!-- ── Default Settings ───────────────────────────────────────── -->
+<div class="card card-body mb-3">
+  <div class="d-flex align-items-center justify-content-between" id="defaultSettingsToggle" style="cursor:pointer;">
+    <h6 class="mb-0"><i class="fas fa-sliders me-2"></i>Default Settings</h6>
+    <i class="fas fa-chevron-right text-muted" id="defaultSettingsChevron" style="transition:transform 0.2s;"></i>
+  </div>
+  <div id="defaultSettingsBody" style="display:none; margin-top:16px;">
+    <p class="text-muted small mb-3">Applied to all gates unless overridden per-gate below.</p>
+
+    <div class="mb-3">
+      <label class="form-label mb-1" for="globalAccessoryType">Default Accessory Type</label>
+      <select class="form-select" id="globalAccessoryType">
+        <option value="garageDoor">Garage Door</option>
+        <option value="switch">Switch</option>
+        <option value="lock">Lock</option>
+      </select>
+    </div>
+
+    <div class="section-divider">Timing</div>
+    <div class="row g-2 mb-3">
+      <div class="col-6">
+        <label class="form-label mb-1" for="globalOpeningDelay">Opening Duration (ms)</label>
+        <input type="number" class="form-control form-control-sm" id="globalOpeningDelay" min="0" placeholder="1000">
+      </div>
+      <div class="col-6">
+        <label class="form-label mb-1" for="globalCloseDelay">Auto-close Duration (ms)</label>
+        <input type="number" class="form-control form-control-sm" id="globalCloseDelay" min="0" placeholder="5000">
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label mb-1" for="globalPollInterval">State Poll Interval (s)</label>
+      <input type="number" class="form-control form-control-sm" id="globalPollInterval" min="10" placeholder="60">
+      <div class="text-muted mt-1" style="font-size:0.78rem;">How often to check for external relay state changes.</div>
+    </div>
+
+    <div class="section-divider">Relay Mode</div>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <div class="small" style="font-weight:500;">Enable Relay Accessories</div>
+        <div class="text-muted" style="font-size:0.78rem;">Expose Hold Open / Hold Closed accessories for admin gates</div>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="globalEnableRelay"
+          style="width:2.5em; height:1.3em; margin-left:0;">
+      </div>
+    </div>
+    <div id="globalRelayTypeGroup" style="display:none;" class="mb-3">
+      <label class="form-label mb-1" for="globalRelayType">Relay Accessory Type</label>
+      <select class="form-select" id="globalRelayType">
+        <option value="lock">Lock</option>
+        <option value="switch">Switch</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary btn-sm" id="saveGlobalDefaults">
+      <i class="fas fa-floppy-disk me-1"></i>Save Defaults
+    </button>
+  </div>
+</div>
+
+<!-- ── Gates Section ──────────────────────────────────────────── -->
+<div class="card card-body mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h6 class="mb-0"><i class="fas fa-warehouse me-2"></i>Gates</h6>
+    <button class="btn btn-primary btn-sm" id="discoverGates">
+      <i class="fas fa-search me-1"></i>Discover
+    </button>
+  </div>
+  <p class="text-muted small mb-2" id="gateListHint">
+    Discover your gates to configure accessory types and per-gate overrides.
+  </p>
+  <div id="gateList"></div>
+</div>
+
+<!-- ── Manual Config Toggle ───────────────────────────────────── -->
+<div class="mb-1">
+  <button class="btn btn-outline-secondary btn-sm" id="toggleManualConfig">
+    <i class="fas fa-code me-1"></i>Show Manual Config
   </button>
 </div>
 
-<!-- Removed "display:none;" to always show the form -->
-
-<style>
-  .customize-toggle {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-    margin-top: 4px;
-  }
-
-  .customize-toggle-label {
-    color: rgb(255, 255, 255);
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-    font-size: 14.4px;
-    font-weight: 300;
-    line-height: 24px;
-    display: flex;
-    align-items: center;
-    flex: 1;
-    margin-right: 0;
-  }
-
-  .customize-toggle .hb-uix-switch {
-    margin-left: 0;
-  }
-
-  .master-switch-container {
-    background-color: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .master-switch-title {
-    font-weight: 500 !important;
-    font-size: 15.5px !important;
-  }
-
-  .options-group-container {
-    transition: opacity 0.25s ease, filter 0.25s ease;
-  }
-
-  .options-group-container.disabled-group {
-    opacity: 0.35;
-    pointer-events: none;
-    filter: grayscale(0.8);
-  }
-</style>
-
 <script>
-  (async () => {
+(async () => {
+  const TOKEN_TYPE_LABELS = { 0: 'SMS', 1: 'Linked Device 1', 2: 'Linked Device 2' };
+  const MANUAL_CONFIG_KEY = 'palgateManualConfigVisible';
+  const TYPE_ICON = { garageDoor: 'fa-warehouse', switch: 'fa-toggle-on', lock: 'fa-lock' };
+  const TYPE_LABEL = { garageDoor: 'Garage Door', switch: 'Switch', lock: 'Lock' };
 
-    // Retrieve current plugin configuration.
-    let pluginConfig = await homebridge.getPluginConfig();
-    // Look for an existing configuration for PalGatePlatform.
-    let config = pluginConfig.find(item => item.platform === "PalGatePlatform");
-    if (!config) {
-      // If not found, create one.
-      config = {
-        platform: "PalGatePlatform",
-        name: "PalGate Platform",
-        accessoryType: "garageDoor"
-      };
-      pluginConfig.push(config);
-      homebridge.updatePluginConfig(pluginConfig);
-    }
-    config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
+  // ── State ─────────────────────────────────────────────────────────
+  let pluginConfig = await homebridge.getPluginConfig();
+  let config = pluginConfig.find(item => item.platform === 'PalGatePlatform');
+  if (!config) {
+    config = { platform: 'PalGatePlatform', name: 'PalGate Platform', accessoryType: 'garageDoor' };
+    pluginConfig.push(config);
+    homebridge.updatePluginConfig(pluginConfig);
+  }
+  config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
 
-    // Linking flow variables.
-    let uniqueId = null;
-    let pollInterval = null;
-    let linkingComplete = false; // Guard flag to prevent multiple success events
+  let discoveredGates = [];
+  let linkingComplete = false;
+  let pollInterval = null;
+  let pollStartTime = null;
+  let pollInFlight = false;
+  let manualConfigVisible = false;
 
-    const linkStatusEl = document.getElementById('linkStatus');
-    const gateListEl = document.getElementById('gateList');
-    const discoverBtn = document.getElementById('discoverGates');
-    const manualConfigToggleBtn = document.getElementById('toggleManualConfig');
-    const manualConfigStorageKey = 'palgateManualConfigVisible';
-    let manualConfigVisible = false;
+  const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+  // ── Init ──────────────────────────────────────────────────────────
+  try {
+    const stored = localStorage.getItem(MANUAL_CONFIG_KEY);
+    if (stored !== null) manualConfigVisible = stored === 'true';
+  } catch (_) {}
+
+  renderLinkedState();
+  updateManualConfigVisibility();
+  updateDiscoverButtonState();
+  initDefaultSettings();
+  homebridge.hideSpinner();
+
+  if (hasLinkingCredentials() && config.customGates.length > 0) {
+    // Render already-configured gates immediately from saved config — no API call, no spinner.
+    // Full discovery runs the first time the user clicks Configure or Discover.
+    renderGateListFromConfig();
+  }
+
+  // ── Event listeners ───────────────────────────────────────────────
+  document.getElementById('generateQR').addEventListener('click', handleGenerateQR);
+  document.getElementById('relinkBtn').addEventListener('click', handleRelink);
+  document.getElementById('discoverGates').addEventListener('click', handleDiscoverGates);
+  document.getElementById('toggleManualConfig').addEventListener('click', handleToggleManualConfig);
+
+  // ── Default Settings ──────────────────────────────────────────────
+  function initDefaultSettings() {
+    const body = document.getElementById('defaultSettingsBody');
+    const chevron = document.getElementById('defaultSettingsChevron');
+
+    document.getElementById('defaultSettingsToggle').addEventListener('click', () => {
+      const isOpen = body.style.display !== 'none';
+      body.style.display = isOpen ? 'none' : 'block';
+      chevron.style.transform = isOpen ? '' : 'rotate(90deg)';
+    });
+
+    document.getElementById('globalAccessoryType').value = config.accessoryType || 'garageDoor';
+    document.getElementById('globalOpeningDelay').value = config.gateOpeningDelay !== undefined ? config.gateOpeningDelay : '';
+    document.getElementById('globalCloseDelay').value = config.gateCloseDelay !== undefined ? config.gateCloseDelay : '';
+    document.getElementById('globalPollInterval').value = config.pollInterval !== undefined ? config.pollInterval : '';
+
+    const relayToggle = document.getElementById('globalEnableRelay');
+    relayToggle.checked = config.enableRelayLocks === true;
+    const relayTypeGroup = document.getElementById('globalRelayTypeGroup');
+    relayTypeGroup.style.display = relayToggle.checked ? 'block' : 'none';
+    document.getElementById('globalRelayType').value = config.relayAccessoryType || 'lock';
+
+    relayToggle.addEventListener('change', () => {
+      relayTypeGroup.style.display = relayToggle.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('saveGlobalDefaults').addEventListener('click', saveGlobalDefaults);
+  }
+
+  async function saveGlobalDefaults() {
+    const openingVal = document.getElementById('globalOpeningDelay').value.trim();
+    const closeVal = document.getElementById('globalCloseDelay').value.trim();
+    const pollVal = document.getElementById('globalPollInterval').value.trim();
+    const relayEnabled = document.getElementById('globalEnableRelay').checked;
+
+    config.accessoryType = document.getElementById('globalAccessoryType').value;
+    if (openingVal !== '') config.gateOpeningDelay = parseInt(openingVal, 10);
+    if (closeVal !== '') config.gateCloseDelay = parseInt(closeVal, 10);
+    if (pollVal !== '') config.pollInterval = parseInt(pollVal, 10);
+    config.enableRelayLocks = relayEnabled;
+    config.relayAccessoryType = document.getElementById('globalRelayType').value;
 
     try {
-      const storedPreference = localStorage.getItem(manualConfigStorageKey);
-      if (storedPreference !== null) {
-        manualConfigVisible = storedPreference === 'true';
-      }
+      homebridge.showSpinner();
+      await persistPluginConfig({ refreshSchema: true });
+      homebridge.toast.success('Saved. Restart Homebridge to apply changes.', 'Default Settings');
+      // Re-render gate list so type rows reflect updated defaults
+      if (discoveredGates.length > 0) renderGateList(discoveredGates);
     } catch (err) {
-      manualConfigVisible = false;
+      homebridge.toast.error(formatError(err), 'Save Failed');
+    } finally {
+      homebridge.hideSpinner();
+    }
+  }
+
+  // ── Linked State ──────────────────────────────────────────────────
+  function renderLinkedState() {
+    const isLinked = hasLinkingCredentials();
+    document.getElementById('linkedBadge').classList.toggle('d-none', !isLinked);
+    document.getElementById('linkedStateArea').classList.toggle('d-none', !isLinked);
+    document.getElementById('linkingFlowArea').classList.toggle('d-none', isLinked);
+
+    if (isLinked) {
+      document.getElementById('linkedPhone').textContent = config.phoneNumber;
+      document.getElementById('linkedTokenType').textContent =
+        TOKEN_TYPE_LABELS[config.tokenType] ?? `Token type ${config.tokenType}`;
+    }
+  }
+
+  function handleRelink() {
+    document.getElementById('linkedBadge').classList.add('d-none');
+    document.getElementById('linkedStateArea').classList.add('d-none');
+    document.getElementById('linkingFlowArea').classList.remove('d-none');
+    document.getElementById('qrCodeArea').innerHTML = '';
+    setStatus(document.getElementById('linkStatus'));
+  }
+
+  // ── QR / Linking flow ─────────────────────────────────────────────
+  async function handleGenerateQR() {
+    if (pollInterval) clearInterval(pollInterval);
+    linkingComplete = false;
+    pollInFlight = false;
+    const generateBtn = document.getElementById('generateQR');
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connecting…';
+    homebridge.showSpinner();
+    setStatus(document.getElementById('linkStatus'), 'info', 'Preparing linking session…');
+
+    try {
+      const initData = await homebridge.request('/link/init');
+      if (!initData.success) throw new Error(initData.error || 'Failed to initiate linking.');
+
+      // Hide the button — QR code takes over the space
+      generateBtn.style.display = 'none';
+      document.getElementById('qrCodeArea').innerHTML = `
+        <img src="${initData.qrCode}" alt="QR Code" class="img-fluid mb-2" style="max-width:200px;">
+        <p class="text-muted small mb-0">Open the PalGate app → Device Linking → Link a Device</p>
+      `;
+      homebridge.hideSpinner();
+      setStatus(document.getElementById('linkStatus'), 'info', 'Waiting for QR scan…');
+      startConfirmationPolling(initData.uniqueId);
+    } catch (err) {
+      const msg = formatError(err);
+      setStatus(document.getElementById('linkStatus'), 'error', msg);
+      homebridge.toast.error(msg, 'Error');
+      homebridge.hideSpinner();
+      generateBtn.disabled = false;
+      generateBtn.innerHTML = '<i class="fas fa-qrcode me-2"></i>Connect to PalGate';
+    }
+  }
+
+  function restoreConnectButton() {
+    const btn = document.getElementById('generateQR');
+    if (btn) {
+      btn.style.display = '';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-qrcode me-2"></i>Connect to PalGate';
+    }
+  }
+
+  function startConfirmationPolling(uniqueId) {
+    pollStartTime = Date.now();
+
+    const poll = async () => {
+      if (linkingComplete) return;
+      // Skip if the previous request hasn't returned yet — prevents piling up
+      // concurrent requests that would trigger PalGate's rate limiter
+      if (pollInFlight) return;
+
+      // Expire after POLL_TIMEOUT_MS — don't poll forever if user abandons the QR
+      if (Date.now() - pollStartTime > POLL_TIMEOUT_MS) {
+        if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+        document.getElementById('qrCodeArea').innerHTML = '';
+        setStatus(document.getElementById('linkStatus'), 'error', 'Session expired. Click "Connect to PalGate" to try again.');
+        restoreConnectButton();
+        return;
+      }
+
+      pollInFlight = true;
+      try {
+        const data = await homebridge.request('/link/confirm', { uniqueId });
+        if (data.success) {
+          if (linkingComplete) return;
+          linkingComplete = true;
+          if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+          document.getElementById('qrCodeArea').innerHTML = '';
+          setStatus(document.getElementById('linkStatus'), 'success', 'Linking complete.');
+          homebridge.toast.success('Device linked successfully!', 'Linked');
+          config.token = data.sessionToken;
+          config.phoneNumber = data.phoneNumber;
+          config.tokenType = parseInt(data.tokenType, 10);
+          await persistPluginConfig({ refreshSchema: true });
+          autoDiscover();
+        } else if (data.waiting) {
+          // Still waiting — nothing to update
+        } else {
+          // Permanent failure (rate limit, session not found, etc.)
+          if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+          const msg = data.error || 'Unknown error';
+          document.getElementById('qrCodeArea').innerHTML = '';
+          setStatus(document.getElementById('linkStatus'), 'error', msg);
+          homebridge.toast.error(msg, 'Linking Failed');
+          restoreConnectButton();
+        }
+      } catch (err) {
+        if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+        const msg = formatError(err);
+        setStatus(document.getElementById('linkStatus'), 'error', msg);
+        homebridge.toast.error(msg, 'Error');
+        restoreConnectButton();
+      } finally {
+        pollInFlight = false;
+      }
+    };
+
+    poll();
+    pollInterval = setInterval(poll, 5000); // 5s — generous enough to avoid rate limits
+  }
+
+  // ── Gate Discovery ────────────────────────────────────────────────
+  function renderGateListFromConfig() {
+    const gates = config.customGates.map(entry => ({
+      deviceId: entry.deviceId,
+      defaultName: entry.defaultName || entry.deviceId,
+      admin: entry.admin === true,  // cached from last discovery
+      latch: entry.latch === true,  // cached from last discovery
+      isPrePopulated: true
+    }));
+    discoveredGates = gates;
+    renderGateList(gates);
+    document.getElementById('gateListHint').classList.add('d-none');
+  }
+
+  async function autoDiscover() {
+    try {
+      homebridge.showSpinner();
+      const data = await homebridge.request('/devices/discover', {
+        token: config.token,
+        phoneNumber: config.phoneNumber,
+        tokenType: config.tokenType
+      });
+      if (data.success && data.gates && data.gates.length > 0) {
+        discoveredGates = data.gates;
+        discoveredGates.forEach(persistGateMeta);
+        renderGateList(discoveredGates);
+        document.getElementById('gateListHint').classList.add('d-none');
+      }
+    } catch (_) {
+      // Silent — user can retry with the Discover button
+    } finally {
+      homebridge.hideSpinner();
+    }
+  }
+
+  async function handleDiscoverGates() {
+    if (!hasLinkingCredentials()) {
+      homebridge.toast.error('Link your device first.', 'Missing Credentials');
+      return;
+    }
+    homebridge.showSpinner();
+    try {
+      const data = await homebridge.request('/devices/discover', {
+        token: config.token,
+        phoneNumber: config.phoneNumber,
+        tokenType: config.tokenType
+      });
+      if (!data.success) throw new Error(data.error || 'Failed to discover devices.');
+      discoveredGates = data.gates || [];
+      discoveredGates.forEach(persistGateMeta);
+      await persistPluginConfig({});
+      renderGateList(discoveredGates);
+      document.getElementById('gateListHint').classList.add('d-none');
+    } catch (err) {
+      const msg = formatError(err);
+      homebridge.toast.error(msg, 'Discovery Error');
+    } finally {
+      homebridge.hideSpinner();
+    }
+  }
+
+  // Writes admin/latch from a discovered gate into the customGates entry (or creates a
+  // minimal one) so badges and the relay section survive a restart without re-discovery.
+  // admin and latch are independent — both can be true simultaneously.
+  function persistGateMeta(gate) {
+    config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
+    const idx = config.customGates.findIndex(e => e.deviceId === gate.deviceId);
+    const admin = gate.admin === true;
+    const latch = gate.latch === true;
+    if (idx > -1) {
+      config.customGates[idx].admin = admin;
+      config.customGates[idx].latch = latch;
+      if (gate.defaultName) config.customGates[idx].defaultName = gate.defaultName;
+    } else if (admin || latch) {
+      config.customGates.push({ deviceId: gate.deviceId, admin, latch, defaultName: gate.defaultName });
+    }
+  }
+
+  function renderGateList(gates) {
+    const gateListEl = document.getElementById('gateList');
+    if (!gates || gates.length === 0) {
+      setStatus(gateListEl, 'info', 'No gates found.');
+      return;
+    }
+    gateListEl.innerHTML = '';
+    gates.forEach(gate => gateListEl.appendChild(createGateCard(gate)));
+  }
+
+  // ── Gate Cards ────────────────────────────────────────────────────
+  function buildTypeIconRow(gate, customEntry) {
+    if (customEntry && customEntry.hide === true) {
+      return '<span class="text-muted" style="font-size:0.8rem;"><i class="fas fa-eye-slash me-1"></i>Hidden from HomeKit</span>';
     }
 
-    if (manualConfigToggleBtn) {
-      manualConfigToggleBtn.addEventListener('click', () => {
-        manualConfigVisible = !manualConfigVisible;
+    const types = [];
+    if (customEntry && (customEntry.garageDoor === true || customEntry.switch === true || customEntry.lock === true)) {
+      if (customEntry.garageDoor) types.push('garageDoor');
+      if (customEntry.switch) types.push('switch');
+      if (customEntry.lock) types.push('lock');
+    } else {
+      types.push(config.accessoryType || 'garageDoor');
+    }
+
+    return types.map(t => {
+      const icon = TYPE_ICON[t] || 'fa-warehouse';
+      const label = TYPE_LABEL[t] || t;
+      return `<span style="font-size:0.8rem; color:#ccc;"><i class="fas ${icon} me-1"></i>${escapeHtml(label)}</span>`;
+    }).join('<span class="text-muted" style="margin:0 6px;">·</span>');
+  }
+
+  function createGateCard(gate) {
+    const card = document.createElement('div');
+    card.className = 'card card-body mb-2';
+
+    const customEntry = config.customGates.find(e => e.deviceId === gate.deviceId);
+    const displayName = (customEntry && customEntry.name) || gate.defaultName || gate.deviceId;
+    const isCustomized = !!customEntry;
+
+    const customBadge = isCustomized
+      ? '<span class="badge bg-primary" style="font-size:0.66rem; vertical-align:middle;"><i class="fas fa-pen" style="font-size:0.6rem;"></i> Custom</span>'
+      : '';
+    const adminBadge = gate.admin
+      ? '<span class="badge bg-warning text-dark admin-badge" style="font-size:0.66rem; vertical-align:middle;"><i class="fas fa-shield" style="font-size:0.6rem;"></i> Admin</span>'
+      : '';
+    const latchBadge = gate.latch
+      ? '<span class="badge bg-info text-dark latch-badge" style="font-size:0.66rem; vertical-align:middle;"><i class="fas fa-bolt" style="font-size:0.6rem;"></i> Latch</span>'
+      : '';
+
+    const typeRow = buildTypeIconRow(gate, customEntry);
+
+    card.innerHTML = `
+      <div class="d-flex justify-content-between align-items-start gap-2">
+        <div style="min-width:0; flex:1;">
+          <div class="d-flex align-items-center flex-wrap gap-1 mb-1">
+            <span class="fw-bold">${escapeHtml(displayName)}</span>
+            ${customBadge}${adminBadge}${latchBadge}
+          </div>
+          <div class="mb-1">${typeRow}</div>
+          <div class="text-muted" style="font-size:0.73rem;">${escapeHtml(gate.deviceId)}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm configure-btn flex-shrink-0">
+          <i class="fas fa-sliders me-1"></i>Configure
+        </button>
+      </div>
+      <div class="gate-expand-form" style="display:none;"></div>
+    `;
+
+    const btn = card.querySelector('.configure-btn');
+    const form = card.querySelector('.gate-expand-form');
+
+    btn.addEventListener('click', async () => {
+      const isOpen = form.style.display !== 'none';
+      if (isOpen) {
+        form.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-sliders me-1"></i>Configure';
+        return;
+      }
+
+      // First Configure click with no prior discovery — run it now so the form
+      // has admin/latch info and canonical names from the API.
+      if (discoveredGates.length === 0 || gate.isPrePopulated) {
         try {
-          localStorage.setItem(manualConfigStorageKey, manualConfigVisible);
-        } catch (err) {
-          // ignore storage write errors
+          homebridge.showSpinner();
+          const data = await homebridge.request('/devices/discover', {
+            token: config.token,
+            phoneNumber: config.phoneNumber,
+            tokenType: config.tokenType
+          });
+          if (data.success && data.gates && data.gates.length > 0) {
+            discoveredGates = data.gates;
+            const enriched = discoveredGates.find(g => g.deviceId === gate.deviceId);
+            if (enriched) {
+              gate.admin = enriched.admin;
+              gate.latch = enriched.latch;
+              gate.defaultName = enriched.defaultName || gate.defaultName;
+              gate.isPrePopulated = false;
+              persistGateMeta(gate);
+              persistPluginConfig({}).catch(() => {});
+              // Update the card header in-place so badges appear immediately
+              const nameRow = card.querySelector('.fw-bold').parentElement;
+              if (gate.admin && !nameRow.querySelector('.admin-badge')) {
+                const el = document.createElement('span');
+                el.className = 'badge bg-warning text-dark admin-badge';
+                el.style.cssText = 'font-size:0.66rem; vertical-align:middle;';
+                el.innerHTML = '<i class="fas fa-shield" style="font-size:0.6rem;"></i> Admin';
+                nameRow.appendChild(el);
+              }
+              if (gate.latch && !nameRow.querySelector('.latch-badge')) {
+                const el = document.createElement('span');
+                el.className = 'badge bg-info text-dark latch-badge';
+                el.style.cssText = 'font-size:0.66rem; vertical-align:middle;';
+                el.innerHTML = '<i class="fas fa-bolt" style="font-size:0.6rem;"></i> Latch';
+                nameRow.appendChild(el);
+              }
+            }
+          }
+        } catch (_) {
+          // Open form with config data if discovery fails — relay section just won't show
+        } finally {
+          homebridge.hideSpinner();
         }
-        updateManualConfigVisibility();
+      }
+
+      renderCustomizationForm(form, gate);
+      btn.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Close';
+    });
+
+    return card;
+  }
+
+  // ── Customisation Form ────────────────────────────────────────────
+  function renderCustomizationForm(container, gate) {
+    const customEntry = config.customGates.find(e => e.deviceId === gate.deviceId) || {};
+    const sid = gate.deviceId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    const isEnabled = customEntry.hide !== true;
+    const customName = customEntry.name || '';
+
+    // Type — only write overrides when this is explicitly toggled on (fixes silent pinning)
+    const hasTypeOverride = customEntry.garageDoor === true || customEntry.switch === true || customEntry.lock === true;
+    const garageDoor = customEntry.garageDoor === true;
+    const switchDev = customEntry.switch === true;
+    const lockDev = customEntry.lock === true;
+
+    // Timing — empty string means "use global"
+    const openingDelay = customEntry.gateOpeningDelay !== undefined ? customEntry.gateOpeningDelay : '';
+    const closeDelay = customEntry.gateCloseDelay !== undefined ? customEntry.gateCloseDelay : '';
+    const globalOpeningDelay = config.gateOpeningDelay !== undefined ? config.gateOpeningDelay : 1000;
+    const globalCloseDelay = config.gateCloseDelay !== undefined ? config.gateCloseDelay : 5000;
+
+    // Relay — only shown when globally enabled AND user has latch/admin permission
+    const showRelay = config.enableRelayLocks && (gate.admin || gate.latch);
+    const relayEnabled = customEntry.relayEnabled !== false;
+    const relaySwitch = customEntry.relaySwitch === true;
+    const relayLock = customEntry.relayLock === true;
+
+    // Global type info for the "not overriding" hint
+    const globalTypeKey = config.accessoryType || 'garageDoor';
+    const globalTypeLabel = TYPE_LABEL[globalTypeKey] || 'Garage Door';
+    const globalTypeIcon = TYPE_ICON[globalTypeKey] || 'fa-warehouse';
+
+    container.innerHTML = `
+      <!-- Enable toggle -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <div class="fw-bold small">Enable in HomeKit</div>
+          <div class="text-muted" style="font-size:0.8rem;">Show this gate as an accessory</div>
+        </div>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" role="switch"
+            id="enable-${sid}" ${isEnabled ? 'checked' : ''}
+            style="width:2.5em; height:1.3em; margin-left:0;">
+        </div>
+      </div>
+
+      <!-- Options group (greyed when disabled) -->
+      <div id="optionsGroup-${sid}" class="${!isEnabled ? 'options-disabled' : ''}">
+
+        <!-- Custom Name -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label mb-0" for="customName-${sid}">Custom Name</label>
+            <a href="#" class="reset-link${customName ? '' : ' d-none'}" id="resetName-${sid}">↺ reset</a>
+          </div>
+          <input type="text" class="form-control form-control-sm"
+            id="customName-${sid}"
+            value="${escapeHtml(customName)}"
+            placeholder="${escapeHtml(gate.defaultName || gate.deviceId)}">
+        </div>
+
+        <!-- Accessory Type -->
+        <div class="d-flex justify-content-between align-items-center" style="margin:16px 0 0;">
+          <div class="section-divider mb-0" style="flex:1; border-bottom:none; margin:0; padding-bottom:0;">Accessory Type</div>
+          <a href="#" class="reset-link${hasTypeOverride ? '' : ' d-none'}" id="resetType-${sid}" style="margin-left:8px;">↺ reset</a>
+        </div>
+        <div style="border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:10px;"></div>
+
+        <!-- Read-only row: shown when using global default -->
+        <div id="typeDefaultRow-${sid}" class="${hasTypeOverride ? 'd-none' : ''} d-flex align-items-center justify-content-between mb-3">
+          <span style="color:#ccc; font-size:0.88rem;">
+            <i class="fas ${globalTypeIcon} me-1"></i>${escapeHtml(globalTypeLabel)}
+          </span>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="customiseType-${sid}" style="font-size:0.75rem; padding:2px 10px;">
+            Customise
+          </button>
+        </div>
+
+        <!-- Checkboxes: shown when override is active -->
+        <div id="typeCheckboxes-${sid}" class="${!hasTypeOverride ? 'd-none' : ''} mb-3">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="garage-${sid}" ${garageDoor ? 'checked' : ''}>
+            <label class="form-check-label" for="garage-${sid}">
+              <i class="fas fa-warehouse me-1"></i>Garage Door
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="switch-${sid}" ${switchDev ? 'checked' : ''}>
+            <label class="form-check-label" for="switch-${sid}">
+              <i class="fas fa-toggle-on me-1"></i>Switch
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="lock-${sid}" ${lockDev ? 'checked' : ''}>
+            <label class="form-check-label" for="lock-${sid}">
+              <i class="fas fa-lock me-1"></i>Lock
+            </label>
+          </div>
+          <p class="text-muted small mt-1 mb-0">Each checked type creates a separate accessory in HomeKit.</p>
+        </div>
+
+        <!-- Timing Overrides -->
+        <div class="section-divider">Timing</div>
+        <p class="text-muted small mb-2">Leave blank to use the global default.</p>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label mb-0" for="openingDelay-${sid}" style="font-size:0.88rem;">Opening (ms)</label>
+              <a href="#" class="reset-link${openingDelay !== '' ? '' : ' d-none'}" id="resetOpening-${sid}">↺ reset</a>
+            </div>
+            <input type="number" class="form-control form-control-sm"
+              id="openingDelay-${sid}"
+              value="${openingDelay}"
+              placeholder="${globalOpeningDelay}ms (global)"
+              min="0">
+          </div>
+          <div class="col-6">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label mb-0" for="closeDelay-${sid}" style="font-size:0.88rem;">Auto-close (ms)</label>
+              <a href="#" class="reset-link${closeDelay !== '' ? '' : ' d-none'}" id="resetClose-${sid}">↺ reset</a>
+            </div>
+            <input type="number" class="form-control form-control-sm"
+              id="closeDelay-${sid}"
+              value="${closeDelay}"
+              placeholder="${globalCloseDelay}ms (global)"
+              min="0">
+          </div>
+        </div>
+
+        <!-- Relay Mode (conditional) -->
+        ${showRelay ? `
+        <div class="section-divider">
+          Relay Mode
+          <span class="badge bg-warning text-dark ms-1" style="font-size:0.62rem; vertical-align:middle;"><i class="fas fa-shield" style="font-size:0.58rem;"></i> Admin</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="text-muted" style="font-size:0.82rem;">Enable relay accessories for this gate</div>
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" role="switch"
+              id="relayEnabled-${sid}" ${relayEnabled ? 'checked' : ''}
+              style="width:2em; height:1.1em; margin-left:0;">
+          </div>
+        </div>
+        <div id="relayOptions-${sid}" class="${!relayEnabled ? 'd-none' : ''} mb-3">
+          <p class="text-muted small mb-2">
+            Expose virtual relay controllers for latch (hold open / hold closed) operations.
+          </p>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="relaySwitch-${sid}" ${relaySwitch ? 'checked' : ''}>
+            <label class="form-check-label" for="relaySwitch-${sid}">
+              <i class="fas fa-toggle-on me-1"></i>Relay as Switch
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="relayLock-${sid}" ${relayLock ? 'checked' : ''}>
+            <label class="form-check-label" for="relayLock-${sid}">
+              <i class="fas fa-lock me-1"></i>Relay as Lock
+            </label>
+          </div>
+        </div>
+        ` : ''}
+
+      </div>
+
+      <!-- Actions -->
+      <div class="d-flex align-items-center justify-content-between mt-3">
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary btn-sm save-custom">Save</button>
+          <button class="btn btn-secondary btn-sm cancel-custom">Cancel</button>
+        </div>
+        <button class="btn btn-outline-danger btn-sm reset-custom">
+          <i class="fas fa-rotate-left me-1"></i>Reset all
+        </button>
+      </div>
+    `;
+
+    container.style.display = 'block';
+
+    // Enable/disable options group when master toggle changes
+    const enableInput = container.querySelector(`#enable-${sid}`);
+    const optionsGroup = container.querySelector(`#optionsGroup-${sid}`);
+    enableInput.addEventListener('change', () => {
+      optionsGroup.classList.toggle('options-disabled', !enableInput.checked);
+    });
+
+    // Name reset link
+    const nameInput = container.querySelector(`#customName-${sid}`);
+    const resetNameLink = container.querySelector(`#resetName-${sid}`);
+    nameInput.addEventListener('input', () => {
+      resetNameLink.classList.toggle('d-none', nameInput.value === '');
+    });
+    resetNameLink.addEventListener('click', e => { e.preventDefault(); nameInput.value = ''; resetNameLink.classList.add('d-none'); });
+
+    // Accessory type — Customise button shows checkboxes; ↺ reset hides them
+    const typeDefaultRow = container.querySelector(`#typeDefaultRow-${sid}`);
+    const typeCheckboxes = container.querySelector(`#typeCheckboxes-${sid}`);
+    const resetTypeLink = container.querySelector(`#resetType-${sid}`);
+    const customiseTypeBtn = container.querySelector(`#customiseType-${sid}`);
+
+    customiseTypeBtn.addEventListener('click', () => {
+      typeDefaultRow.classList.add('d-none');
+      typeCheckboxes.classList.remove('d-none');
+      resetTypeLink.classList.remove('d-none');
+    });
+
+    resetTypeLink.addEventListener('click', e => {
+      e.preventDefault();
+      ['garage', 'switch', 'lock'].forEach(k => {
+        const cb = container.querySelector(`#${k}-${sid}`);
+        if (cb) cb.checked = false;
+      });
+      typeCheckboxes.classList.add('d-none');
+      typeDefaultRow.classList.remove('d-none');
+      resetTypeLink.classList.add('d-none');
+    });
+
+    // Relay enable toggle
+    const relayEnabledToggle = container.querySelector(`#relayEnabled-${sid}`);
+    if (relayEnabledToggle) {
+      const relayOptions = container.querySelector(`#relayOptions-${sid}`);
+      relayEnabledToggle.addEventListener('change', () => {
+        relayOptions.classList.toggle('d-none', !relayEnabledToggle.checked);
       });
     }
 
-    updateManualConfigVisibility();
-    updateDiscoverButtonState();
-    homebridge.hideSpinner();
+    // Timing reset links — appear when per-gate value is set, vanish when cleared
+    const openingInput = container.querySelector(`#openingDelay-${sid}`);
+    const resetOpeningLink = container.querySelector(`#resetOpening-${sid}`);
+    const closeInput = container.querySelector(`#closeDelay-${sid}`);
+    const resetCloseLink = container.querySelector(`#resetClose-${sid}`);
 
-    let discoveredGates = [];
+    const updateResetVisibility = () => {
+      resetOpeningLink.classList.toggle('d-none', openingInput.value === '');
+      resetCloseLink.classList.toggle('d-none', closeInput.value === '');
+    };
+    openingInput.addEventListener('input', updateResetVisibility);
+    closeInput.addEventListener('input', updateResetVisibility);
+    resetOpeningLink.addEventListener('click', e => { e.preventDefault(); openingInput.value = ''; updateResetVisibility(); });
+    resetCloseLink.addEventListener('click', e => { e.preventDefault(); closeInput.value = ''; updateResetVisibility(); });
 
-    document.getElementById('generateQR').addEventListener('click', async () => {
-      // Clear any existing polling interval and reset linking flag.
-      if (pollInterval) {
-        clearInterval(pollInterval);
-      }
-      linkingComplete = false;
-      homebridge.showSpinner();
-      setStatus(linkStatusEl, 'info', 'Preparing linking session...');
+    container.querySelector('.cancel-custom').addEventListener('click', e => {
+      e.preventDefault();
+      container.style.display = 'none';
+      const btn = container.closest('.card').querySelector('.configure-btn');
+      if (btn) btn.innerHTML = '<i class="fas fa-sliders me-1"></i>Configure';
+    });
 
-
+    container.querySelector('.reset-custom').addEventListener('click', async e => {
+      e.preventDefault();
+      config.customGates = (config.customGates || []).filter(entry => entry.deviceId !== gate.deviceId);
       try {
-        // Call /link/init to get a new uniqueId and QR code.
-        const initData = await homebridge.request('/link/init');
-        if (!initData.success) {
-          throw new Error(initData.error || 'Failed to initiate linking.');
-        }
-        uniqueId = initData.uniqueId;
-        document.getElementById('qrCodeArea').innerHTML = `
-          <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
-            <img src="${initData.qrCode}" alt="QR Code" style="max-width:100%;">
-            <div style="font-size: 0.9rem; font-weight: 300;">
-              Open the PalGate App and go to Device Linking > Link a Device to scan the QR code and complete the setup.
-            </div>
-          </div>
-        `;
-        homebridge.hideSpinner();
-        setStatus(linkStatusEl);
-
-
-        // Start polling /link/confirm.
-        startConfirmationPolling(uniqueId);
-
+        homebridge.showSpinner();
+        await persistPluginConfig({ refreshSchema: true });
+        homebridge.toast.success('Customizations removed. Restart Homebridge to apply changes.', gate.defaultName || gate.deviceId);
+        renderGateList(discoveredGates);
       } catch (err) {
-        const friendly = formatError(err);
-        setStatus(linkStatusEl, 'error', friendly);
-        homebridge.toast.error(friendly, 'Error');
+        homebridge.toast.error(formatError(err), 'Reset Failed');
       } finally {
         homebridge.hideSpinner();
       }
     });
 
-    if (discoverBtn) {
-      discoverBtn.addEventListener('click', async () => {
-        if (!hasLinkingCredentials()) {
-          homebridge.toast.error('Please link your device before discovering gates.', 'Missing Credentials');
-          return;
-        }
+    container.querySelector('.save-custom').addEventListener('click', async e => {
+      e.preventDefault();
+      const getValue = id => container.querySelector(`#${id}`);
+      const nameVal = getValue(`customName-${sid}`).value.trim();
+      const openingVal = openingInput.value.trim();
+      const closeVal = closeInput.value.trim();
+      const relaySwitchEl = getValue(`relaySwitch-${sid}`);
+      const relayLockEl = getValue(`relayLock-${sid}`);
+      const relayEnabledEl = getValue(`relayEnabled-${sid}`);
 
-        setStatus(gateListEl, 'info', 'Discovering devices...');
-        homebridge.showSpinner();
+      const garageEl = getValue(`garage-${sid}`);
+      const switchEl = getValue(`switch-${sid}`);
+      const lockEl = getValue(`lock-${sid}`);
+      const typeOverrideEnabled = !container.querySelector(`#typeCheckboxes-${sid}`).classList.contains('d-none');
 
-        try {
-          const discoveryData = await homebridge.request('/devices/discover', {
-            token: config.token,
-            phoneNumber: config.phoneNumber,
-            tokenType: config.tokenType
-          });
-          if (!discoveryData.success) {
-            throw new Error(discoveryData.error || 'Failed to discover devices.');
-          }
-          discoveredGates = discoveryData.gates || [];
-          renderGateList(discoveredGates);
-        } catch (err) {
-          const friendly = formatError(err);
-          setStatus(gateListEl, 'error', friendly);
-          homebridge.toast.error(friendly, 'Discovery Error');
-        } finally {
-          homebridge.hideSpinner();
-        }
-      });
+      await saveCustomGate(gate, {
+        name: nameVal,
+        hide: !enableInput.checked,
+        typeOverrideEnabled,
+        garageDoor: garageEl ? garageEl.checked : false,
+        switchDevice: switchEl ? switchEl.checked : false,
+        lockDevice: lockEl ? lockEl.checked : false,
+        openingDelay: openingVal !== '' ? parseInt(openingVal, 10) : undefined,
+        closeDelay: closeVal !== '' ? parseInt(closeVal, 10) : undefined,
+        relayEnabled: relayEnabledEl ? relayEnabledEl.checked : undefined,
+        relaySwitch: relaySwitchEl ? relaySwitchEl.checked : undefined,
+        relayLock: relayLockEl ? relayLockEl.checked : undefined
+      }, container);
+    });
+  }
+
+  async function saveCustomGate(gate, values, container) {
+    const existing = (config.customGates || []).find(e => e.deviceId === gate.deviceId) || {};
+    const entry = {
+      deviceId: gate.deviceId,
+      hide: values.hide,
+      // Preserve cached discovery metadata — gate object has live values, fall back to stored
+      admin: gate.admin !== undefined ? gate.admin : existing.admin,
+      latch: gate.latch !== undefined ? gate.latch : existing.latch,
+      defaultName: gate.defaultName || existing.defaultName,
+    };
+    if (entry.admin === undefined) delete entry.admin;
+    if (entry.latch === undefined) delete entry.latch;
+    if (!entry.defaultName) delete entry.defaultName;
+
+    // Only write type booleans when the user has explicitly toggled the override on.
+    // Omitting them allows the plugin to fall back to the global accessoryType setting,
+    // fixing the "silent pinning" bug where saves would freeze the type at save-time defaults.
+    if (values.typeOverrideEnabled && (values.garageDoor || values.switchDevice || values.lockDevice)) {
+      entry.garageDoor = values.garageDoor;
+      entry.switch = values.switchDevice;
+      entry.lock = values.lockDevice;
     }
 
-    function renderGateList(gates) {
-      discoveredGates = gates || [];
-      if (!gates || gates.length === 0) {
-        setStatus(gateListEl, 'info', 'No gates discovered.');
-        return;
-      }
+    if (values.name) entry.name = values.name;
 
-      gateListEl.innerHTML = '';
-      gates.forEach((gate) => {
-        gateListEl.appendChild(createGateCard(gate));
-      });
+    if (values.openingDelay !== undefined && !isNaN(values.openingDelay)) {
+      entry.gateOpeningDelay = values.openingDelay;
+    }
+    if (values.closeDelay !== undefined && !isNaN(values.closeDelay)) {
+      entry.gateCloseDelay = values.closeDelay;
     }
 
-    function createGateCard(gate) {
-      const card = document.createElement('div');
-      card.className = 'card card-body mb-2';
-      const displayName = gate.defaultName || gate.deviceId;
-      card.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center flex-wrap">
-          <div>
-            <div style="font-weight: 600;">${escapeHtml(displayName)}</div>
-            <div style="font-size: 0.8rem; color: #6c757d;">${escapeHtml(gate.deviceId)}</div>
-          </div>
-          <button class="btn btn-secondary btn-sm customize-btn">Customise</button>
-        </div>
-        <div class="customize-form mt-3" style="display: none;"></div>
-      `;
-
-      const customizeBtn = card.querySelector('.customize-btn');
-      const formContainer = card.querySelector('.customize-form');
-
-      customizeBtn.addEventListener('click', () => {
-        if (formContainer.style.display === 'none' || formContainer.style.display === '') {
-          renderCustomizationForm(formContainer, gate);
-        } else {
-          formContainer.style.display = 'none';
-        }
-      });
-
-      return card;
-    }
-
-    function renderCustomizationForm(container, gate) {
-      const customEntry = (config.customGates || []).find(item => item.deviceId === gate.deviceId);
-      const sanitizedId = gate.deviceId.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const customName = customEntry && customEntry.name ? customEntry.name : '';
-      const defaultGarageDoor = customEntry ? customEntry.garageDoor === true : (config.accessoryType !== 'switch' && config.accessoryType !== 'lock');
-      const defaultSwitch = customEntry ? customEntry.switch === true : config.accessoryType === 'switch';
-      const defaultLock = customEntry ? customEntry.lock === true : config.accessoryType === 'lock';
-      const hideGate = customEntry ? customEntry.hide === true : false;
-      const isEnabled = !hideGate;
-
-      const globalOpeningDelay = config.gateOpeningDelay !== undefined ? config.gateOpeningDelay : 1000;
-      const globalCloseDelay = config.gateCloseDelay !== undefined ? config.gateCloseDelay : 5000;
-      const openingDelayOverride = customEntry && customEntry.gateOpeningDelay !== undefined ? customEntry.gateOpeningDelay : '';
-      const closeDelayOverride = customEntry && customEntry.gateCloseDelay !== undefined ? customEntry.gateCloseDelay : '';
-
-      const defaultRelaySwitch = customEntry ? customEntry.relaySwitch === true : false;
-      const defaultRelayLock = customEntry ? customEntry.relayLock === true : false;
-
-      container.innerHTML = `
-        <div class="master-switch-container">
-          <div>
-            <span class="master-switch-title">Enable Gate Accessory</span>
-            <div style="font-size: 0.8rem; color: #8a8a8f; margin-top: 2px;">Expose this gate and its controllers in HomeKit</div>
-          </div>
-          <label class="hb-uix-switch">
-            <input type="checkbox" id="enable-${sanitizedId}" ${isEnabled ? 'checked' : ''}>
-            <span class="hb-uix-slider hb-uix-round"></span>
-          </label>
-        </div>
-
-        <div id="optionsGroup-${sanitizedId}" class="options-group-container ${isEnabled ? '' : 'disabled-group'}">
-          <div class="form-group">
-            <label for="customName-${sanitizedId}" style="display: block; height: 24px; line-height: 24px; margin-bottom: 4px; font-size: 14.4px;">
-              Custom Gate Name
-            </label>
-            <input
-              type="text"
-              class="form-control"
-              id="customName-${sanitizedId}"
-              value="${escapeHtml(customName)}"
-              placeholder="${escapeHtml(gate.defaultName || gate.deviceId)}"
-              style="
-                appearance: none;
-                background-color: rgb(36, 36, 36);
-                border: 1px solid rgb(36, 36, 36);
-                border-radius: 6px;
-                box-sizing: border-box;
-                color: rgb(255, 255, 255);
-                font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-                font-size: 16px;
-                font-weight: 400;
-                height: 38px;
-                line-height: 24px;
-                padding: 6px 12px;
-                transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-                width: 100%;
-                margin-bottom: 16px;
-                margin-top: 4px;
-              "
-            />
-          </div>
-
-          <div style="font-size: 0.85rem; font-weight: 500; text-transform: uppercase; color: #8a8a8f; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px;">Gate Delays / Timers Override</div>
-          <div class="row" style="margin-bottom: 16px;">
-            <div class="col-6">
-              <label for="openingDelay-${sanitizedId}" style="display: block; margin-bottom: 4px; font-size: 13.5px; color: #8a8a8f;">
-                Opening Delay (ms)
-              </label>
-              <input
-                type="number"
-                class="form-control"
-                id="openingDelay-${sanitizedId}"
-                value="${openingDelayOverride}"
-                placeholder="${globalOpeningDelay}"
-                style="appearance: none; background-color: rgb(36, 36, 36); border: 1px solid rgb(36, 36, 36); border-radius: 6px; color: rgb(255, 255, 255); height: 38px; padding: 6px 12px; width: 100%; margin-top: 4px;"
-              />
-            </div>
-            <div class="col-6">
-              <label for="closeDelay-${sanitizedId}" style="display: block; margin-bottom: 4px; font-size: 13.5px; color: #8a8a8f;">
-                Close Delay (ms)
-              </label>
-              <input
-                type="number"
-                class="form-control"
-                id="closeDelay-${sanitizedId}"
-                value="${closeDelayOverride}"
-                placeholder="${globalCloseDelay}"
-                style="appearance: none; background-color: rgb(36, 36, 36); border: 1px solid rgb(36, 36, 36); border-radius: 6px; color: rgb(255, 255, 255); height: 38px; padding: 6px 12px; width: 100%; margin-top: 4px;"
-              />
-            </div>
-          </div>
-
-          <div style="font-size: 0.85rem; font-weight: 500; text-transform: uppercase; color: #8a8a8f; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-top: 12px; padding-bottom: 4px;">Accessory Service Mappings</div>
-          <div class="form-group schema-form-checkbox">
-            <label class="hb-uix-switch">
-              <input type="checkbox" id="garage-${sanitizedId}" ${defaultGarageDoor ? 'checked' : ''}>
-              <span class="hb-uix-slider hb-uix-round"></span>
-              <span class="customize-toggle-label">Expose as Garage Door</span>
-            </label>
-          </div>
-          <div class="form-group schema-form-checkbox">
-            <label class="hb-uix-switch">
-              <input type="checkbox" id="switch-${sanitizedId}" ${defaultSwitch ? 'checked' : ''}>
-              <span class="hb-uix-slider hb-uix-round"></span>         
-              <span class="customize-toggle-label">Expose as Switch</span>
-            </label>
-          </div>
-          <div class="form-group schema-form-checkbox">
-            <label class="hb-uix-switch">
-              <input type="checkbox" id="lock-${sanitizedId}" ${defaultLock ? 'checked' : ''}>
-              <span class="hb-uix-slider hb-uix-round"></span>
-              <span class="customize-toggle-label">Expose as Lock</span>
-            </label>
-          </div>
-
-          <!-- Dynamic relay mode section: only rendered if API reports user has admin/latch permissions -->
-          ${(gate.admin || gate.latch) ? `
-            <div style="font-size: 0.85rem; font-weight: 500; text-transform: uppercase; color: #8a8a8f; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-top: 12px; padding-bottom: 4px;">Relay Mode Controllers (Admin)</div>
-            <div class="form-group schema-form-checkbox">
-              <label class="hb-uix-switch">
-                <input type="checkbox" id="relaySwitch-${sanitizedId}" ${defaultRelaySwitch ? 'checked' : ''}>
-                <span class="hb-uix-slider hb-uix-round"></span>
-                <span class="customize-toggle-label">Expose Relay as Switch</span>
-              </label>
-            </div>
-            <div class="form-group schema-form-checkbox">
-              <label class="hb-uix-switch">
-                <input type="checkbox" id="relayLock-${sanitizedId}" ${defaultRelayLock ? 'checked' : ''}>
-                <span class="hb-uix-slider hb-uix-round"></span>
-                <span class="customize-toggle-label">Expose Relay as Lock</span>
-              </label>
-            </div>
-          ` : ''}
-        </div>
-
-        <div class="mt-4">
-          <button class="btn btn-primary btn-sm save-custom" style="margin-right: 0.5rem;">Save</button>
-          <button class="btn btn-outline-secondary btn-sm cancel-custom">Cancel</button>
-        </div>
-      `;
-      container.style.display = 'block';
-
-      const enableInput = container.querySelector(`#enable-${sanitizedId}`);
-      const optionsGroup = container.querySelector(`#optionsGroup-${sanitizedId}`);
-      const nameInput = container.querySelector(`#customName-${sanitizedId}`);
-      const openingDelayInput = container.querySelector(`#openingDelay-${sanitizedId}`);
-      const closeDelayInput = container.querySelector(`#closeDelay-${sanitizedId}`);
-      const garageInput = container.querySelector(`#garage-${sanitizedId}`);
-      const switchInput = container.querySelector(`#switch-${sanitizedId}`);
-      const lockInput = container.querySelector(`#lock-${sanitizedId}`);
-
-      const relaySwitchInput = container.querySelector(`#relaySwitch-${sanitizedId}`);
-      const relayLockInput = container.querySelector(`#relayLock-${sanitizedId}`);
-
-      // Add dynamic listener to Enable switch to toggle options group visibility state instantly
-      enableInput.addEventListener('change', () => {
-        if (enableInput.checked) {
-          optionsGroup.classList.remove('disabled-group');
-        } else {
-          optionsGroup.classList.add('disabled-group');
-        }
-      });
-
-      container.querySelector('.cancel-custom').addEventListener('click', (event) => {
-        event.preventDefault();
-        container.style.display = 'none';
-      });
-
-      container.querySelector('.save-custom').addEventListener('click', async (event) => {
-        event.preventDefault();
-        await saveCustomGate(gate, {
-          name: nameInput.value.trim(),
-          openingDelay: openingDelayInput.value.trim() !== '' ? parseInt(openingDelayInput.value, 10) : undefined,
-          closeDelay: closeDelayInput.value.trim() !== '' ? parseInt(closeDelayInput.value, 10) : undefined,
-          garageDoor: garageInput.checked,
-          switchDevice: switchInput.checked,
-          lockDevice: lockInput.checked,
-          hide: !enableInput.checked,
-          relaySwitch: relaySwitchInput ? relaySwitchInput.checked : undefined,
-          relayLock: relayLockInput ? relayLockInput.checked : undefined
-        }, container);
-      });
-    }
-
-    async function saveCustomGate(gate, values, container) {
-      const entry = {
-        deviceId: gate.deviceId,
-        hide: values.hide,
-        garageDoor: values.garageDoor,
-        switch: values.switchDevice,
-        lock: values.lockDevice
-      };
-      if (values.name && values.name.length > 0) {
-        entry.name = values.name;
-      } else {
-        delete entry.name;
-      }
-      if (values.openingDelay !== undefined && !isNaN(values.openingDelay)) {
-        entry.gateOpeningDelay = values.openingDelay;
-      } else {
-        delete entry.gateOpeningDelay;
-      }
-      if (values.closeDelay !== undefined && !isNaN(values.closeDelay)) {
-        entry.gateCloseDelay = values.closeDelay;
-      } else {
-        delete entry.gateCloseDelay;
-      }
-      if (values.relaySwitch !== undefined) {
-        entry.relaySwitch = values.relaySwitch;
-      } else {
-        delete entry.relaySwitch;
-      }
-      if (values.relayLock !== undefined) {
-        entry.relayLock = values.relayLock;
-      } else {
-        delete entry.relayLock;
-      }
-
-      config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
-      const existingIndex = config.customGates.findIndex(item => item.deviceId === gate.deviceId);
-      if (existingIndex > -1) {
-        config.customGates[existingIndex] = entry;
-      } else {
-        config.customGates.push(entry);
-      }
-
-      try {
-        homebridge.showSpinner();
-        await persistPluginConfig({ refreshSchema: true });
-        homebridge.toast.success('Settings saved. Please restart Homebridge for changes to take effect.', gate.defaultName || gate.deviceId);
-        container.style.display = 'none';
-        renderGateList(discoveredGates);
-      } catch (err) {
-        const friendly = formatError(err);
-        homebridge.toast.error(friendly, 'Save Failed');
-      } finally {
-        homebridge.hideSpinner();
+    // Relay: always write relayEnabled when the relay section is present (gate has admin/latch).
+    // true = relay active for this gate, false = suppressed even when globally enabled.
+    if (values.relayEnabled !== undefined) {
+      entry.relayEnabled = values.relayEnabled;
+      if (values.relayEnabled !== false) {
+        if (values.relaySwitch !== undefined) entry.relaySwitch = values.relaySwitch;
+        if (values.relayLock !== undefined) entry.relayLock = values.relayLock;
       }
     }
 
-    async function reloadPluginConfigState() {
-      pluginConfig = await homebridge.getPluginConfig();
-      config = pluginConfig.find(item => item.platform === "PalGatePlatform");
-      if (!config) {
-        config = {
-          platform: "PalGatePlatform",
-          name: "PalGate Platform",
-          accessoryType: "garageDoor"
-        };
-        pluginConfig.push(config);
-      }
-      config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
+    config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
+    const idx = config.customGates.findIndex(e => e.deviceId === gate.deviceId);
+    if (idx > -1) {
+      config.customGates[idx] = entry;
+    } else {
+      config.customGates.push(entry);
     }
 
-    async function persistPluginConfig(options = {}) {
-      homebridge.updatePluginConfig(pluginConfig);
-      homebridge.savePluginConfig();
-      if (options.refreshSchema) {
-        if (manualConfigVisible) {
-          homebridge.showSchemaForm();
-        } else {
-          hideSchemaFormIfSupported();
-        }
-      }
-      await reloadPluginConfigState();
-      updateDiscoverButtonState();
+    try {
+      homebridge.showSpinner();
+      await persistPluginConfig({ refreshSchema: true });
+      homebridge.toast.success('Saved. Restart Homebridge to apply changes.', gate.defaultName || gate.deviceId);
+      container.style.display = 'none';
+      const btn = container.closest('.card').querySelector('.configure-btn');
+      if (btn) btn.innerHTML = '<i class="fas fa-sliders me-1"></i>Configure';
+      renderGateList(discoveredGates);
+    } catch (err) {
+      homebridge.toast.error(formatError(err), 'Save Failed');
+    } finally {
+      homebridge.hideSpinner();
     }
+  }
 
-    function updateManualConfigVisibility() {
-      if (manualConfigToggleBtn) {
-        manualConfigToggleBtn.textContent = manualConfigVisible ? 'Hide Manual Config' : 'Show Manual Config';
-      }
-      if (manualConfigVisible) {
-        homebridge.showSchemaForm();
-      } else {
-        hideSchemaFormIfSupported();
-      }
+  // ── Persistence ───────────────────────────────────────────────────
+  async function reloadPluginConfigState() {
+    pluginConfig = await homebridge.getPluginConfig();
+    config = pluginConfig.find(item => item.platform === 'PalGatePlatform');
+    if (!config) {
+      config = { platform: 'PalGatePlatform', name: 'PalGate Platform', accessoryType: 'garageDoor' };
+      pluginConfig.push(config);
     }
+    config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
+  }
 
-    function hideSchemaFormIfSupported() {
-      if (typeof homebridge.hideSchemaForm === 'function') {
-        homebridge.hideSchemaForm();
-      }
+  async function persistPluginConfig(options = {}) {
+    homebridge.updatePluginConfig(pluginConfig);
+    homebridge.savePluginConfig();
+    if (options.refreshSchema) {
+      if (manualConfigVisible) homebridge.showSchemaForm();
+      else if (typeof homebridge.hideSchemaForm === 'function') homebridge.hideSchemaForm();
     }
+    await reloadPluginConfigState();
+    renderLinkedState();
+    updateDiscoverButtonState();
+  }
 
-    function hasLinkingCredentials() {
-      return Boolean(config.token && config.phoneNumber && (config.tokenType !== undefined && config.tokenType !== null));
+  // ── Manual Config ─────────────────────────────────────────────────
+  function handleToggleManualConfig() {
+    manualConfigVisible = !manualConfigVisible;
+    try { localStorage.setItem(MANUAL_CONFIG_KEY, manualConfigVisible); } catch (_) {}
+    updateManualConfigVisibility();
+  }
+
+  function updateManualConfigVisibility() {
+    const btn = document.getElementById('toggleManualConfig');
+    if (btn) {
+      btn.innerHTML = manualConfigVisible
+        ? '<i class="fas fa-eye-slash me-1"></i>Hide Manual Config'
+        : '<i class="fas fa-code me-1"></i>Show Manual Config';
     }
+    if (manualConfigVisible) homebridge.showSchemaForm();
+    else if (typeof homebridge.hideSchemaForm === 'function') homebridge.hideSchemaForm();
+  }
 
-    function updateDiscoverButtonState() {
-      if (!discoverBtn) {
-        return;
-      }
-      const enabled = hasLinkingCredentials();
-      discoverBtn.disabled = !enabled;
-      discoverBtn.title = enabled ? '' : 'Link your device to discover gates';
-    }
+  // ── Helpers ───────────────────────────────────────────────────────
+  function hasLinkingCredentials() {
+    return Boolean(
+      config.token &&
+      config.phoneNumber &&
+      config.tokenType !== undefined &&
+      config.tokenType !== null
+    );
+  }
 
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
+  function updateDiscoverButtonState() {
+    const btn = document.getElementById('discoverGates');
+    if (!btn) return;
+    const enabled = hasLinkingCredentials();
+    btn.disabled = !enabled;
+    btn.title = enabled ? '' : 'Link your account first';
+  }
 
-    function startConfirmationPolling(uniqueId) {
-      const poll = async () => {
-        if (linkingComplete) {
-          return;
-        }
-        try {
-          const confirmData = await homebridge.request('/link/confirm', { uniqueId });
-          if (confirmData.success) {
-            if (linkingComplete) {
-              return;
-            }
-            linkingComplete = true;
-            if (pollInterval) {
-              clearInterval(pollInterval);
-              pollInterval = null;
-            }
-            document.getElementById('qrCodeArea').innerHTML = '';
-            setStatus(linkStatusEl, 'success', 'Linking complete, plugin configuration updated.');
-            homebridge.toast.success(
-              `Successfully linked. Session token: ${confirmData.sessionToken}`,
-              'Linking Complete'
-            );
-            config.token = confirmData.sessionToken;
-            config.phoneNumber = confirmData.phoneNumber;
-            config.tokenType = parseInt(confirmData.tokenType, 10);
-            await persistPluginConfig({ refreshSchema: true });
-          } else if (confirmData.waiting) {
-            setStatus(linkStatusEl, 'info', 'Waiting for scan confirmation...');
-          } else {
-            if (pollInterval) {
-              clearInterval(pollInterval);
-              pollInterval = null;
-            }
-            const errMsg = confirmData.error || 'Unknown error';
-            setStatus(linkStatusEl, 'error', errMsg);
-            homebridge.toast.error(errMsg, 'Error');
-          }
-        } catch (err) {
-          if (pollInterval) {
-            clearInterval(pollInterval);
-            pollInterval = null;
-          }
-          const friendly = formatError(err);
-          setStatus(linkStatusEl, 'error', friendly);
-          homebridge.toast.error(friendly, 'Error');
-        }
-      };
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
-      poll();
-      pollInterval = setInterval(poll, 3000);
-    }
+  function setStatus(el, type, msg) {
+    if (!el) return;
+    if (!msg) { el.innerHTML = ''; return; }
+    const cls = { info: 'alert-info', success: 'alert-success', error: 'alert-danger' }[type] || 'alert-secondary';
+    el.innerHTML = `<div class="alert ${cls} mb-0 small py-2">${escapeHtml(msg)}</div>`;
+  }
 
-    function setStatus(element, type, message) {
-      if (!element) {
-        return;
-      }
-      if (!message) {
-        element.innerHTML = '';
-        return;
-      }
-      const variantMap = {
-        info: 'alert-info',
-        success: 'alert-success',
-        error: 'alert-danger'
-      };
-      const alertClass = variantMap[type] || 'alert-secondary';
-      element.innerHTML = `<div class="alert ${alertClass} mb-0">${escapeHtml(message)}</div>`;
-    }
-
-    function formatError(err) {
-      if (!err) {
-        return 'Unknown error occurred.';
-      }
-      const message =
-        (typeof err === 'string' && err) ||
-        err.message ||
-        (typeof err.toString === 'function' ? err.toString() : '') ||
-        '';
-      if (/504/.test(message)) {
-        return 'The PalGate server timed out. Please try again in a moment.';
-      }
-      return message || 'Unknown error occurred.';
-    }
-  })();
+  function formatError(err) {
+    if (!err) return 'Unknown error occurred.';
+    const msg = (typeof err === 'string' && err) || err.message || String(err) || '';
+    if (/504/.test(msg)) return 'The PalGate server timed out. Please try again.';
+    return msg || 'Unknown error occurred.';
+  }
+})();
 </script>
