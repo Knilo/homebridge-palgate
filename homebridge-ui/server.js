@@ -2,6 +2,10 @@ const { callApi, callApiOnce, getDevices } = require('../lib/api.js');
 const { generateToken } = require('../lib/token-gen.js');
 const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require('../lib/utils/helpers.js');
 
+// Link sessions expire after 6 minutes — slightly longer than the 5-minute client timeout
+// so a completed scan is never lost before the client picks it up.
+const SESSION_TTL_MS = 6 * 60 * 1000;
+
 (async () => {
   const { HomebridgePluginUiServer } = await import('@homebridge/plugin-ui-utils');
   const qrcodeModule = await import('qrcode');
@@ -13,14 +17,23 @@ const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require
       super();
 
       // In-memory store for ongoing link sessions.
-      // Maps uniqueId => { done, phoneNumber, sessionToken, tokenType }
+      // Maps uniqueId => { done, phoneNumber, sessionToken, tokenType, createdAt }
       this.linkSessions = {};
+
+      // Prune sessions older than SESSION_TTL_MS to prevent unbounded memory growth.
+      setInterval(() => {
+        const now = Date.now();
+        for (const id of Object.keys(this.linkSessions)) {
+          if (now - this.linkSessions[id].createdAt > SESSION_TTL_MS) {
+            delete this.linkSessions[id];
+          }
+        }
+      }, 60 * 1000);
 
       // Register endpoints:
       this.onRequest('/link/init', this.initLinkDevice.bind(this));
       this.onRequest('/link/confirm', this.confirmLinkDevice.bind(this));
       this.onRequest('/devices/discover', this.discoverDevices.bind(this));
-      this.onRequest('/gate-meta', this.getGateMeta.bind(this));
 
       // Signal that the UI is ready.
       this.ready();
@@ -33,31 +46,21 @@ const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require
      */
     async initLinkDevice() {
       try {
-        // Generate a unique ID.
         const uniqueId = uuidv4();
-
-        // Encode { id: uniqueId } into a QR code.
         const qrData = JSON.stringify({ id: uniqueId });
         const qrCodeDataURI = await qrcode.toDataURL(qrData, { errorCorrectionLevel: 'H' });
 
-        // Store a session record so we can poll for completion later.
         this.linkSessions[uniqueId] = {
           done: false,
           phoneNumber: null,
           sessionToken: null,
           tokenType: null,
+          createdAt: Date.now(),
         };
 
-        return {
-          success: true,
-          uniqueId,
-          qrCode: qrCodeDataURI,
-        };
+        return { success: true, uniqueId, qrCode: qrCodeDataURI };
       } catch (err) {
-        return {
-          success: false,
-          error: err.message,
-        };
+        return { success: false, error: err.message };
       }
     }
 
@@ -66,6 +69,10 @@ const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require
      * Polls whether the user has scanned the QR code.
      * Returns { waiting: true } while pending, { success: true, ... } on completion,
      * or { success: false, error } only for permanent failures (bad uniqueId).
+     *
+     * On success the session is marked done and its result cached rather than deleted
+     * immediately, so a retried poll (e.g. after a transient network error) can still
+     * retrieve the credentials instead of seeing "session not found".
      */
     async confirmLinkDevice(payload) {
       const { uniqueId } = payload;
@@ -75,20 +82,17 @@ const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require
 
       const session = this.linkSessions[uniqueId];
       if (!session) {
-        // Permanent failure — the session never existed or was already cleaned up.
         return { success: false, error: 'Link session not found. Please start the QR flow again.' };
       }
 
-      // Already completed — return cached result immediately.
+      // Already completed — return cached result so retried polls don't lose credentials.
       if (session.done) {
-        const result = {
+        return {
           success: true,
           phoneNumber: session.phoneNumber,
           sessionToken: session.sessionToken,
           tokenType: session.tokenType,
         };
-        delete this.linkSessions[uniqueId];
-        return result;
       }
 
       try {
@@ -102,41 +106,26 @@ const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require
           return { success: false, waiting: true };
         }
 
-        // Scan complete — normalize tokenType to a number before storing.
+        // Scan complete — cache result on the session so retried polls can recover it.
         const tokenType = parseInt(apiResponse.secondary, 10);
-        delete this.linkSessions[uniqueId];
+        session.done = true;
+        session.phoneNumber = apiResponse.user.id;
+        session.sessionToken = apiResponse.user.token;
+        session.tokenType = tokenType;
 
         return {
           success: true,
-          phoneNumber: apiResponse.user.id,
-          sessionToken: apiResponse.user.token,
-          tokenType,
+          phoneNumber: session.phoneNumber,
+          sessionToken: session.sessionToken,
+          tokenType: session.tokenType,
         };
       } catch (err) {
         const msg = err.message || '';
         if (msg.includes('429')) {
-          // Rate limited — surface this to the client so it can stop and warn the user
           return { success: false, error: 'Rate limited by PalGate. Please wait a moment before trying again.' };
         }
         // Other transient errors (network, timeout, 5xx): keep the poll alive
         return { success: false, waiting: true };
-      }
-    }
-
-    /**
-     * Returns the admin/latch metadata cache written by the plugin at startup.
-     * Keyed by deviceId: { admin: bool, latch: bool }
-     */
-    async getGateMeta() {
-      const fs = require('fs');
-      const path = require('path');
-      try {
-        const metaPath = path.join(this.homebridgeStoragePath, 'palgate-gate-meta.json');
-        if (!fs.existsSync(metaPath)) return { success: true, meta: {} };
-        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-        return { success: true, meta };
-      } catch (_) {
-        return { success: true, meta: {} };
       }
     }
 
@@ -179,15 +168,9 @@ const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require
           });
         });
 
-        return {
-          success: true,
-          gates
-        };
+        return { success: true, gates };
       } catch (err) {
-        return {
-          success: false,
-          error: err.message
-        };
+        return { success: false, error: err.message };
       }
     }
   }
