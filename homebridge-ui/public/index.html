@@ -785,8 +785,8 @@
             </div>
             <input type="number" class="form-control form-control-sm"
               id="openingDelay-${sid}"
-              value="${openingDelay}"
-              placeholder="${globalOpeningDelay}ms (global)"
+              value="${escapeHtml(String(openingDelay))}"
+              placeholder="${escapeHtml(String(globalOpeningDelay))}ms (global)"
               min="0">
           </div>
           <div class="col-6">
@@ -796,8 +796,8 @@
             </div>
             <input type="number" class="form-control form-control-sm"
               id="closeDelay-${sid}"
-              value="${closeDelay}"
-              placeholder="${globalCloseDelay}ms (global)"
+              value="${escapeHtml(String(closeDelay))}"
+              placeholder="${escapeHtml(String(globalCloseDelay))}ms (global)"
               min="0">
           </div>
         </div>
@@ -977,8 +977,8 @@
       latch: gate.latch !== undefined ? gate.latch : existing.latch,
       defaultName: gate.defaultName || existing.defaultName,
     };
-    if (entry.admin === undefined) delete entry.admin;
-    if (entry.latch === undefined) delete entry.latch;
+    if (!entry.admin) delete entry.admin;
+    if (!entry.latch) delete entry.latch;
     if (!entry.defaultName) delete entry.defaultName;
 
     // Only write type booleans when the user has explicitly toggled the override on.
