@@ -529,7 +529,7 @@
       config.customGates[idx].admin = admin;
       config.customGates[idx].latch = latch;
       if (gate.defaultName) config.customGates[idx].defaultName = gate.defaultName;
-    } else if (admin || latch) {
+    } else {
       config.customGates.push({ deviceId: gate.deviceId, admin, latch, defaultName: gate.defaultName });
     }
   }
@@ -572,7 +572,12 @@
 
     const customEntry = config.customGates.find(e => e.deviceId === gate.deviceId);
     const displayName = (customEntry && customEntry.name) || gate.defaultName || gate.deviceId;
-    const isCustomized = !!customEntry;
+    const isCustomized = !!(customEntry && (
+      customEntry.name || customEntry.hide === true ||
+      customEntry.garageDoor !== undefined || customEntry.switch !== undefined || customEntry.lock !== undefined ||
+      customEntry.gateOpeningDelay !== undefined || customEntry.gateCloseDelay !== undefined ||
+      customEntry.relayEnabled === false || customEntry.relaySwitch !== undefined || customEntry.relayLock !== undefined
+    ));
 
     const customBadge = isCustomized
       ? '<span class="badge bg-primary" style="font-size:0.66rem; vertical-align:middle;"><i class="fas fa-pen" style="font-size:0.6rem;"></i> Custom</span>'
