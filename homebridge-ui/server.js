@@ -1,11 +1,12 @@
+const { callApi, getDevices } = require('../lib/api.js');
+const { generateToken } = require('../lib/token-gen.js');
+const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require('../lib/utils/helpers.js');
+
 (async () => {
   const { HomebridgePluginUiServer } = await import('@homebridge/plugin-ui-utils');
   const qrcodeModule = await import('qrcode');
   const qrcode = qrcodeModule.default;
   const { v4: uuidv4 } = await import('uuid');
-  const { callApi, getDevices } = require('../lib/api.js'); // adjust path if needed
-  const { generateToken } = require('../lib/token-gen.js');
-  const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require('../lib/utils/helpers.js');
 
   class UiServer extends HomebridgePluginUiServer {
     constructor() {
