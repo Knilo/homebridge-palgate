@@ -480,6 +480,7 @@
       if (data.success && data.gates && data.gates.length > 0) {
         discoveredGates = data.gates;
         discoveredGates.forEach(persistGateMeta);
+        await persistPluginConfig({});
         renderGateList(discoveredGates);
         document.getElementById('gateListHint').classList.add('d-none');
       }
