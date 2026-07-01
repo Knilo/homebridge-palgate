@@ -64,14 +64,16 @@
 			"gateOpeningDelay": {
 				"title": "Gate Opening Duration",
 				"description": "How long in milliseconds the gate should show as 'Opening' before becoming fully 'Open'.",
-				"type": "number",
-				"default": 1000
+				"type": "integer",
+				"default": 1000,
+				"minimum": 0
 			},
 			"gateCloseDelay": {
 				"title": "Gate Close Duration",
 				"description": "How long in milliseconds the gate stays in the fully 'Open' state before closing automatically.",
-				"type": "number",
-				"default": 5000
+				"type": "integer",
+				"default": 5000,
+				"minimum": 0
 			},
 			"enableRelayLocks": {
 				"title": "Enable Relay Mode Accessories",
@@ -102,7 +104,7 @@
 			"pollInterval": {
 				"title": "Poll Interval (Seconds)",
 				"description": "How often in seconds the plugin should check the PalGate API for external state updates (e.g. Hold Open toggled by another admin). Default is 60.",
-				"type": "number",
+				"type": "integer",
 				"default": 60,
 				"minimum": 10
 			},
@@ -147,12 +149,14 @@
 						"gateOpeningDelay": {
 							"title": "Gate Opening Duration Override",
 							"description": "How long in milliseconds this specific gate should show as 'Opening'. Defaults to global setting.",
-							"type": "number"
+							"type": "integer",
+							"minimum": 0
 						},
 						"gateCloseDelay": {
 							"title": "Gate Close Duration Override",
 							"description": "How long in milliseconds this specific gate stays 'Open'. Defaults to global setting.",
-							"type": "number"
+							"type": "integer",
+							"minimum": 0
 						},
 						"relaySwitch": {
 							"title": "Expose Relay as Switch",
