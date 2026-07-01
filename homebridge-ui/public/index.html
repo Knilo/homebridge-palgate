@@ -499,6 +499,8 @@
       homebridge.toast.error('Link your device first.', 'Missing Credentials');
       return;
     }
+    const discoverBtn = document.getElementById('discoverGates');
+    if (discoverBtn) discoverBtn.disabled = true;
     homebridge.showSpinner();
     try {
       const data = await homebridge.request('/devices/discover', {
@@ -517,6 +519,7 @@
       homebridge.toast.error(msg, 'Discovery Error');
     } finally {
       homebridge.hideSpinner();
+      updateDiscoverButtonState();
     }
   }
 
@@ -634,6 +637,7 @@
           });
           if (data.success && data.gates && data.gates.length > 0) {
             discoveredGates = data.gates;
+            discoveredGates.forEach(g => { g.isPrePopulated = false; });
             const enriched = discoveredGates.find(g => g.deviceId === gate.deviceId);
             if (enriched) {
               gate.admin = enriched.admin;
