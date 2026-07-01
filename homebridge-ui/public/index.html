@@ -699,7 +699,7 @@
     const globalCloseDelay = config.gateCloseDelay !== undefined ? config.gateCloseDelay : 5000;
 
     // Relay — only shown when globally enabled AND user has latch/admin permission
-    const showRelay = config.enableRelayLocks && (gate.admin || gate.latch);
+    const showRelay = config.enableRelayLocks && gate.latch;
     const relayEnabled = customEntry.relayEnabled !== false;
     const relaySwitch = customEntry.relaySwitch === true;
     const relayLock = customEntry.relayLock === true;
@@ -808,11 +808,7 @@
 
         <!-- Relay Mode (conditional) -->
         ${showRelay ? `
-        <div class="section-divider">
-          Relay Mode
-          ${gate.admin ? '<span class="badge bg-warning text-dark ms-1" style="font-size:0.62rem; vertical-align:middle;"><i class="fas fa-shield" style="font-size:0.58rem;"></i> Admin</span>' : ''}
-          ${gate.latch ? '<span class="badge bg-info text-dark ms-1" style="font-size:0.62rem; vertical-align:middle;"><i class="fas fa-bolt" style="font-size:0.58rem;"></i> Latch</span>' : ''}
-        </div>
+        <div class="section-divider">Relay Mode</div>
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="text-muted" style="font-size:0.82rem;">Enable relay accessories for this gate</div>
           <div class="form-check form-switch mb-0">
