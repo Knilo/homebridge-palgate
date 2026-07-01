@@ -315,7 +315,9 @@ async function startDeviceLinking() {
             "pollInterval": 60
           };
           hbConfig.platforms.push(platformConfig);
-          fs.writeFileSync(homebridgeConfigPath, JSON.stringify(hbConfig, null, 2), 'utf8');
+          const tmpPath = homebridgeConfigPath + '.tmp';
+          fs.writeFileSync(tmpPath, JSON.stringify(hbConfig, null, 2), 'utf8');
+          fs.renameSync(tmpPath, homebridgeConfigPath);
           console.log("Homebridge configuration updated and saved to " + homebridgeConfigPath);
           console.log("New Platform Added:");
           console.log(JSON.stringify(platformConfig, null, 2));
