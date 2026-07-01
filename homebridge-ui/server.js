@@ -5,7 +5,7 @@
   const { v4: uuidv4 } = await import('uuid');
   const { callApi, getDevices } = require('../lib/api.js'); // adjust path if needed
   const { generateToken } = require('../lib/token-gen.js');
-  const { detectMultiOutputDevices, generateGateEntries } = require('../lib/utils/helpers.js');
+  const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require('../lib/utils/helpers.js');
 
   class UiServer extends HomebridgePluginUiServer {
     constructor() {
@@ -145,10 +145,7 @@
           const outputs = detectMultiOutputDevices(deviceData);
           const gateEntries = generateGateEntries(deviceId, outputs, defaultName, deviceData);
           return gateEntries.map(entry => {
-            let outputNum = 1;
-            if (typeof entry.deviceId === 'string' && entry.deviceId.includes(':')) {
-              outputNum = parseInt(entry.deviceId.split(':').pop(), 10);
-            }
+            const { outputNum } = splitDeviceId(entry.deviceId);
             const isLatchPermitted = outputNum === 2 ? deviceData.output2Latch === true : deviceData.output1Latch === true;
             return {
               deviceId: entry.deviceId,
