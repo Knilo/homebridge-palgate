@@ -312,9 +312,9 @@
     const relayEnabled = document.getElementById('globalEnableRelay').checked;
 
     config.accessoryType = document.getElementById('globalAccessoryType').value;
-    if (openingVal !== '') config.gateOpeningDelay = parseInt(openingVal, 10);
-    if (closeVal !== '') config.gateCloseDelay = parseInt(closeVal, 10);
-    if (pollVal !== '') config.pollInterval = parseInt(pollVal, 10);
+    if (openingVal !== '') config.gateOpeningDelay = parseInt(openingVal, 10); else delete config.gateOpeningDelay;
+    if (closeVal !== '') config.gateCloseDelay = parseInt(closeVal, 10); else delete config.gateCloseDelay;
+    if (pollVal !== '') config.pollInterval = parseInt(pollVal, 10); else delete config.pollInterval;
     config.enableRelayLocks = relayEnabled;
     config.relayAccessoryType = document.getElementById('globalRelayType').value;
 
