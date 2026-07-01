@@ -87,7 +87,7 @@
         }
 
         // Otherwise, call the PalGate API to see if the user has scanned yet.
-        const endpoint = `https://api1.pal-es.com/v1/bt/un/secondary/init/${uniqueId}`;
+        const endpoint = `un/secondary/init/${uniqueId}`;
 
         // Updated: Use async/await since callApi returns a promise.
         const apiResponse = await callApi(endpoint, '');

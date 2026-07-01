@@ -30,7 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const BASE_URL = 'https://api1.pal-es.com/v1/bt/';
+const { BASE_URL } = require('../lib/utils/constants.js');
 // Path for the Homebridge configuration file.
 const homebridgeConfigPath = path.join(os.homedir(), '.homebridge', 'config.json');
 // Local configuration defaults file.
