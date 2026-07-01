@@ -249,6 +249,7 @@
   let pollStartTime = null;
   let pollInFlight = false;
   let manualConfigVisible = false;
+  let qrSessionId = 0;
 
   const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -358,6 +359,7 @@
     if (pollInterval) clearInterval(pollInterval);
     linkingComplete = false;
     pollInFlight = false;
+    const sessionId = ++qrSessionId;
     const generateBtn = document.getElementById('generateQR');
     generateBtn.disabled = true;
     generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connecting…';
@@ -376,7 +378,7 @@
       `;
       homebridge.hideSpinner();
       setStatus(document.getElementById('linkStatus'), 'info', 'Waiting for QR scan…');
-      startConfirmationPolling(initData.uniqueId);
+      startConfirmationPolling(initData.uniqueId, sessionId);
     } catch (err) {
       const msg = formatError(err);
       setStatus(document.getElementById('linkStatus'), 'error', msg);
@@ -396,10 +398,11 @@
     }
   }
 
-  function startConfirmationPolling(uniqueId) {
+  function startConfirmationPolling(uniqueId, sessionId) {
     pollStartTime = Date.now();
 
     const poll = async () => {
+      if (sessionId !== qrSessionId) return;
       if (linkingComplete) return;
       // Skip if the previous request hasn't returned yet — prevents piling up
       // concurrent requests that would trigger PalGate's rate limiter
