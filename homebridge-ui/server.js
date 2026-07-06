@@ -1,3 +1,4 @@
+const fs = require('fs').promises;
 const { callApi, callApiOnce, getDevices } = require('../lib/api.js');
 const { generateToken } = require('../lib/token-gen.js');
 const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require('../lib/utils/helpers.js');
@@ -34,6 +35,7 @@ const SESSION_TTL_MS = 6 * 60 * 1000;
       this.onRequest('/link/init', this.initLinkDevice.bind(this));
       this.onRequest('/link/confirm', this.confirmLinkDevice.bind(this));
       this.onRequest('/devices/discover', this.discoverDevices.bind(this));
+      this.onRequest('/config/save', this.savePluginConfig.bind(this));
 
       // Signal that the UI is ready.
       this.ready();
@@ -126,6 +128,33 @@ const SESSION_TTL_MS = 6 * 60 * 1000;
         }
         // Other transient errors (network, timeout, 5xx): keep the poll alive
         return { success: false, waiting: true };
+      }
+    }
+
+    /**
+     * Save the PalGatePlatform config block directly to config.json.
+     * This bypasses homebridge.savePluginConfig() which hangs due to a Homebridge UI
+     * bug where the parent frame sends a Promise in its postMessage response.
+     */
+    async savePluginConfig(payload = {}) {
+      try {
+        const { config: pluginConfig } = payload;
+        if (!pluginConfig || pluginConfig.platform !== 'PalGatePlatform') {
+          throw new Error('Invalid config payload.');
+        }
+        const raw = await fs.readFile(this.homebridgeConfigPath, 'utf8');
+        const fullConfig = JSON.parse(raw);
+        if (!Array.isArray(fullConfig.platforms)) fullConfig.platforms = [];
+        const idx = fullConfig.platforms.findIndex(p => p.platform === 'PalGatePlatform');
+        if (idx > -1) {
+          fullConfig.platforms[idx] = pluginConfig;
+        } else {
+          fullConfig.platforms.push(pluginConfig);
+        }
+        await fs.writeFile(this.homebridgeConfigPath, JSON.stringify(fullConfig, null, 4), 'utf8');
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
       }
     }
 

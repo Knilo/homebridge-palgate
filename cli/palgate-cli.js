@@ -39,7 +39,7 @@ const localConfigPath = path.join(os.homedir(), '.palgate-cli.json');
 function printUsage() {
   console.log("Usage:");
   console.log("  node palGateCli.js validate --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [--verbose]");
-  console.log("  node palGateCli.js open --deviceId <deviceId> --tokenNumber <token> --phone <phoneNumber> --tokenType <1|2> [--verbose]");
+  console.log("  node palGateCli.js open --deviceId <deviceId> --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [--openBy <value>] [--verbose]");
   console.log("  node palGateCli.js devices --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [--verbose]");
   console.log("  node palGateCli.js token --token <token> --phoneNumber <phoneNumber> --tokenType <1|2> [--verbose]");
   console.log("  node palGateCli.js link [-v]");
@@ -85,7 +85,9 @@ const aliases = {
   v: "verbose",
   verbose: "verbose",
   a: "auto",
-  auto: "auto"
+  auto: "auto",
+  openby: "openBy",
+  openBy: "openBy"
 };
 
 const command = args[0];
@@ -210,8 +212,10 @@ async function startDeviceLinking() {
       debugLog("Device ID is:", options.deviceId);
       const temporalToken = getTemporalToken();
       debugLog("Generated temporal token for opening gate:", temporalToken);
+      const openBy = options.openBy !== undefined ? options.openBy : undefined;
+      if (openBy !== undefined) debugLog("openBy param:", openBy);
       try {
-        const response = await openGate(options.deviceId, temporalToken);
+        const response = await openGate(options.deviceId, temporalToken, openBy);
         console.log("Gate opened successfully");
         console.log(JSON.stringify({ response: response }, null, 2));
       } catch (err) {

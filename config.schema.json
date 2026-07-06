@@ -101,6 +101,18 @@
 					}
 				]
 			},
+			"relayHoldOpen": {
+				"title": "Expose Hold Open Accessory",
+				"description": "When Relay Mode is enabled, expose a Hold Open accessory. Default: true.",
+				"type": "boolean",
+				"default": true
+			},
+			"relayHoldClosed": {
+				"title": "Expose Hold Closed Accessory",
+				"description": "When Relay Mode is enabled, expose a Hold Closed accessory. Default: true.",
+				"type": "boolean",
+				"default": true
+			},
 			"pollInterval": {
 				"title": "Poll Interval (Seconds)",
 				"description": "How often in seconds the plugin should check the PalGate API for external state updates (e.g. Hold Open toggled by another admin). Default is 60.",
@@ -172,6 +184,16 @@
 						"relayLock": {
 							"title": "Expose Relay as Lock",
 							"description": "Set to true to expose the virtual relays for this gate as Locks.",
+							"type": "boolean"
+						},
+						"relayHoldOpen": {
+							"title": "Expose Hold Open",
+							"description": "Set to false to suppress the Hold Open relay accessory for this gate.",
+							"type": "boolean"
+						},
+						"relayHoldClosed": {
+							"title": "Expose Hold Closed",
+							"description": "Set to false to suppress the Hold Closed relay accessory for this gate.",
 							"type": "boolean"
 						}
 					}

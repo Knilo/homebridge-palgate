@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   /*
    * Bootstrap 5 form controls render with light backgrounds by default and don't
@@ -155,6 +156,7 @@
 
     <div class="mb-3">
       <label class="form-label mb-1" for="globalAccessoryType">Default Accessory Type</label>
+      <p class="text-muted small mb-2">How each gate appears in Apple Home. Garage Door shows open/close state; Switch and Lock are simpler momentary triggers.</p>
       <select class="form-select" id="globalAccessoryType">
         <option value="garageDoor">Garage Door</option>
         <option value="switch">Switch</option>
@@ -163,6 +165,7 @@
     </div>
 
     <div class="section-divider">Timing</div>
+    <p class="text-muted small mb-2">Controls how long HomeKit animates the gate after a trigger. Opening is how long it shows as 'Opening' before 'Open'. Auto-close is how long it stays 'Open' before returning to 'Closed'.</p>
     <div class="row g-2 mb-3">
       <div class="col-6">
         <label class="form-label mb-1" for="globalOpeningDelay">Opening Duration (ms)</label>
@@ -177,14 +180,14 @@
     <div class="mb-3">
       <label class="form-label mb-1" for="globalPollInterval">State Poll Interval (s)</label>
       <input type="number" class="form-control form-control-sm" id="globalPollInterval" min="10" placeholder="60">
-      <div class="text-muted mt-1" style="font-size:0.78rem;">How often to check for external relay state changes.</div>
+      <div class="text-muted mt-1" style="font-size:0.78rem;">How often to check the PalGate API for changes made outside HomeKit, such as relay state toggled by another admin.</div>
     </div>
 
     <div class="section-divider">Relay Mode</div>
     <div class="d-flex justify-content-between align-items-center mb-2">
       <div>
-        <div class="small" style="font-weight:500;">Enable Relay Accessories</div>
-        <div class="text-muted" style="font-size:0.78rem;">Expose Hold Open / Hold Closed accessories for admin gates</div>
+        <div class="fw-bold small">Enable Relay Accessories</div>
+        <div class="text-muted" style="font-size:0.8rem;">Expose Hold Open / Hold Closed accessories for admin gates</div>
       </div>
       <div class="form-check form-switch mb-0">
         <input class="form-check-input" type="checkbox" role="switch" id="globalEnableRelay"
@@ -193,10 +196,23 @@
     </div>
     <div id="globalRelayTypeGroup" style="display:none;" class="mb-3">
       <label class="form-label mb-1" for="globalRelayType">Relay Accessory Type</label>
+      <p class="text-muted small mb-2">Whether relay accessories appear as Locks or Switches in HomeKit. Locks show a locked/unlocked state; Switches show on/off.</p>
       <select class="form-select" id="globalRelayType">
         <option value="lock">Lock</option>
         <option value="switch">Switch</option>
       </select>
+    </div>
+    <div id="globalRelayDirectionGroup" style="display:none;" class="mb-3">
+      <label class="form-label mb-1">Hold Directions</label>
+      <p class="text-muted small mb-2">Choose which relay accessories to expose globally. Uncheck a direction to hide that accessory from HomeKit for all gates.</p>
+      <div class="form-check mb-1">
+        <input class="form-check-input" type="checkbox" id="globalRelayHoldOpen">
+        <label class="form-check-label" for="globalRelayHoldOpen">Hold Open</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="globalRelayHoldClosed">
+        <label class="form-check-label" for="globalRelayHoldClosed">Hold Closed</label>
+      </div>
     </div>
 
     <button class="btn btn-primary btn-sm" id="saveGlobalDefaults">
@@ -296,11 +312,16 @@
     const relayToggle = document.getElementById('globalEnableRelay');
     relayToggle.checked = config.enableRelayLocks === true;
     const relayTypeGroup = document.getElementById('globalRelayTypeGroup');
+    const relayDirectionGroup = document.getElementById('globalRelayDirectionGroup');
     relayTypeGroup.style.display = relayToggle.checked ? 'block' : 'none';
+    relayDirectionGroup.style.display = relayToggle.checked ? 'block' : 'none';
     document.getElementById('globalRelayType').value = config.relayAccessoryType || 'lock';
+    document.getElementById('globalRelayHoldOpen').checked = config.relayHoldOpen !== false;
+    document.getElementById('globalRelayHoldClosed').checked = config.relayHoldClosed !== false;
 
     relayToggle.addEventListener('change', () => {
       relayTypeGroup.style.display = relayToggle.checked ? 'block' : 'none';
+      relayDirectionGroup.style.display = relayToggle.checked ? 'block' : 'none';
     });
 
     document.getElementById('saveGlobalDefaults').addEventListener('click', saveGlobalDefaults);
@@ -318,6 +339,8 @@
     if (pollVal !== '') config.pollInterval = parseInt(pollVal, 10); else delete config.pollInterval;
     config.enableRelayLocks = relayEnabled;
     config.relayAccessoryType = document.getElementById('globalRelayType').value;
+    config.relayHoldOpen = document.getElementById('globalRelayHoldOpen').checked;
+    config.relayHoldClosed = document.getElementById('globalRelayHoldClosed').checked;
 
     try {
       homebridge.showSpinner();
@@ -645,7 +668,6 @@
               gate.defaultName = enriched.defaultName || gate.defaultName;
               gate.isPrePopulated = false;
               persistGateMeta(gate);
-              persistPluginConfig({}).catch(() => {});
               // Update the card header in-place so badges appear immediately
               const nameRow = card.querySelector('.fw-bold').parentElement;
               if (gate.admin && !nameRow.querySelector('.admin-badge')) {
@@ -707,6 +729,8 @@
     const relayEnabled = customEntry.relayEnabled !== false;
     const relaySwitch = customEntry.relaySwitch === true;
     const relayLock = customEntry.relayLock === true;
+    const relayHoldOpen = customEntry.relayHoldOpen !== false;
+    const relayHoldClosed = customEntry.relayHoldClosed !== false;
 
     // Global type info for the "not overriding" hint
     const globalTypeKey = config.accessoryType || 'garageDoor';
@@ -751,7 +775,7 @@
 
         <!-- Read-only row: shown when using global default -->
         <div id="typeDefaultRow-${sid}" class="${hasTypeOverride ? 'd-none' : ''} d-flex align-items-center justify-content-between mb-3">
-          <span style="color:#ccc; font-size:0.88rem;">
+          <span style="font-size:0.88rem;">
             <i class="fas ${globalTypeIcon} me-1"></i>${escapeHtml(globalTypeLabel)}
           </span>
           <button type="button" class="btn btn-outline-secondary btn-sm" id="customiseType-${sid}" style="font-size:0.75rem; padding:2px 10px;">
@@ -784,7 +808,7 @@
 
         <!-- Timing Overrides -->
         <div class="section-divider">Timing</div>
-        <p class="text-muted small mb-2">Leave blank to use the global default.</p>
+        <p class="text-muted small mb-2">Opening is how long HomeKit shows the gate as 'Opening' before 'Open'. Auto-close is how long it stays 'Open' before returning to 'Closed'. Leave blank to use the global default.</p>
         <div class="row g-2 mb-3">
           <div class="col-6">
             <div class="d-flex justify-content-between align-items-center mb-1">
@@ -820,27 +844,43 @@
         ${showRelay ? `
         <div class="section-divider">Relay Mode</div>
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="text-muted" style="font-size:0.82rem;">Enable relay accessories for this gate</div>
+          <div>
+            <div class="fw-bold small">Enable Relay Accessories</div>
+            <div class="text-muted" style="font-size:0.8rem;">Override the global relay setting for this gate</div>
+          </div>
           <div class="form-check form-switch mb-0">
             <input class="form-check-input" type="checkbox" role="switch"
               id="relayEnabled-${sid}" ${relayEnabled ? 'checked' : ''}
-              style="width:2em; height:1.1em; margin-left:0;">
+              style="width:2.5em; height:1.3em; margin-left:0;">
           </div>
         </div>
         <div id="relayOptions-${sid}" class="${!relayEnabled ? 'd-none' : ''} mb-3">
-          <p class="text-muted small mb-2">
-            Expose virtual relay controllers for latch (hold open / hold closed) operations.
-          </p>
+          <label class="form-label mb-1">Relay Accessory Type</label>
+          <p class="text-muted small mb-2">Choose how relay accessories appear in HomeKit for this gate. Overrides the global default.</p>
           <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="relaySwitch-${sid}" ${relaySwitch ? 'checked' : ''}>
             <label class="form-check-label" for="relaySwitch-${sid}">
               <i class="fas fa-toggle-on me-1"></i>Relay as Switch
             </label>
           </div>
-          <div class="form-check mb-2">
+          <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" id="relayLock-${sid}" ${relayLock ? 'checked' : ''}>
             <label class="form-check-label" for="relayLock-${sid}">
               <i class="fas fa-lock me-1"></i>Relay as Lock
+            </label>
+          </div>
+          <label class="form-label mb-1">Hold Directions</label>
+          <p class="text-muted small mb-2">Choose which relay accessories to expose for this gate. Uncheck a direction to hide that accessory from HomeKit.</p>
+          <div class="form-check mb-1">
+            <input class="form-check-input" type="checkbox" id="relayHoldOpen-${sid}" ${relayHoldOpen ? 'checked' : ''}>
+            <label class="form-check-label" for="relayHoldOpen-${sid}">
+              <i class="fas fa-lock-open me-1"></i>Hold Open
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="relayHoldClosed-${sid}" ${relayHoldClosed ? 'checked' : ''}>
+            <label class="form-check-label" for="relayHoldClosed-${sid}">
+              <i class="fas fa-lock me-1"></i>Hold Closed
             </label>
           </div>
         </div>
@@ -955,6 +995,8 @@
       const relaySwitchEl = getValue(`relaySwitch-${sid}`);
       const relayLockEl = getValue(`relayLock-${sid}`);
       const relayEnabledEl = getValue(`relayEnabled-${sid}`);
+      const relayHoldOpenEl = getValue(`relayHoldOpen-${sid}`);
+      const relayHoldClosedEl = getValue(`relayHoldClosed-${sid}`);
 
       const garageEl = getValue(`garage-${sid}`);
       const switchEl = getValue(`switch-${sid}`);
@@ -972,7 +1014,9 @@
         closeDelay: closeVal !== '' ? parseInt(closeVal, 10) : undefined,
         relayEnabled: relayEnabledEl ? relayEnabledEl.checked : undefined,
         relaySwitch: relaySwitchEl ? relaySwitchEl.checked : undefined,
-        relayLock: relayLockEl ? relayLockEl.checked : undefined
+        relayLock: relayLockEl ? relayLockEl.checked : undefined,
+        relayHoldOpen: relayHoldOpenEl ? relayHoldOpenEl.checked : undefined,
+        relayHoldClosed: relayHoldClosedEl ? relayHoldClosedEl.checked : undefined
       }, container);
     });
   }
@@ -1016,6 +1060,8 @@
       if (values.relayEnabled !== false) {
         if (values.relaySwitch !== undefined) entry.relaySwitch = values.relaySwitch;
         if (values.relayLock !== undefined) entry.relayLock = values.relayLock;
+        if (values.relayHoldOpen !== undefined) entry.relayHoldOpen = values.relayHoldOpen;
+        if (values.relayHoldClosed !== undefined) entry.relayHoldClosed = values.relayHoldClosed;
       }
     }
 
@@ -1054,13 +1100,16 @@
   }
 
   async function persistPluginConfig(options = {}) {
-    homebridge.updatePluginConfig(pluginConfig);
-    await homebridge.savePluginConfig();
+    // The Homebridge parent frame's savePluginConfig() response contains a Promise object
+    // (a Homebridge UI bug) which causes a DataCloneError in postMessage, so the response
+    // never arrives and savePluginConfig() hangs forever. We save directly via our server
+    // handler instead, which writes config.json without going through the broken SDK path.
+    const result = await homebridge.request('/config/save', { config });
+    if (!result.success) throw new Error(result.error || 'Failed to save config');
     if (options.refreshSchema) {
       if (manualConfigVisible) homebridge.showSchemaForm();
       else if (typeof homebridge.hideSchemaForm === 'function') homebridge.hideSchemaForm();
     }
-    await reloadPluginConfigState();
     renderLinkedState();
     updateDiscoverButtonState();
   }
