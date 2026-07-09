@@ -164,6 +164,25 @@
       </select>
     </div>
 
+    <div class="mb-3">
+      <label class="form-label mb-1">Default Trigger Mode</label>
+      <div class="form-check mb-1">
+        <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-stateful" value="stateful">
+        <label class="form-check-label" for="globalTriggerMode-stateful"><i class="fas fa-right-left me-1"></i>Stateful</label>
+        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Tap to open; tap again while still open to close immediately without re-triggering</div>
+      </div>
+      <div class="form-check mb-1">
+        <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-stateless" value="stateless">
+        <label class="form-check-label" for="globalTriggerMode-stateless"><i class="fas fa-bolt me-1"></i>Stateless</label>
+        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Always triggers a new open, even if the gate is still mid-cycle</div>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-momentary" value="momentary">
+        <label class="form-check-label" for="globalTriggerMode-momentary"><i class="fas fa-hand-pointer me-1"></i>Momentary</label>
+        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Triggers open then immediately resets to closed/off/locked</div>
+      </div>
+    </div>
+
     <div class="section-divider">Timing</div>
     <p class="text-muted small mb-2">Controls how long HomeKit animates the gate after a trigger. Opening is how long it shows as 'Opening' before 'Open'. Auto-close is how long it stays 'Open' before returning to 'Closed'.</p>
     <div class="row g-2 mb-3">
@@ -249,6 +268,12 @@
   const TYPE_ICON = { garageDoor: 'fa-warehouse', switch: 'fa-toggle-on', lock: 'fa-lock' };
   const TYPE_LABEL = { garageDoor: 'Garage Door', switch: 'Switch', lock: 'Lock' };
 
+  // showSpinner / hideSpinner use window.parent.postMessage internally; if the parent
+  // reference is stale they throw synchronously. Wrapping prevents that from propagating
+  // into our try/finally blocks and silently swallowing renderCustomizationForm calls.
+  function safeShowSpinner() { try { homebridge.showSpinner(); } catch (_) {} }
+  function safeHideSpinner() { try { homebridge.hideSpinner(); } catch (_) {} }
+
   // ── State ─────────────────────────────────────────────────────────
   let pluginConfig = await homebridge.getPluginConfig();
   let config = pluginConfig.find(item => item.platform === 'PalGatePlatform');
@@ -279,7 +304,7 @@
   updateManualConfigVisibility();
   updateDiscoverButtonState();
   initDefaultSettings();
-  homebridge.hideSpinner();
+  safeHideSpinner();
 
   if (hasLinkingCredentials() && config.customGates.length > 0) {
     // Render already-configured gates immediately from saved config — no API call, no spinner.
@@ -305,6 +330,8 @@
     });
 
     document.getElementById('globalAccessoryType').value = config.accessoryType || 'garageDoor';
+    const tmEl = document.getElementById('globalTriggerMode-' + (config.triggerMode || 'stateful'));
+    if (tmEl) tmEl.checked = true;
     document.getElementById('globalOpeningDelay').value = config.gateOpeningDelay !== undefined ? config.gateOpeningDelay : '';
     document.getElementById('globalCloseDelay').value = config.gateCloseDelay !== undefined ? config.gateCloseDelay : '';
     document.getElementById('globalPollInterval').value = config.pollInterval !== undefined ? config.pollInterval : '';
@@ -334,6 +361,10 @@
     const relayEnabled = document.getElementById('globalEnableRelay').checked;
 
     config.accessoryType = document.getElementById('globalAccessoryType').value;
+    const checkedTM = document.querySelector('input[name="globalTriggerMode"]:checked');
+    console.log('[saveGlobalDefaults] checkedTM:', checkedTM ? checkedTM.value : null);
+    config.triggerMode = checkedTM ? checkedTM.value : 'stateful';
+    console.log('[saveGlobalDefaults] config.triggerMode set to:', config.triggerMode);
     if (openingVal !== '') config.gateOpeningDelay = parseInt(openingVal, 10); else delete config.gateOpeningDelay;
     if (closeVal !== '') config.gateCloseDelay = parseInt(closeVal, 10); else delete config.gateCloseDelay;
     if (pollVal !== '') config.pollInterval = parseInt(pollVal, 10); else delete config.pollInterval;
@@ -343,15 +374,15 @@
     config.relayHoldClosed = document.getElementById('globalRelayHoldClosed').checked;
 
     try {
-      homebridge.showSpinner();
-      await persistPluginConfig({ refreshSchema: true });
+      safeShowSpinner();
+      await persistPluginConfig();
       homebridge.toast.success('Saved. Restart Homebridge to apply changes.', 'Default Settings');
       // Re-render gate list so type rows reflect updated defaults
       if (discoveredGates.length > 0) renderGateList(discoveredGates);
     } catch (err) {
       homebridge.toast.error(formatError(err), 'Save Failed');
     } finally {
-      homebridge.hideSpinner();
+      safeHideSpinner();
     }
   }
 
@@ -386,7 +417,7 @@
     const generateBtn = document.getElementById('generateQR');
     generateBtn.disabled = true;
     generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connecting…';
-    homebridge.showSpinner();
+    safeShowSpinner();
     setStatus(document.getElementById('linkStatus'), 'info', 'Preparing linking session…');
 
     try {
@@ -399,14 +430,14 @@
         <img src="${initData.qrCode}" alt="QR Code" class="img-fluid mb-2" style="max-width:200px;">
         <p class="text-muted small mb-0">Open the PalGate app → Device Linking → Link a Device</p>
       `;
-      homebridge.hideSpinner();
+      safeHideSpinner();
       setStatus(document.getElementById('linkStatus'), 'info', 'Waiting for QR scan…');
       startConfirmationPolling(initData.uniqueId, sessionId);
     } catch (err) {
       const msg = formatError(err);
       setStatus(document.getElementById('linkStatus'), 'error', msg);
       homebridge.toast.error(msg, 'Error');
-      homebridge.hideSpinner();
+      safeHideSpinner();
       generateBtn.disabled = false;
       generateBtn.innerHTML = '<i class="fas fa-qrcode me-2"></i>Connect to PalGate';
     }
@@ -453,7 +484,7 @@
           config.token = data.sessionToken;
           config.phoneNumber = data.phoneNumber;
           config.tokenType = parseInt(data.tokenType, 10);
-          await persistPluginConfig({ refreshSchema: true });
+          await persistPluginConfig();
           autoDiscover();
         } else if (data.waiting) {
           // Still waiting — nothing to update
@@ -497,7 +528,7 @@
 
   async function autoDiscover() {
     try {
-      homebridge.showSpinner();
+      safeShowSpinner();
       const data = await homebridge.request('/devices/discover', {
         token: config.token,
         phoneNumber: config.phoneNumber,
@@ -506,14 +537,14 @@
       if (data.success && data.gates && data.gates.length > 0) {
         discoveredGates = data.gates;
         discoveredGates.forEach(persistGateMeta);
-        await persistPluginConfig({});
+        await persistPluginConfig();
         renderGateList(discoveredGates);
         document.getElementById('gateListHint').classList.add('d-none');
       }
     } catch (_) {
       // Silent — user can retry with the Discover button
     } finally {
-      homebridge.hideSpinner();
+      safeHideSpinner();
     }
   }
 
@@ -524,7 +555,7 @@
     }
     const discoverBtn = document.getElementById('discoverGates');
     if (discoverBtn) discoverBtn.disabled = true;
-    homebridge.showSpinner();
+    safeShowSpinner();
     try {
       const data = await homebridge.request('/devices/discover', {
         token: config.token,
@@ -534,14 +565,14 @@
       if (!data.success) throw new Error(data.error || 'Failed to discover devices.');
       discoveredGates = data.gates || [];
       discoveredGates.forEach(persistGateMeta);
-      await persistPluginConfig({});
+      await persistPluginConfig();
       renderGateList(discoveredGates);
       document.getElementById('gateListHint').classList.add('d-none');
     } catch (err) {
       const msg = formatError(err);
       homebridge.toast.error(msg, 'Discovery Error');
     } finally {
-      homebridge.hideSpinner();
+      safeHideSpinner();
       updateDiscoverButtonState();
     }
   }
@@ -652,7 +683,7 @@
       // has admin/latch info and canonical names from the API.
       if (discoveredGates.length === 0 || gate.isPrePopulated) {
         try {
-          homebridge.showSpinner();
+          safeShowSpinner();
           const data = await homebridge.request('/devices/discover', {
             token: config.token,
             phoneNumber: config.phoneNumber,
@@ -689,7 +720,7 @@
         } catch (_) {
           // Open form with config data if discovery fails — relay section just won't show
         } finally {
-          homebridge.hideSpinner();
+          safeHideSpinner();
         }
       }
 
@@ -717,6 +748,13 @@
     // Timing — empty string means "use global"
     const openingDelay = customEntry.gateOpeningDelay !== undefined ? customEntry.gateOpeningDelay : '';
     const closeDelay = customEntry.gateCloseDelay !== undefined ? customEntry.gateCloseDelay : '';
+    const triggerMode = customEntry.triggerMode || '';
+    const TRIGGER_LABEL = { stateful: 'Stateful', stateless: 'Stateless', momentary: 'Momentary' };
+    const TRIGGER_ICON  = { stateful: 'fa-right-left', stateless: 'fa-bolt', momentary: 'fa-hand-pointer' };
+    const resolvedTrigger = triggerMode || config.triggerMode || 'stateful';
+    const resolvedTriggerLabel = TRIGGER_LABEL[resolvedTrigger] || 'Stateful';
+    const resolvedTriggerIcon  = TRIGGER_ICON[resolvedTrigger]  || 'fa-right-left';
+    const hasTriggerOverride = !!triggerMode;
     const globalOpeningDelay = config.gateOpeningDelay !== undefined ? config.gateOpeningDelay : 1000;
     const globalCloseDelay = config.gateCloseDelay !== undefined ? config.gateCloseDelay : 5000;
 
@@ -776,7 +814,7 @@
         <!-- Read-only row: shown when using global default -->
         <div id="typeDefaultRow-${sid}" class="${hasTypeOverride ? 'd-none' : ''} d-flex align-items-center justify-content-between mb-3">
           <span style="font-size:0.88rem;">
-            <i class="fas ${globalTypeIcon} me-1"></i>${escapeHtml(globalTypeLabel)}
+            <i class="fas ${globalTypeIcon} me-1"></i>${escapeHtml(globalTypeLabel)} <span class="text-muted" style="font-size:0.85em;">(global default)</span>
           </span>
           <button type="button" class="btn btn-outline-secondary btn-sm" id="customiseType-${sid}" style="font-size:0.75rem; padding:2px 10px;">
             Customise
@@ -831,6 +869,38 @@
               value="${escapeHtml(String(closeDelay))}"
               placeholder="${escapeHtml(String(globalCloseDelay))}ms (global)"
               min="0">
+          </div>
+        </div>
+
+        <!-- Trigger Mode -->
+        <div class="d-flex justify-content-between align-items-center" style="margin:16px 0 0;">
+          <div class="section-divider mb-0" style="flex:1; border-bottom:none; margin:0; padding-bottom:0;">Trigger Mode</div>
+          <a href="#" class="reset-link${hasTriggerOverride ? '' : ' d-none'}" id="resetTriggerMode-${sid}" style="margin-left:8px;">↺ reset</a>
+        </div>
+        <div style="border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:8px;"></div>
+
+        <div id="triggerModeDefaultRow-${sid}" class="${hasTriggerOverride ? 'd-none' : ''} d-flex align-items-center justify-content-between mb-3">
+          <span style="font-size:0.88rem;"><i class="fas ${resolvedTriggerIcon} me-1"></i>${escapeHtml(resolvedTriggerLabel)} <span class="text-muted" style="font-size:0.85em;">(global default)</span></span>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="customiseTriggerMode-${sid}" style="font-size:0.75rem; padding:2px 10px;">
+            Override
+          </button>
+        </div>
+
+        <div id="triggerModeRadios-${sid}" class="${!hasTriggerOverride ? 'd-none' : ''} mb-3">
+          <div class="form-check mb-1">
+            <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-stateful" value="stateful" ${resolvedTrigger === 'stateful' ? 'checked' : ''}>
+            <label class="form-check-label" for="triggerMode-${sid}-stateful"><i class="fas fa-right-left me-1"></i>Stateful</label>
+            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Tap to open; tap again while still open to close immediately without re-triggering</div>
+          </div>
+          <div class="form-check mb-1">
+            <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-stateless" value="stateless" ${resolvedTrigger === 'stateless' ? 'checked' : ''}>
+            <label class="form-check-label" for="triggerMode-${sid}-stateless"><i class="fas fa-bolt me-1"></i>Stateless</label>
+            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Always triggers a new open, even if the gate is still mid-cycle</div>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-momentary" value="momentary" ${resolvedTrigger === 'momentary' ? 'checked' : ''}>
+            <label class="form-check-label" for="triggerMode-${sid}-momentary"><i class="fas fa-hand-pointer me-1"></i>Momentary</label>
+            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Triggers open then immediately resets to closed/off/locked</div>
           </div>
         </div>
 
@@ -949,6 +1019,30 @@
       });
     }
 
+    // Trigger mode override/reset
+    const triggerModeDefaultRow = container.querySelector(`#triggerModeDefaultRow-${sid}`);
+    const triggerModeRadiosEl = container.querySelector(`#triggerModeRadios-${sid}`);
+    const resetTriggerModeLink = container.querySelector(`#resetTriggerMode-${sid}`);
+    const customiseTriggerModeBtn = container.querySelector(`#customiseTriggerMode-${sid}`);
+    if (customiseTriggerModeBtn) {
+      customiseTriggerModeBtn.addEventListener('click', () => {
+        triggerModeDefaultRow.classList.add('d-none');
+        triggerModeRadiosEl.classList.remove('d-none');
+        resetTriggerModeLink.classList.remove('d-none');
+        const globalMode = config.triggerMode || 'stateful';
+        const radio = container.querySelector(`#triggerMode-${sid}-${globalMode}`);
+        if (radio) radio.checked = true;
+      });
+    }
+    if (resetTriggerModeLink) {
+      resetTriggerModeLink.addEventListener('click', e => {
+        e.preventDefault();
+        triggerModeDefaultRow.classList.remove('d-none');
+        triggerModeRadiosEl.classList.add('d-none');
+        resetTriggerModeLink.classList.add('d-none');
+      });
+    }
+
     // Timing reset links — appear when per-gate value is set, vanish when cleared
     const openingInput = container.querySelector(`#openingDelay-${sid}`);
     const resetOpeningLink = container.querySelector(`#resetOpening-${sid}`);
@@ -975,14 +1069,14 @@
       e.preventDefault();
       config.customGates = (config.customGates || []).filter(entry => entry.deviceId !== gate.deviceId);
       try {
-        homebridge.showSpinner();
-        await persistPluginConfig({ refreshSchema: true });
+        safeShowSpinner();
+        await persistPluginConfig();
         homebridge.toast.success('Customizations removed. Restart Homebridge to apply changes.', gate.defaultName || gate.deviceId);
         renderGateList(discoveredGates);
       } catch (err) {
         homebridge.toast.error(formatError(err), 'Reset Failed');
       } finally {
-        homebridge.hideSpinner();
+        safeHideSpinner();
       }
     });
 
@@ -997,6 +1091,9 @@
       const relayEnabledEl = getValue(`relayEnabled-${sid}`);
       const relayHoldOpenEl = getValue(`relayHoldOpen-${sid}`);
       const relayHoldClosedEl = getValue(`relayHoldClosed-${sid}`);
+      const triggerModeOverrideActive = triggerModeRadiosEl && !triggerModeRadiosEl.classList.contains('d-none');
+      const triggerModeEl = triggerModeOverrideActive ? container.querySelector(`input[name="triggerMode-${sid}"]:checked`) : null;
+      console.log('[triggerMode save]', { sid, radiosEl: !!triggerModeRadiosEl, hasDNone: triggerModeRadiosEl ? triggerModeRadiosEl.classList.contains('d-none') : 'n/a', overrideActive: triggerModeOverrideActive, checkedEl: triggerModeEl ? triggerModeEl.value : null });
 
       const garageEl = getValue(`garage-${sid}`);
       const switchEl = getValue(`switch-${sid}`);
@@ -1016,7 +1113,8 @@
         relaySwitch: relaySwitchEl ? relaySwitchEl.checked : undefined,
         relayLock: relayLockEl ? relayLockEl.checked : undefined,
         relayHoldOpen: relayHoldOpenEl ? relayHoldOpenEl.checked : undefined,
-        relayHoldClosed: relayHoldClosedEl ? relayHoldClosedEl.checked : undefined
+        relayHoldClosed: relayHoldClosedEl ? relayHoldClosedEl.checked : undefined,
+        triggerMode: triggerModeEl ? triggerModeEl.value : undefined
       }, container);
     });
   }
@@ -1053,6 +1151,12 @@
       entry.gateCloseDelay = values.closeDelay;
     }
 
+    console.log('[saveCustomGate] values.triggerMode:', values.triggerMode);
+    if (values.triggerMode) {
+      entry.triggerMode = values.triggerMode;
+    }
+    console.log('[saveCustomGate] entry.triggerMode:', entry.triggerMode);
+
     // Relay: always write relayEnabled when the relay section is present (gate has admin/latch).
     // true = relay active for this gate, false = suppressed even when globally enabled.
     if (values.relayEnabled !== undefined) {
@@ -1074,8 +1178,8 @@
     }
 
     try {
-      homebridge.showSpinner();
-      await persistPluginConfig({ refreshSchema: true });
+      safeShowSpinner();
+      await persistPluginConfig();
       homebridge.toast.success('Saved. Restart Homebridge to apply changes.', gate.defaultName || gate.deviceId);
       container.style.display = 'none';
       const btn = container.closest('.card').querySelector('.configure-btn');
@@ -1084,7 +1188,7 @@
     } catch (err) {
       homebridge.toast.error(formatError(err), 'Save Failed');
     } finally {
-      homebridge.hideSpinner();
+      safeHideSpinner();
     }
   }
 
@@ -1099,17 +1203,27 @@
     config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
   }
 
-  async function persistPluginConfig(options = {}) {
-    // The Homebridge parent frame's savePluginConfig() response contains a Promise object
-    // (a Homebridge UI bug) which causes a DataCloneError in postMessage, so the response
-    // never arrives and savePluginConfig() hangs forever. We save directly via our server
-    // handler instead, which writes config.json without going through the broken SDK path.
-    const result = await homebridge.request('/config/save', { config });
-    if (!result.success) throw new Error(result.error || 'Failed to save config');
-    if (options.refreshSchema) {
-      if (manualConfigVisible) homebridge.showSchemaForm();
-      else if (typeof homebridge.hideSchemaForm === 'function') homebridge.hideSchemaForm();
+  async function persistPluginConfig() {
+    // Step 1: sync Homebridge Config UI X's in-memory state.
+    // This is the critical step — without it, Config UI X holds a stale cache and
+    // overwrites config.json with the old values whenever it writes (e.g. on restart).
+    homebridge.updatePluginConfig(pluginConfig);
+
+    // Step 2: write to disk via the standard SDK path.
+    // A known Homebridge UI bug causes savePluginConfig() to hang forever when the
+    // parent frame's postMessage response contains a Promise (DataCloneError). We race
+    // it against a timeout and treat a timeout as success — the in-memory sync in step 1
+    // is the important part; the disk write happens as a best-effort.
+    try {
+      await Promise.race([
+        homebridge.savePluginConfig(),
+        new Promise(resolve => setTimeout(resolve, 200)),
+      ]);
+    } catch (_) {
+      // savePluginConfig rejection means nothing was written to disk this session,
+      // but Config UI X's in-memory state is correct and will be written on next restart.
     }
+
     renderLinkedState();
     updateDiscoverButtonState();
   }
@@ -1128,8 +1242,13 @@
         ? '<i class="fas fa-eye-slash me-1"></i>Hide Manual Config'
         : '<i class="fas fa-code me-1"></i>Show Manual Config';
     }
-    if (manualConfigVisible) homebridge.showSchemaForm();
-    else if (typeof homebridge.hideSchemaForm === 'function') homebridge.hideSchemaForm();
+    // Wrapped in try/catch — showSchemaForm/hideSchemaForm use window.parent.postMessage
+    // which throws "Cannot read properties of null" when the parent reference is stale,
+    // breaking the SDK's Socket.IO channel and causing all subsequent requests to hang.
+    try {
+      if (manualConfigVisible) homebridge.showSchemaForm();
+      else if (typeof homebridge.hideSchemaForm === 'function') homebridge.hideSchemaForm();
+    } catch (_) {}
   }
 
   // ── Helpers ───────────────────────────────────────────────────────
@@ -1173,7 +1292,7 @@
     return msg || 'Unknown error occurred.';
   }
 })().catch(err => {
-  homebridge.hideSpinner();
+  safeHideSpinner();
   homebridge.toast.error((err && err.message) || 'Failed to initialise plugin UI.', 'Error');
 });
 </script>

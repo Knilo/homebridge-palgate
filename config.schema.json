@@ -35,6 +35,17 @@
 					{ "title": "Linked Device 2", "enum": [2] }
 				]
 			},
+			"triggerMode": {
+				"title": "Default Trigger Mode",
+				"description": "How accessories respond to taps. Stateful toggles open/closed. Stateless always triggers open regardless of current state. Momentary triggers open then immediately resets to resting state.",
+				"type": "string",
+				"default": "stateful",
+				"oneOf": [
+					{ "title": "Stateful", "enum": ["stateful"] },
+					{ "title": "Stateless", "enum": ["stateless"] },
+					{ "title": "Momentary", "enum": ["momentary"] }
+				]
+			},
 			"accessoryType": {
 				"title": "Default Accessory Type",
 				"description": "The default type for discovered gates. Default is 'garageDoor'.",
@@ -195,6 +206,16 @@
 							"title": "Expose Hold Closed",
 							"description": "Set to false to suppress the Hold Closed relay accessory for this gate.",
 							"type": "boolean"
+						},
+						"triggerMode": {
+							"title": "Trigger Mode Override",
+							"description": "Override the trigger mode for this gate. Stateful toggles open/closed. Stateless always triggers open. Momentary triggers open then immediately resets.",
+							"type": "string",
+							"oneOf": [
+								{ "title": "Stateful", "enum": ["stateful"] },
+								{ "title": "Stateless", "enum": ["stateless"] },
+								{ "title": "Momentary", "enum": ["momentary"] }
+							]
 						}
 					}
 				}
