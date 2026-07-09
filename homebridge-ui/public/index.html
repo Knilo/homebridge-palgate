@@ -1209,19 +1209,14 @@
     // overwrites config.json with the old values whenever it writes (e.g. on restart).
     homebridge.updatePluginConfig(pluginConfig);
 
-    // Step 2: write to disk via the standard SDK path.
-    // A known Homebridge UI bug causes savePluginConfig() to hang forever when the
-    // parent frame's postMessage response contains a Promise (DataCloneError). We race
-    // it against a timeout and treat a timeout as success — the in-memory sync in step 1
-    // is the important part; the disk write happens as a best-effort.
-    try {
-      await Promise.race([
-        homebridge.savePluginConfig(),
-        new Promise(resolve => setTimeout(resolve, 200)),
-      ]);
-    } catch (_) {
-      // savePluginConfig rejection means nothing was written to disk this session,
-      // but Config UI X's in-memory state is correct and will be written on next restart.
+    // Step 2: write to disk via the plugin's server-side /config/save route.
+    // The SDK's savePluginConfig() hangs forever due to a Homebridge UI bug where the
+    // parent frame's postMessage response contains a Promise (DataCloneError), so the
+    // UI server writes config.json directly instead. Failures propagate to the caller
+    // so the user sees a real error rather than a false "Saved" toast.
+    const result = await homebridge.request('/config/save', { config });
+    if (!result || !result.success) {
+      throw new Error((result && result.error) || 'Failed to write config.json.');
     }
 
     renderLinkedState();
@@ -1292,7 +1287,8 @@
     return msg || 'Unknown error occurred.';
   }
 })().catch(err => {
-  safeHideSpinner();
+  // safeHideSpinner is scoped inside the IIFE and unreachable here, so hide the spinner inline.
+  try { homebridge.hideSpinner(); } catch (_) {}
   homebridge.toast.error((err && err.message) || 'Failed to initialise plugin UI.', 'Error');
 });
 </script>
