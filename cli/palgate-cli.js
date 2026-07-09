@@ -23,14 +23,13 @@
  */
 
 const { generateToken } = require('../lib/token-gen.js');
-const { validateToken, openGate, getDevices, getDeviceInfo, callApi } = require('../lib/api.js');
+const { validateToken, openGate, getDevices, getDeviceInfo, callApiOnce } = require('../lib/api.js');
 const { v4: uuidv4 } = require('uuid');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const { BASE_URL } = require('../lib/utils/constants.js');
 // Path for the Homebridge configuration file.
 const homebridgeConfigPath = path.join(os.homedir(), '.homebridge', 'config.json');
 // Local configuration defaults file.
@@ -160,13 +159,16 @@ async function startDeviceLinking() {
   qrcode.generate(qrData, { small: true });
   console.log("Waiting for device linking response...");
 
-  const endpoint = `${BASE_URL}un/secondary/init/${uniqueId}`;
+  const endpoint = `un/secondary/init/${uniqueId}`;
   const timeout = 60 * 1000; // 60 seconds timeout
   const startTime = Date.now();
 
   async function pollForLinking() {
     try {
-      const response = await callApi(endpoint, '');
+      // Single-shot (no internal retries) — this loop controls the poll cadence.
+      // Retrying inside the request while also looping compounds calls fast enough
+      // to trip PalGate's rate limiter (429).
+      const response = await callApiOnce(endpoint, '');
       if (response.user && response.secondary) {
         return {
           phoneNumber: response.user.id,
@@ -318,7 +320,13 @@ async function startDeviceLinking() {
             "relayAccessoryType": "lock",
             "pollInterval": 60
           };
-          hbConfig.platforms.push(platformConfig);
+          // Replace an existing PalGatePlatform block instead of appending a duplicate.
+          const existingIdx = hbConfig.platforms.findIndex(p => p.platform === 'PalGatePlatform');
+          if (existingIdx > -1) {
+            hbConfig.platforms[existingIdx] = platformConfig;
+          } else {
+            hbConfig.platforms.push(platformConfig);
+          }
           const tmpPath = homebridgeConfigPath + '.tmp';
           fs.writeFileSync(tmpPath, JSON.stringify(hbConfig, null, 2), 'utf8');
           fs.renameSync(tmpPath, homebridgeConfigPath);
