@@ -1177,7 +1177,7 @@
     try {
       safeShowSpinner();
       await persistPluginConfig();
-      homebridge.toast.success('Saved. Restart Homebridge to apply changes.', gate.defaultName || gate.deviceId);
+      homebridge.toast.success('Saved. Restart Homebridge to apply changes.', entry.name || gate.defaultName || gate.deviceId);
       container.style.display = 'none';
       const btn = container.closest('.card').querySelector('.configure-btn');
       if (btn) btn.innerHTML = '<i class="fas fa-sliders me-1"></i>Configure';
