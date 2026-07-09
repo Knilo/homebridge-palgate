@@ -802,6 +802,9 @@
             id="customName-${sid}"
             value="${escapeHtml(customName)}"
             placeholder="${escapeHtml(gate.defaultName || gate.deviceId)}">
+          <div id="nameWarning-${sid}" class="d-none" style="font-size:0.75rem; margin-top:5px; color:#ffc107;">
+            <i class="fas fa-triangle-exclamation me-1"></i>Renaming re-creates this gate's accessories in Apple Home. They'll be removed from their room and dropped from any scenes or automations, so you'll need to re-add them after restarting Homebridge.
+          </div>
         </div>
 
         <!-- Accessory Type -->
@@ -979,13 +982,20 @@
       optionsGroup.classList.toggle('options-disabled', !enableInput.checked);
     });
 
-    // Name reset link
+    // Name reset link + rename warning (shown when the effective name would change,
+    // since a rename re-creates the accessories and resets their HomeKit placement).
     const nameInput = container.querySelector(`#customName-${sid}`);
     const resetNameLink = container.querySelector(`#resetName-${sid}`);
+    const nameWarning = container.querySelector(`#nameWarning-${sid}`);
+    const initialName = nameInput.value.trim();
+    const updateNameWarning = () => {
+      nameWarning.classList.toggle('d-none', nameInput.value.trim() === initialName);
+    };
     nameInput.addEventListener('input', () => {
       resetNameLink.classList.toggle('d-none', nameInput.value === '');
+      updateNameWarning();
     });
-    resetNameLink.addEventListener('click', e => { e.preventDefault(); nameInput.value = ''; resetNameLink.classList.add('d-none'); });
+    resetNameLink.addEventListener('click', e => { e.preventDefault(); nameInput.value = ''; resetNameLink.classList.add('d-none'); updateNameWarning(); });
 
     // Accessory type — Customise button shows checkboxes; ↺ reset hides them
     const typeDefaultRow = container.querySelector(`#typeDefaultRow-${sid}`);
