@@ -534,15 +534,17 @@
         phoneNumber: config.phoneNumber,
         tokenType: config.tokenType
       });
-      if (data.success && data.gates && data.gates.length > 0) {
+      if (!data.success) throw new Error(data.error || 'Discovery failed.');
+      if (data.gates && data.gates.length > 0) {
         discoveredGates = data.gates;
         discoveredGates.forEach(persistGateMeta);
         await persistPluginConfig();
         renderGateList(discoveredGates);
         document.getElementById('gateListHint').classList.add('d-none');
       }
-    } catch (_) {
-      // Silent — user can retry with the Discover button
+    } catch (err) {
+      // Surface the failure so the user isn't left staring at an empty gate list.
+      homebridge.toast.error(`${formatError(err)} Click Discover to retry.`, 'Discovery Error');
     } finally {
       safeHideSpinner();
     }
