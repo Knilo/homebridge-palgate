@@ -362,9 +362,7 @@
 
     config.accessoryType = document.getElementById('globalAccessoryType').value;
     const checkedTM = document.querySelector('input[name="globalTriggerMode"]:checked');
-    console.log('[saveGlobalDefaults] checkedTM:', checkedTM ? checkedTM.value : null);
     config.triggerMode = checkedTM ? checkedTM.value : 'stateful';
-    console.log('[saveGlobalDefaults] config.triggerMode set to:', config.triggerMode);
     if (openingVal !== '') config.gateOpeningDelay = parseInt(openingVal, 10); else delete config.gateOpeningDelay;
     if (closeVal !== '') config.gateCloseDelay = parseInt(closeVal, 10); else delete config.gateCloseDelay;
     if (pollVal !== '') config.pollInterval = parseInt(pollVal, 10); else delete config.pollInterval;
@@ -1095,7 +1093,6 @@
       const relayHoldClosedEl = getValue(`relayHoldClosed-${sid}`);
       const triggerModeOverrideActive = triggerModeRadiosEl && !triggerModeRadiosEl.classList.contains('d-none');
       const triggerModeEl = triggerModeOverrideActive ? container.querySelector(`input[name="triggerMode-${sid}"]:checked`) : null;
-      console.log('[triggerMode save]', { sid, radiosEl: !!triggerModeRadiosEl, hasDNone: triggerModeRadiosEl ? triggerModeRadiosEl.classList.contains('d-none') : 'n/a', overrideActive: triggerModeOverrideActive, checkedEl: triggerModeEl ? triggerModeEl.value : null });
 
       const garageEl = getValue(`garage-${sid}`);
       const switchEl = getValue(`switch-${sid}`);
@@ -1153,11 +1150,9 @@
       entry.gateCloseDelay = values.closeDelay;
     }
 
-    console.log('[saveCustomGate] values.triggerMode:', values.triggerMode);
     if (values.triggerMode) {
       entry.triggerMode = values.triggerMode;
     }
-    console.log('[saveCustomGate] entry.triggerMode:', entry.triggerMode);
 
     // Relay: always write relayEnabled when the relay section is present (gate has admin/latch).
     // true = relay active for this gate, false = suppressed even when globally enabled.
