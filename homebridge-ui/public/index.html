@@ -1326,12 +1326,13 @@ function withTimeout(promise, ms, message) {
     // un-awaited savePluginConfig() Promise straight into postMessage, which throws
     // DataCloneError — so the response never returns and savePluginConfig() hangs on the
     // client, EVEN THOUGH the backend POST has already persisted the config. We race it
-    // against a timeout that RESOLVES: the write completes server-side regardless, and if
-    // a future config-ui-x fixes the bug the call simply resolves normally (timeout is a
+    // against a short timeout that RESOLVES: the write completes server-side regardless
+    // (the disk write is fired independently of the acknowledgement we never receive), and
+    // if a future config-ui-x fixes the bug the call simply resolves normally (timeout is a
     // no-op fallback). The .catch keeps a genuine rejection from becoming unhandled.
     await Promise.race([
       Promise.resolve(homebridge.savePluginConfig()).catch(() => {}),
-      new Promise(resolve => setTimeout(resolve, 3000)),
+      new Promise(resolve => setTimeout(resolve, 500)),
     ]);
 
     renderLinkedState();
