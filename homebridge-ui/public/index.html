@@ -296,6 +296,8 @@ function withTimeout(promise, ms, message) {
   const MANUAL_CONFIG_KEY = 'palgateManualConfigVisible';
   const TYPE_ICON = { garageDoor: 'fa-warehouse', switch: 'fa-toggle-on', lock: 'fa-lock' };
   const TYPE_LABEL = { garageDoor: 'Garage Door', switch: 'Switch', lock: 'Lock' };
+  const TRIGGER_ICON = { stateful: 'fa-right-left', stateless: 'fa-bolt', momentary: 'fa-hand-pointer' };
+  const TRIGGER_LABEL = { stateful: 'Stateful', stateless: 'Stateless', momentary: 'Momentary' };
 
   // showSpinner / hideSpinner use window.parent.postMessage internally; if the parent
   // reference is stale they throw synchronously. Wrapping prevents that from propagating
@@ -685,6 +687,17 @@ function withTimeout(promise, ms, message) {
     }).join('<span class="text-muted" style="margin:0 6px;">·</span>');
   }
 
+  // Trigger mode (stateful / stateless / momentary) shown on its own row below the
+  // accessory types — reflects the per-gate override or the global default. Hidden
+  // gates have no accessory, so nothing is shown.
+  function buildTriggerModeRow(customEntry) {
+    if (customEntry && customEntry.hide === true) return '';
+    const triggerKey = (customEntry && customEntry.triggerMode) || config.triggerMode || 'stateful';
+    const icon = TRIGGER_ICON[triggerKey] || 'fa-right-left';
+    const label = TRIGGER_LABEL[triggerKey] || 'Stateful';
+    return `<span class="text-muted" style="font-size:0.8rem;"><i class="fas ${icon} me-1"></i>${escapeHtml(label)}</span>`;
+  }
+
   function createGateCard(gate) {
     const card = document.createElement('div');
     card.className = 'card card-body mb-2';
@@ -709,6 +722,7 @@ function withTimeout(promise, ms, message) {
       : '';
 
     const typeRow = buildTypeIconRow(gate, customEntry);
+    const triggerRow = buildTriggerModeRow(customEntry);
 
     card.innerHTML = `
       <div class="d-flex justify-content-between align-items-start gap-2">
@@ -718,6 +732,7 @@ function withTimeout(promise, ms, message) {
             ${customBadge}${adminBadge}${latchBadge}
           </div>
           <div class="mb-1">${typeRow}</div>
+          ${triggerRow ? `<div class="mb-1">${triggerRow}</div>` : ''}
           <div class="text-muted" style="font-size:0.73rem;">${escapeHtml(gate.deviceId)}</div>
         </div>
         <button class="btn btn-secondary btn-sm configure-btn flex-shrink-0">
@@ -811,8 +826,6 @@ function withTimeout(promise, ms, message) {
     const openingDelay = customEntry.gateOpeningDelay !== undefined ? customEntry.gateOpeningDelay : '';
     const closeDelay = customEntry.gateCloseDelay !== undefined ? customEntry.gateCloseDelay : '';
     const triggerMode = customEntry.triggerMode || '';
-    const TRIGGER_LABEL = { stateful: 'Stateful', stateless: 'Stateless', momentary: 'Momentary' };
-    const TRIGGER_ICON  = { stateful: 'fa-right-left', stateless: 'fa-bolt', momentary: 'fa-hand-pointer' };
     const resolvedTrigger = triggerMode || config.triggerMode || 'stateful';
     const resolvedTriggerLabel = TRIGGER_LABEL[resolvedTrigger] || 'Stateful';
     const resolvedTriggerIcon  = TRIGGER_ICON[resolvedTrigger]  || 'fa-right-left';
