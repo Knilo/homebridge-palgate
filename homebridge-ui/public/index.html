@@ -708,7 +708,8 @@ function withTimeout(promise, ms, message) {
       customEntry.name || customEntry.hide === true ||
       customEntry.garageDoor !== undefined || customEntry.switch !== undefined || customEntry.lock !== undefined ||
       customEntry.gateOpeningDelay !== undefined || customEntry.gateCloseDelay !== undefined ||
-      customEntry.relayEnabled === false || customEntry.relaySwitch !== undefined || customEntry.relayLock !== undefined
+      customEntry.relayEnabled === false || customEntry.relayEnabled === true ||
+      customEntry.relaySwitch !== undefined || customEntry.relayLock !== undefined
     ));
 
     const customBadge = isCustomized
@@ -833,13 +834,19 @@ function withTimeout(promise, ms, message) {
     const globalOpeningDelay = config.gateOpeningDelay !== undefined ? config.gateOpeningDelay : 1000;
     const globalCloseDelay = config.gateCloseDelay !== undefined ? config.gateCloseDelay : 5000;
 
-    // Relay — fully interactive when globally enabled + latch; locked explanation when no latch
-    const showRelay = config.enableRelayLocks && gate.latch;
-    const showRelayLocked = config.enableRelayLocks && !gate.latch;
+    // Relay — available for any latch-permitted gate, independent of the global default
+    // (a gate can opt in even when the global setting is off). Locked explanation shown
+    // when the gate lacks latch permission.
+    const showRelay = gate.latch === true;
+    const showRelayLocked = !gate.latch;
     const relayLockedMsg = gate.admin
       ? 'You have admin access. Enable latch for this output in the PalGate app: Gate Settings → Manager Options → Users → [this account] → Latch Output.'
       : 'Latch permission is required for relay mode. Ask an admin to enable it in the PalGate app: Gate Settings → Manager Options → Users → [this account] → Latch Output.';
-    const relayEnabled = customEntry.relayEnabled !== false;
+    // Effective per-gate state: when the global default is on, relay is on unless disabled
+    // per-gate; when off, relay is on only if explicitly enabled per-gate.
+    const relayEnabled = config.enableRelayLocks
+      ? customEntry.relayEnabled !== false
+      : customEntry.relayEnabled === true;
     const relaySwitch = customEntry.relaySwitch === true;
     const relayLock = customEntry.relayLock === true;
     const relayHoldOpen = customEntry.relayHoldOpen !== false;
@@ -994,7 +1001,7 @@ function withTimeout(promise, ms, message) {
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div>
             <div class="fw-bold small">Enable Relay Accessories</div>
-            <div class="text-muted" style="font-size:0.8rem;">Override the global relay setting for this gate</div>
+            <div class="text-muted" style="font-size:0.8rem;">Expose Hold Open / Hold Closed accessories for this gate</div>
           </div>
           <div class="form-check form-switch mb-0">
             <input class="form-check-input" type="checkbox" role="switch"
@@ -1248,15 +1255,27 @@ function withTimeout(promise, ms, message) {
         entry.triggerMode = values.triggerMode;
       }
 
-      // Relay: always write relayEnabled when the relay section is present (gate has admin/latch).
-      // true = relay active for this gate, false = suppressed even when globally enabled.
+      // Relay (only when the section is present, i.e. the gate has latch permission).
+      // Persist relayEnabled only as a real deviation from the global default, so it
+      // doubles as the per-gate override and keeps configs clean:
+      //   global ON  → write only when disabled for this gate (false)
+      //   global OFF → write only when enabled for this gate (true)
       if (values.relayEnabled !== undefined) {
-        entry.relayEnabled = values.relayEnabled;
-        if (values.relayEnabled !== false) {
-          if (values.relaySwitch !== undefined) entry.relaySwitch = values.relaySwitch;
-          if (values.relayLock !== undefined) entry.relayLock = values.relayLock;
-          if (values.relayHoldOpen !== undefined) entry.relayHoldOpen = values.relayHoldOpen;
-          if (values.relayHoldClosed !== undefined) entry.relayHoldClosed = values.relayHoldClosed;
+        const globalOn = config.enableRelayLocks === true;
+        if (globalOn && values.relayEnabled === false) {
+          entry.relayEnabled = false;
+        } else if (!globalOn && values.relayEnabled === true) {
+          entry.relayEnabled = true;
+        }
+        // Type/direction overrides only matter when relay is effectively on for this gate.
+        // Write only the meaningful values (a chosen type; a suppressed direction) so an
+        // unchanged selection falls back to the global relay type / both directions.
+        const effectivelyEnabled = globalOn ? values.relayEnabled !== false : values.relayEnabled === true;
+        if (effectivelyEnabled) {
+          if (values.relaySwitch === true) entry.relaySwitch = true;
+          if (values.relayLock === true) entry.relayLock = true;
+          if (values.relayHoldOpen === false) entry.relayHoldOpen = false;
+          if (values.relayHoldClosed === false) entry.relayHoldClosed = false;
         }
       }
 
