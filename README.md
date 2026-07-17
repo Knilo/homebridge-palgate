@@ -4,7 +4,7 @@
 
 # PalGate Platform for Homebridge
 
-PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalGate controlled gate devices into HomeKit. The plugin supports both garage door and switch accessory types, and provides customizable options for each device.
+PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalGate controlled gate devices into HomeKit. The plugin supports garage door, switch, and lock accessory types, and provides customizable options for each device.
 
 ## Table of Contents
 
@@ -108,8 +108,10 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
       "phoneNumber": "<phone_number>",
       "tokenType": <0|1|2>,
       "accessoryType": "garageDoor",
+      "triggerMode": "stateful",
       "gateOpeningDelay": 1000,
       "gateCloseDelay": 5000,
+      "pollInterval": 60,
       "enableRelayLocks": true,
       "relayAccessoryType": "lock",
       "customGates": [
@@ -117,13 +119,9 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
           "deviceId": "DEVICE_ID",
           "name": "Custom Gate Name",
           "garageDoor": true,
-          "switch": false,
-          "lock": false,
-          "hide": false,
+          "triggerMode": "stateless",
           "gateOpeningDelay": 1000,
           "gateCloseDelay": 8000,
-          "relayEnabled": true,
-          "relaySwitch": false,
           "relayLock": true
         }
       ]
@@ -140,28 +138,34 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 | `phoneNumber` | Your account’s phone number (e.g., `972500000000`). |
 | `tokenType` | The linking type. Each PalGate account supports two device link slots. Valid values: <br> - `0` for SMS <br> - `1` for Linked Device 1 <br> - `2` for Linked Device 2 |
 | `accessoryType`| Defines the default type for discovered devices; valid values are `"garageDoor"`, `"switch"`, or `"lock"`. |
+| `triggerMode` | How accessories respond to a tap. Valid values: <br> - `"stateful"` — tap to open; tap again to trigger the closing animation in the Home app <br> - `"stateless"` — always triggers a new opening, even if the gate is listed as open <br> - `"momentary"` — triggers an opening, then immediately resets the accessory state to closed <br> Default is `"stateful"`. |
 | `gateOpeningDelay` | The duration in milliseconds that the gate remains in the "Opening" state before transitioning to fully "Open". **Only relevant for Garage Door accessories.** Default is `1000`. |
 | `gateCloseDelay` | The duration in milliseconds that a `garageDoor`, `switch`, or `lock` accessory remains in the open/unsecured/on state before automatically transitioning back to closed/locked/off. Default is `5000`. |
-| `enableRelayLocks` | Expose virtual relay accessories (Hold Open / Hold Closed) for gates where you have admin/latching permissions. Default is `true`. |
+| `pollInterval` | How often (in seconds) the plugin checks the PalGate API for changes made outside HomeKit, such as a relay toggled by another admin. Default is `60`, minimum `10`. |
+| `enableRelayLocks` | Expose virtual relay accessories (Hold Open / Hold Closed) for gates where you have latch permission. Default is `false`. |
 | `relayAccessoryType` | The accessory type to use for global virtual relay controllers. Valid values are `"lock"` or `"switch"`. Default is `"lock"`. |
-| `customGates` | An optional array for individual gate configuration. **These settings are best managed through the plugin UI** — editing them manually is only needed for advanced use cases. Each object may include the fields below. |
+| `relayHoldOpen` | When Relay Mode is enabled, expose the Hold Open accessory. Default is `true`. |
+| `relayHoldClosed` | When Relay Mode is enabled, expose the Hold Closed accessory. Default is `true`. |
+| `customGates` | An optional array of per-gate overrides. **Best managed through the plugin UI** — each entry contains only the settings you have overridden for that gate. See the per-gate options below. |
 
-> **Note on UI-managed fields:** `admin`, `latch`, and `defaultName` inside `customGates` entries are written automatically by the plugin UI to cache discovery results. Do not edit them manually — they will be overwritten on the next discovery.
+#### Per-gate options (`customGates[]`)
 
-| `customGates[].deviceId` | Unique identifier for the gate (required). For devices with multiple outputs, use format `deviceId:outputNum` (e.g., `"ABC123:2"` for output 2). |
-| `customGates[].name` | A custom name for the gate. |
-| `customGates[].garageDoor` | Set to `true` to expose as a garage door. |
-| `customGates[].switch` | Set to `true` to expose as a switch. |
-| `customGates[].lock` | Set to `true` to expose as a lock. |
-| `customGates[].hide` | Set to `true` to hide the gate from HomeKit. |
-| `customGates[].gateOpeningDelay` | Override the opening state duration (in ms) for this specific gate. **Only relevant for Garage Door accessories.** |
-| `customGates[].gateCloseDelay` | Override the close delay (in ms) for this specific gate. |
-| `customGates[].relayEnabled` | `true` (default) allows relay accessories if Relay Mode is globally enabled. `false` disables relay accessories for this gate regardless of the global setting. |
-| `customGates[].relaySwitch` | Set to `true` to expose the virtual relays for this gate as Switches. |
-| `customGates[].relayLock` | Set to `true` to expose the virtual relays for this gate as Locks. |
-| `customGates[].admin` | **UI-managed.** Cached from last discovery. `true` if the linked account is an admin user on this device. Do not edit manually. |
-| `customGates[].latch` | **UI-managed.** Cached from last discovery. `true` if latch mode is enabled for this gate output (set by an admin in the PalGate app under Gate Settings → Manager Options). Do not edit manually. |
-| `customGates[].defaultName` | **UI-managed.** Cached from last discovery. The device name returned by the PalGate API, used as a display fallback before the next discovery runs. Do not edit manually. |
+| Option | Description |
+|---|---|
+| `deviceId` | Unique identifier for the gate (required). For devices with multiple outputs, use format `deviceId:outputNum` (e.g., `"ABC123:2"` for output 2). |
+| `name` | A custom name for the gate. |
+| `garageDoor` | Set to `true` to expose as a garage door. |
+| `switch` | Set to `true` to expose as a switch. |
+| `lock` | Set to `true` to expose as a lock. |
+| `hide` | Set to `true` to hide the gate from HomeKit. |
+| `triggerMode` | Override the trigger mode for this gate; same values as the global `triggerMode`. |
+| `gateOpeningDelay` | Override the opening state duration (in ms) for this specific gate. **Only relevant for Garage Door accessories.** |
+| `gateCloseDelay` | Override the close delay (in ms) for this specific gate. |
+| `relayEnabled` | Per-gate relay override. `true` enables relay accessories for this gate even when Relay Mode is globally disabled; `false` disables them regardless of the global setting. Omit to follow the global setting. Requires latch permission. |
+| `relaySwitch` | Set to `true` to expose the virtual relays for this gate as Switches. |
+| `relayLock` | Set to `true` to expose the virtual relays for this gate as Locks. |
+| `relayHoldOpen` | Set to `false` to hide the Hold Open accessory for this gate. |
+| `relayHoldClosed` | Set to `false` to hide the Hold Closed accessory for this gate. |
 
 #### Notes on Accessory Types
 - You can expose a gate as a combination of `garageDoor`, `switch`, and `lock` simultaneously by setting the respective fields to true. 
