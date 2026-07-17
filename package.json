@@ -25,7 +25,9 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "npm link && sudo hb-service restart",
+    "test": "node --test test/unit/*.test.js test/ui-server/*.test.js",
+    "test:e2e": "node test/e2e/plugin-ui.e2e.js",
+    "deploy:local": "npm link && sudo hb-service restart",
     "config": "palgate-cli config --auto && sudo hb-service restart"
   },
   "author": "@Knilo",
@@ -45,6 +47,7 @@
     "bin": "cli"
   },
   "devDependencies": {
-    "homebridge-config-ui-x": "^5.24.0"
+    "homebridge-config-ui-x": "^5.24.0",
+    "puppeteer-core": "^25.3.0"
   }
 }

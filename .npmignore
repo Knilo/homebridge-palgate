@@ -1,0 +1,5 @@
+# Development-only files excluded from the published npm package
+test/
+lib/test/
+.github/
+TESTING.md
