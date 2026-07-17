@@ -1,4 +1,3 @@
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   /*
    * Bootstrap 5 form controls render with light backgrounds by default and don't
@@ -107,6 +106,54 @@
     text-decoration: none;
   }
   .reset-link:hover { color: #fff; }
+
+  /*
+   * Icon hardening. Config UI X injects its own stylesheets into this iframe AFTER
+   * ours, and its bundled Font Awesome ships SUBSET font files (only the glyphs its
+   * own UI uses) — so its later rules would repoint .fas at a font that's missing most
+   * of our icons, and icons absent from its FA version (e.g. fa-right-left) lose their
+   * content entirely. These rules pin the font stack and every codepoint we use with
+   * html-scoped specificity + !important, which beats anything the parent injects.
+   * The full FA6 font itself arrives via the dynamically loaded CDN stylesheet; the
+   * parent's subset font is the fallback so common glyphs still render offline.
+   * Codepoints verified against Font Awesome 6.5.1 css.
+   */
+  html .fas {
+    font-family: "Font Awesome 6 Free", "Font Awesome 7 Free" !important;
+    font-weight: 900 !important;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+  }
+  html .fa-bolt:before { content: "\f0e7" !important; }
+  html .fa-check:before { content: "\f00c" !important; }
+  html .fa-chevron-right:before { content: "\f054" !important; }
+  html .fa-chevron-up:before { content: "\f077" !important; }
+  html .fa-code:before { content: "\f121" !important; }
+  html .fa-eye-slash:before { content: "\f070" !important; }
+  html .fa-floppy-disk:before { content: "\f0c7" !important; }
+  html .fa-hand-pointer:before { content: "\f25a" !important; }
+  html .fa-link:before { content: "\f0c1" !important; }
+  html .fa-lock:before { content: "\f023" !important; }
+  html .fa-lock-open:before { content: "\f3c1" !important; }
+  html .fa-pen:before { content: "\f304" !important; }
+  html .fa-qrcode:before { content: "\f029" !important; }
+  html .fa-right-left:before { content: "\f362" !important; }
+  html .fa-rotate-left:before { content: "\f2ea" !important; }
+  html .fa-rotate-right:before { content: "\f2f9" !important; }
+  html .fa-search:before { content: "\f002" !important; }
+  html .fa-shield:before { content: "\f132" !important; }
+  html .fa-sliders:before { content: "\f1de" !important; }
+  html .fa-spinner:before { content: "\f110" !important; }
+  html .fa-sync:before { content: "\f021" !important; }
+  html .fa-toggle-on:before { content: "\f205" !important; }
+  html .fa-triangle-exclamation:before { content: "\f071" !important; }
+  html .fa-warehouse:before { content: "\f494" !important; }
+  html .fa-spin { animation: pg-fa-spin 2s linear infinite; }
+  @keyframes pg-fa-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>
 
 <!-- ── Account Section ─────────────────────────────────────────── -->
@@ -281,6 +328,26 @@ function renderFatalLoadError() {
   if (refreshBtn) refreshBtn.addEventListener('click', () => { try { location.reload(); } catch (_) {} });
 }
 
+// Font Awesome must come from the CDN: Config UI X does inject its own FA stylesheet
+// into this iframe, but its font files are SUBSET to the glyphs its own UI uses
+// (fa-solid-900 is ~9KB vs ~150KB full), so icons it doesn't use — fa-warehouse,
+// fa-right-left, fa-toggle-on, fa-hand-pointer, fa-lock-open — silently render blank.
+// The stylesheet must NOT be a static <link>, though: the wrapper posts 'loaded' only
+// on window.load and the body stays hidden until the parent replies 'ready', so a
+// slow/unreachable CDN blanked the entire UI. Injecting on the load event starts the
+// fetch the instant the handshake fires without ever delaying it — icons covered by
+// the parent's subset paint immediately, the rest as soon as the CDN responds.
+function loadFontAwesome() {
+  if (document.getElementById('faStylesheet')) return;
+  const link = document.createElement('link');
+  link.id = 'faStylesheet';
+  link.rel = 'stylesheet';
+  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+  document.head.appendChild(link);
+}
+if (document.readyState === 'complete') loadFontAwesome();
+else window.addEventListener('load', loadFontAwesome);
+
 // Races a promise against a timeout so a hung SDK call (which never rejects) can't
 // leave the UI stuck behind the loading spinner forever.
 function withTimeout(promise, ms, message) {
@@ -329,6 +396,19 @@ function withTimeout(promise, ms, message) {
   // discovery so they can't stack into overlapping getDevices calls (PalGate 429 risk)
   // or racing re-renders.
   let discoveryInFlight = false;
+  // Every discovery request is timeout-guarded: a hung SDK/server call would otherwise
+  // never settle, leaving discoveryInFlight stuck true — loading row spinning forever
+  // and the Discover button refusing to run.
+  const DISCOVER_TIMEOUT_MS = 12000;
+  const DISCOVER_BACKOFFS_MS = [2000, 5000]; // retry delays for the background refresh
+  // Monotonic run id: a newer discovery supersedes an older one. Stale runs check this
+  // after every await and bail without touching the UI or the in-flight flag.
+  // Declared here, NOT in the Gate Discovery section below: the on-load autoDiscover
+  // call in Init runs before that section's statements execute, and a later `let`
+  // would still be in its temporal dead zone — the ReferenceError killed the whole
+  // on-load discovery, stranding the UI on "Loading gates…".
+  let discoverySeq = 0;
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -344,10 +424,13 @@ function withTimeout(promise, ms, message) {
   initDefaultSettings();
   safeHideSpinner();
 
-  if (hasLinkingCredentials() && config.customGates.length > 0) {
-    // Render already-configured gates immediately from saved config — no API call, no spinner.
-    // Full discovery runs the first time the user clicks Configure or Discover.
-    renderGateListFromConfig();
+  if (hasLinkingCredentials()) {
+    // Show an inline loading row while the gate list is fetched fresh — names always
+    // come from the API, so we never paint device IDs in place of real names. The rest
+    // of the screen stays interactive (no global spinner). Config-derived cards are
+    // only used as a fallback if discovery fails.
+    showGateListLoading();
+    autoDiscover(true);
   }
 
   // ── Event listeners ───────────────────────────────────────────────
@@ -412,9 +495,13 @@ function withTimeout(promise, ms, message) {
       await syncConfigFromSdk();
       config.accessoryType = accessoryType;
       config.triggerMode = triggerMode;
-      if (openingVal !== '') config.gateOpeningDelay = parseInt(openingVal, 10); else delete config.gateOpeningDelay;
-      if (closeVal !== '') config.gateCloseDelay = parseInt(closeVal, 10); else delete config.gateCloseDelay;
-      if (pollVal !== '') config.pollInterval = parseInt(pollVal, 10); else delete config.pollInterval;
+      // Cleared fields are set to undefined rather than deleted: Config UI X merges our
+      // update with Object.assign, so a deleted key would silently survive in its model
+      // (and get written back to disk, desyncing us from the manual config editor).
+      // An explicit undefined propagates through the merge and JSON drops it on write.
+      config.gateOpeningDelay = openingVal !== '' ? parseInt(openingVal, 10) : undefined;
+      config.gateCloseDelay = closeVal !== '' ? parseInt(closeVal, 10) : undefined;
+      config.pollInterval = pollVal !== '' ? parseInt(pollVal, 10) : undefined;
       config.enableRelayLocks = relayEnabled;
       config.relayAccessoryType = relayAccessoryType;
       config.relayHoldOpen = relayHoldOpen;
@@ -442,6 +529,15 @@ function withTimeout(promise, ms, message) {
       document.getElementById('linkedPhone').textContent = config.phoneNumber;
       document.getElementById('linkedTokenType').textContent =
         TOKEN_TYPE_LABELS[config.tokenType] ?? `Token type ${config.tokenType}`;
+    }
+
+    // Gates card hint tracks linked state: point at linking first, discovery second.
+    // Hidden entirely once gates render.
+    const hint = document.getElementById('gateListHint');
+    if (hint) {
+      hint.textContent = isLinked
+        ? 'Discover your gates to configure accessory types and per-gate overrides.'
+        : 'Connect to PalGate above to get started.';
     }
   }
 
@@ -561,12 +657,21 @@ function withTimeout(promise, ms, message) {
   }
 
   // ── Gate Discovery ────────────────────────────────────────────────
+  function showGateListLoading(message) {
+    document.getElementById('gateList').innerHTML =
+      `<div class="text-muted small py-2"><i class="fas fa-spinner fa-spin me-2"></i>${escapeHtml(message || 'Loading gates…')}</div>`;
+    document.getElementById('gateListHint').classList.add('d-none');
+  }
+
   function renderGateListFromConfig() {
+    // Fallback paint of customised gates when discovery fails.
+    // defaultName/admin/latch are read tolerantly for configs written by older versions
+    // that cached discovery metadata; current saves no longer persist them.
     const gates = config.customGates.map(entry => ({
       deviceId: entry.deviceId,
       defaultName: entry.defaultName || entry.deviceId,
-      admin: entry.admin === true,  // cached from last discovery
-      latch: entry.latch === true,  // cached from last discovery
+      admin: entry.admin === true,
+      latch: entry.latch === true,
       isPrePopulated: true
     }));
     discoveredGates = gates;
@@ -574,32 +679,73 @@ function withTimeout(promise, ms, message) {
     document.getElementById('gateListHint').classList.add('d-none');
   }
 
-  async function autoDiscover() {
+  // Discovery timeout/backoff/sequence state lives in the State section above — it
+  // must be initialized before the on-load autoDiscover call in Init.
+
+  function discoverRequest() {
+    return withTimeout(homebridge.request('/devices/discover', {
+      token: config.token,
+      phoneNumber: config.phoneNumber,
+      tokenType: config.tokenType
+    }), DISCOVER_TIMEOUT_MS, 'Discovery timed out.');
+  }
+
+  // Discovery is read-only: results live in discoveredGates and are never written to
+  // config (an earlier design cached admin/latch/defaultName into customGates, which
+  // went stale and clobbered names — see cleanCustomGates). background = true is the
+  // silent on-load refresh: no spinner, timeout + backoff retries, and it won't tear
+  // down an open Configure form.
+  async function autoDiscover(background = false) {
     if (discoveryInFlight) return;
+    const seq = ++discoverySeq;
     discoveryInFlight = true;
     try {
-      safeShowSpinner();
-      const data = await homebridge.request('/devices/discover', {
-        token: config.token,
-        phoneNumber: config.phoneNumber,
-        tokenType: config.tokenType
-      });
-      if (!data.success) throw new Error(data.error || 'Discovery failed.');
-      if (data.gates && data.gates.length > 0) {
-        discoveredGates = data.gates;
-        await syncConfigFromSdk();
-        discoveredGates.forEach(persistGateMeta);
-        await persistPluginConfig();
-        renderGateList(discoveredGates);
-        document.getElementById('gateListHint').classList.add('d-none');
+      if (!background) safeShowSpinner();
+      const maxAttempts = background ? DISCOVER_BACKOFFS_MS.length + 1 : 1;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const data = await discoverRequest();
+          if (seq !== discoverySeq) return; // superseded by a newer run
+          if (!data.success) throw new Error(data.error || 'Discovery failed.');
+          discoveredGates = (data.gates && data.gates.length > 0) ? data.gates : [];
+          if (!background || !isGateFormOpen()) {
+            // Always render — an empty result resolves the loading row to "No gates found."
+            renderGateList(discoveredGates);
+            if (discoveredGates.length > 0) {
+              document.getElementById('gateListHint').classList.add('d-none');
+            }
+          }
+          return;
+        } catch (err) {
+          if (seq !== discoverySeq) return;
+          if (attempt < maxAttempts - 1) {
+            showGateListLoading('Still trying to reach PalGate…');
+            await sleep(DISCOVER_BACKOFFS_MS[attempt]);
+            if (seq !== discoverySeq) return;
+            continue;
+          }
+          // Final attempt failed — resolve the loading row: fall back to config-derived
+          // cards (custom names, device IDs as a last resort), or restore the hint.
+          if (background) {
+            if (config.customGates.length > 0) {
+              renderGateListFromConfig();
+            } else {
+              document.getElementById('gateList').innerHTML = '';
+              document.getElementById('gateListHint').classList.remove('d-none');
+            }
+          }
+          // Surface the failure so the user isn't left staring at an empty gate list.
+          homebridge.toast.error(`${formatError(err)} Click Discover to retry.`, 'Discovery Error');
+        }
       }
-    } catch (err) {
-      // Surface the failure so the user isn't left staring at an empty gate list.
-      homebridge.toast.error(`${formatError(err)} Click Discover to retry.`, 'Discovery Error');
     } finally {
-      discoveryInFlight = false;
-      safeHideSpinner();
+      if (seq === discoverySeq) discoveryInFlight = false;
+      if (!background) safeHideSpinner();
     }
+  }
+
+  function isGateFormOpen() {
+    return !!document.querySelector('#gateList .gate-expand-form[style*="block"]');
   }
 
   async function handleDiscoverGates() {
@@ -607,51 +753,28 @@ function withTimeout(promise, ms, message) {
       homebridge.toast.error('Link your device first.', 'Missing Credentials');
       return;
     }
-    if (discoveryInFlight) {
-      homebridge.toast.info('Discovery is already in progress…', 'Please wait');
-      return;
-    }
+    // Deliberately no in-flight block: a manual Discover click supersedes any running
+    // (possibly stuck) discovery — the stale run sees the newer seq and bails silently.
+    const seq = ++discoverySeq;
     discoveryInFlight = true;
     const discoverBtn = document.getElementById('discoverGates');
     if (discoverBtn) discoverBtn.disabled = true;
     safeShowSpinner();
     try {
-      const data = await homebridge.request('/devices/discover', {
-        token: config.token,
-        phoneNumber: config.phoneNumber,
-        tokenType: config.tokenType
-      });
+      const data = await discoverRequest();
+      if (seq !== discoverySeq) return;
       if (!data.success) throw new Error(data.error || 'Failed to discover devices.');
       discoveredGates = data.gates || [];
-      await syncConfigFromSdk();
-      discoveredGates.forEach(persistGateMeta);
-      await persistPluginConfig();
       renderGateList(discoveredGates);
       document.getElementById('gateListHint').classList.add('d-none');
     } catch (err) {
-      const msg = formatError(err);
-      homebridge.toast.error(msg, 'Discovery Error');
+      if (seq === discoverySeq) {
+        homebridge.toast.error(formatError(err), 'Discovery Error');
+      }
     } finally {
-      discoveryInFlight = false;
+      if (seq === discoverySeq) discoveryInFlight = false;
       safeHideSpinner();
       updateDiscoverButtonState();
-    }
-  }
-
-  // Writes admin/latch from a discovered gate into the customGates entry (or creates a
-  // minimal one) so badges and the relay section survive a restart without re-discovery.
-  // admin and latch are independent — both can be true simultaneously.
-  function persistGateMeta(gate) {
-    config.customGates = Array.isArray(config.customGates) ? config.customGates : [];
-    const idx = config.customGates.findIndex(e => e.deviceId === gate.deviceId);
-    const admin = gate.admin === true;
-    const latch = gate.latch === true;
-    if (idx > -1) {
-      config.customGates[idx].admin = admin;
-      config.customGates[idx].latch = latch;
-      if (gate.defaultName) config.customGates[idx].defaultName = gate.defaultName;
-    } else {
-      config.customGates.push({ deviceId: gate.deviceId, admin, latch, defaultName: gate.defaultName });
     }
   }
 
@@ -708,8 +831,10 @@ function withTimeout(promise, ms, message) {
       customEntry.name || customEntry.hide === true ||
       customEntry.garageDoor !== undefined || customEntry.switch !== undefined || customEntry.lock !== undefined ||
       customEntry.gateOpeningDelay !== undefined || customEntry.gateCloseDelay !== undefined ||
+      customEntry.triggerMode !== undefined ||
       customEntry.relayEnabled === false || customEntry.relayEnabled === true ||
-      customEntry.relaySwitch !== undefined || customEntry.relayLock !== undefined
+      customEntry.relaySwitch !== undefined || customEntry.relayLock !== undefined ||
+      customEntry.relayHoldOpen === false || customEntry.relayHoldClosed === false
     ));
 
     const customBadge = isCustomized
@@ -758,15 +883,14 @@ function withTimeout(promise, ms, message) {
       // has admin/latch info and canonical names from the API. Skip if another
       // discovery is already running; the form still opens with cached data.
       if ((discoveredGates.length === 0 || gate.isPrePopulated) && !discoveryInFlight) {
+        const seq = ++discoverySeq;
         discoveryInFlight = true;
         try {
           safeShowSpinner();
-          const data = await homebridge.request('/devices/discover', {
-            token: config.token,
-            phoneNumber: config.phoneNumber,
-            tokenType: config.tokenType
-          });
-          if (data.success && data.gates && data.gates.length > 0) {
+          const data = await discoverRequest();
+          // If superseded by a manual Discover, skip applying stale data but still
+          // fall through so the form opens below.
+          if (seq === discoverySeq && data.success && data.gates && data.gates.length > 0) {
             discoveredGates = data.gates;
             discoveredGates.forEach(g => { g.isPrePopulated = false; });
             const enriched = discoveredGates.find(g => g.deviceId === gate.deviceId);
@@ -775,7 +899,6 @@ function withTimeout(promise, ms, message) {
               gate.latch = enriched.latch;
               gate.defaultName = enriched.defaultName || gate.defaultName;
               gate.isPrePopulated = false;
-              persistGateMeta(gate);
               // Update the card header in-place so badges appear immediately
               const nameRow = card.querySelector('.fw-bold').parentElement;
               if (gate.admin && !nameRow.querySelector('.admin-badge')) {
@@ -797,7 +920,7 @@ function withTimeout(promise, ms, message) {
         } catch (_) {
           // Open form with config data if discovery fails — relay section just won't show
         } finally {
-          discoveryInFlight = false;
+          if (seq === discoverySeq) discoveryInFlight = false;
           safeHideSpinner();
         }
       }
@@ -1220,18 +1343,10 @@ function withTimeout(promise, ms, message) {
       // Sync fresh first so we merge into (not clobber) any manual-schema-form edits.
       await syncConfigFromSdk();
 
-      const existing = (config.customGates || []).find(e => e.deviceId === gate.deviceId) || {};
-      const entry = {
-        deviceId: gate.deviceId,
-        hide: values.hide,
-        // Preserve cached discovery metadata — gate object has live values, fall back to stored
-        admin: gate.admin !== undefined ? gate.admin : existing.admin,
-        latch: gate.latch !== undefined ? gate.latch : existing.latch,
-        defaultName: gate.defaultName || existing.defaultName,
-      };
-      if (!entry.admin) delete entry.admin;
-      if (!entry.latch) delete entry.latch;
-      if (!entry.defaultName) delete entry.defaultName;
+      // Entries hold only real user overrides — discovery metadata is never persisted
+      // (stale cached names/permissions were the source of the name-loss bugs).
+      const entry = { deviceId: gate.deviceId };
+      if (values.hide) entry.hide = true;
 
       // Only write type booleans when the user has explicitly toggled the override on.
       // Omitting them allows the plugin to fall back to the global accessoryType setting,
@@ -1331,7 +1446,21 @@ function withTimeout(promise, ms, message) {
     return block;
   }
 
+  // customGates holds only real user overrides. Older versions also cached discovery
+  // metadata (admin/latch/defaultName) in each entry — it went stale and clobbered
+  // names, so strip it on every save and drop entries left with no actual overrides.
+  function cleanCustomGates() {
+    config.customGates = (Array.isArray(config.customGates) ? config.customGates : [])
+      .map(({ admin, latch, defaultName, ...rest }) => {
+        if (rest.hide !== true) delete rest.hide;
+        return rest;
+      })
+      .filter(e => e.deviceId && Object.keys(e).length > 1);
+  }
+
   async function persistPluginConfig() {
+    cleanCustomGates();
+
     // Step 1: sync Config UI X's in-memory model with our config array. The parent
     // merges this into its own state (Object.assign per block), so it's also what its
     // built-in save will write to disk.
