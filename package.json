@@ -27,6 +27,7 @@
   "scripts": {
     "test": "node --test test/unit/*.test.js test/api/*.test.js test/platform/*.test.js test/ui-server/*.test.js",
     "test:e2e": "node test/e2e/plugin-ui.e2e.js",
+    "test:e2e:restart": "E2E_RESTART=1 node test/e2e/plugin-ui.e2e.js",
     "deploy:local": "npm link && sudo hb-service restart",
     "config": "palgate-cli config --auto && sudo hb-service restart"
   },

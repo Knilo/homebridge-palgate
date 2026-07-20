@@ -77,6 +77,36 @@ test('discovery: multi-output device with output2 disabled still uses :outputNum
   assert.deepEqual(accessorySummary(api), ['DEV2:1|garageDoor|North']);
 });
 
+// PR #15 (https://github.com/Knilo/homebridge-palgate/pull/15) made the plugin read
+// the API's `data.devices` array and expand a single device into multiple gates
+// (one per enabled output), each addressed by its own deviceId:outputNum. This
+// asserts the whole array is consumed: a mixed array of a single- and a
+// multi-output device yields exactly the expected per-output accessories.
+test('discovery: the API devices array expands into per-output accessories (PR #15)', async () => {
+  const { api } = makePlatform({}, [
+    { id: 'DEV1', name1: 'Front', output1: true },
+    { id: 'DEV2', name1: 'North', name2: 'South', output1: true, output2: true },
+  ]);
+  await api.launch();
+  api.emit('shutdown');
+  assert.deepEqual(accessorySummary(api), [
+    'DEV1|garageDoor|Front',
+    'DEV2:1|garageDoor|North',
+    'DEV2:2|garageDoor|South',
+  ]);
+});
+
+// The discovery response must actually carry a devices array — a malformed body
+// (missing key, or a non-array value) is rejected rather than silently producing
+// zero gates or throwing an opaque TypeError deeper in the mapping.
+test('discovery: rejects a response whose devices array is missing or not an array', async () => {
+  const { platform } = makePlatform();
+  stub.route('GET /devices/', { message: 'no devices key here' });
+  await assert.rejects(() => platform.discoverDevices(), /Invalid devices response: missing devices array/);
+  stub.route('GET /devices/', { devices: 'not-an-array' });
+  await assert.rejects(() => platform.discoverDevices(), /Invalid devices response: missing devices array/);
+});
+
 test('customGates: hide suppresses the accessory; name and type overrides apply', async () => {
   const { api } = makePlatform(
     { customGates: [
