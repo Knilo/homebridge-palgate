@@ -1,3 +1,4 @@
 node_modules/
 palGateCLI.config
 .DS_Store
+scratch/

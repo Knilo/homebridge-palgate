@@ -1,0 +1,60 @@
+/*
+ * Self-hosted Font Awesome 6.5.1 (Free, Solid) SUBSET for the PalGate settings UI.
+ *
+ * Why bundled: config-ui-x's Content-Security-Policy blocks external stylesheets/fonts
+ * (style-src 'self'; font-src 'self' data:), so the previous cdnjs <link> silently
+ * failed and icons rendered blank. Serving from the plugin package keeps them working
+ * offline and CSP-safe, with no external request.
+ *
+ * Why a subset: only the 24 glyphs this UI actually uses are included, so the
+ * font is ~3KB instead of the full ~156KB solid face.
+ *
+ * Regenerate (when the icon set changes): re-run the subset step in TESTING.md /
+ * scratch — pyftsubset fa-solid-900.woff2 --unicodes=<used codepoints> --flavor=woff2.
+ * Glyphs: bolt, check, chevron-right, chevron-up, code, eye-slash, floppy-disk, hand-pointer, link, lock, lock-open, pen, qrcode, right-left, rotate-left, rotate-right, search, shield, sliders, spinner, sync, toggle-on, triangle-exclamation, warehouse
+ */
+@font-face{
+  font-family:"Font Awesome 6 Free";
+  font-style:normal;
+  font-weight:900;
+  font-display:block;
+  src:url("./fa-solid-900-subset.woff2") format("woff2");
+}
+.fa,.fas,.fa-solid{
+  -moz-osx-font-smoothing:grayscale;
+  -webkit-font-smoothing:antialiased;
+  display:inline-block;
+  font-style:normal;
+  font-variant:normal;
+  font-family:"Font Awesome 6 Free";
+  font-weight:900;
+  line-height:1;
+  text-rendering:auto;
+}
+.fa-2x{font-size:2em}
+.fa-spin{animation:fa-spin 2s linear infinite}
+@keyframes fa-spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.fa-bolt::before{content:"\f0e7"}
+.fa-check::before{content:"\f00c"}
+.fa-chevron-right::before{content:"\f054"}
+.fa-chevron-up::before{content:"\f077"}
+.fa-code::before{content:"\f121"}
+.fa-eye-slash::before{content:"\f070"}
+.fa-floppy-disk::before{content:"\f0c7"}
+.fa-hand-pointer::before{content:"\f25a"}
+.fa-link::before{content:"\f0c1"}
+.fa-lock::before{content:"\f023"}
+.fa-lock-open::before{content:"\f3c1"}
+.fa-pen::before{content:"\f304"}
+.fa-qrcode::before{content:"\f029"}
+.fa-right-left::before{content:"\f362"}
+.fa-rotate-left::before{content:"\f2ea"}
+.fa-rotate-right::before{content:"\f2f9"}
+.fa-search::before{content:"\f002"}
+.fa-shield::before{content:"\f132"}
+.fa-sliders::before{content:"\f1de"}
+.fa-spinner::before{content:"\f110"}
+.fa-sync::before{content:"\f021"}
+.fa-toggle-on::before{content:"\f205"}
+.fa-triangle-exclamation::before{content:"\f071"}
+.fa-warehouse::before{content:"\f494"}

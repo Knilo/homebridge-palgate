@@ -328,25 +328,25 @@ function renderFatalLoadError() {
   if (refreshBtn) refreshBtn.addEventListener('click', () => { try { location.reload(); } catch (_) {} });
 }
 
-// Font Awesome must come from the CDN: Config UI X does inject its own FA stylesheet
-// into this iframe, but its font files are SUBSET to the glyphs its own UI uses
-// (fa-solid-900 is ~9KB vs ~150KB full), so icons it doesn't use — fa-warehouse,
-// fa-right-left, fa-toggle-on, fa-hand-pointer, fa-lock-open — silently render blank.
-// The stylesheet must NOT be a static <link>, though: the wrapper posts 'loaded' only
-// on window.load and the body stays hidden until the parent replies 'ready', so a
-// slow/unreachable CDN blanked the entire UI. Injecting on the load event starts the
-// fetch the instant the handshake fires without ever delaying it — icons covered by
-// the parent's subset paint immediately, the rest as soon as the CDN responds.
+// Font Awesome is bundled with the plugin (homebridge-ui/public/fontawesome/), not
+// loaded from a CDN. Config UI X injects its own FA stylesheet into this iframe, but
+// its font is SUBSET to the glyphs its own UI uses, so icons it doesn't use —
+// fa-warehouse, fa-right-left, fa-toggle-on, fa-hand-pointer, fa-lock-open — render
+// blank. Config UI X's CSP (style-src 'self'; font-src 'self') also blocks any CDN
+// stylesheet/font outright, so the previous cdnjs <link> silently failed.
+// Our subset (only the ~24 glyphs this UI uses) is ~3KB of woff2 + ~2KB CSS, served
+// same-origin so it's CSP-safe and needs no network. It's injected rather than a
+// static <link> only because config-ui-x renders this file as the iframe body (we
+// don't own <head>); a local file loads instantly, so timing is a non-issue.
 function loadFontAwesome() {
   if (document.getElementById('faStylesheet')) return;
   const link = document.createElement('link');
   link.id = 'faStylesheet';
   link.rel = 'stylesheet';
-  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+  link.href = './fontawesome/palgate-icons.css';
   document.head.appendChild(link);
 }
-if (document.readyState === 'complete') loadFontAwesome();
-else window.addEventListener('load', loadFontAwesome);
+loadFontAwesome();
 
 // Races a promise against a timeout so a hung SDK call (which never rejects) can't
 // leave the UI stuck behind the loading spinner forever.

@@ -85,6 +85,10 @@ by scraping logs:
 2. **Discovery** — on-load auto-discovery resolves to real gate cards (≥1);
    the harness reads back each gate's deviceId and latch permission, then clicks
    the manual **Discover** button and asserts the list repopulates.
+   It also asserts the **bundled Font Awesome subset** loaded and icons render,
+   and that **no CSP violations** occurred (guards the regression where icons
+   loaded from a CDN render blank under config-ui-x's `style-src`/`font-src`
+   `'self'` policy — see "Bundled icons" below).
 3. **Global settings** — drives the Default Settings form (accessory type,
    trigger mode, opening/close delays, poll interval, relay enable + type),
    Saves, and asserts every value landed in the config.
@@ -117,6 +121,28 @@ gate discovery) could only be caught this way.
 Needs: running Homebridge + config-ui-x with this plugin **linked to a real
 PalGate account** (the discovery/per-gate steps need real gates), Chrome, and
 `HB_UI_PASSWORD` (see the file header for all environment variables).
+
+## Bundled icons
+
+The settings UI ships a **self-hosted Font Awesome 6.5.1 (Free, Solid) subset**
+in `homebridge-ui/public/fontawesome/` — only the ~24 glyphs the UI uses (~3KB
+woff2 + ~2KB CSS) instead of the ~156KB full face. It's bundled rather than
+CDN-loaded because config-ui-x's CSP (`style-src 'self'`; `font-src 'self' data:`)
+blocks external stylesheets/fonts, which silently blanked the icons.
+
+To regenerate after changing the icon set (needs `fonttools` + `brotli`):
+
+```bash
+# 1. grep the distinct `fa-*` glyphs used in homebridge-ui/public/index.html
+# 2. map each to its Unicode codepoint from Font Awesome's fontawesome.css
+# 3. subset the full solid woff2 to those codepoints:
+pyftsubset fa-solid-900.woff2 --unicodes=<U+xxxx,...> --flavor=woff2 \
+  --output-file=homebridge-ui/public/fontawesome/fa-solid-900-subset.woff2
+# 4. add any new `.fa-<name>::before{content:"\xxxx"}` rules to palgate-icons.css
+```
+
+The e2e (layer 5) asserts the subset loads, icons render, and no CSP violation
+occurs, so a regression here fails CI-style checks.
 
 ## Roadmap (not yet implemented)
 

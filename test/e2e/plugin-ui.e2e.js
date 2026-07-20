@@ -76,6 +76,7 @@ const t0 = Date.now();
 const ts = () => `+${((Date.now() - t0) / 1000).toFixed(1)}s`;
 const failures = [];
 const pageErrors = [];
+const cspErrors = [];
 
 function check(ok, label, detail) {
   console.log(`${ts()} ${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? ' — ' + detail : ''}`);
@@ -145,6 +146,9 @@ function clickFormButton(iframe, sid, selector) {
     browser = await puppeteer.launch({ executablePath: CHROME_PATH, headless: 'new' });
     const page = await browser.newPage();
     page.on('pageerror', e => pageErrors.push(String(e)));
+    // CSP violations surface as console errors, not pageerrors — capture them so a
+    // blocked stylesheet/font (e.g. icons loaded from a CDN) fails the run.
+    page.on('console', m => { if (m.type() === 'error' && /Content Security Policy/i.test(m.text())) cspErrors.push(m.text().slice(0, 160)); });
 
     await page.goto(`${HB_UI_URL}/login`, { waitUntil: 'networkidle2', timeout: 20000 });
     await page.type('input[name="username"], input[formcontrolname="username"]', USERNAME);
@@ -212,6 +216,26 @@ function clickFormButton(iframe, sid, selector) {
       })).filter(g => g.deviceId);
     });
     info(`discovered ${gates.length} gate(s): ${gates.map(g => `${g.deviceId}${g.latch ? '[latch]' : ''}`).join(', ')}`);
+
+    // ── 2a. ICONS: the bundled Font Awesome subset loads and renders ────
+    // Guards the CSP regression where icons loaded from a CDN render blank under
+    // config-ui-x's style-src/font-src 'self' policy.
+    const icons = await iframe.evaluate(async () => {
+      if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (_) {} }
+      let subsetApplied = false;
+      for (const s of document.styleSheets) {
+        if ((s.href || '').includes('palgate-icons.css')) { try { subsetApplied = s.cssRules.length > 0; } catch (_) {} }
+      }
+      const fontLoaded = document.fonts ? [...document.fonts].some(f => f.family.includes('Font Awesome') && f.status === 'loaded') : false;
+      const el = document.querySelector('#gateList .fas, #gateList i[class*="fa-"]');
+      const width = el ? el.getBoundingClientRect().width : 0;
+      return { subsetApplied, fontLoaded, width };
+    }).catch(e => ({ error: String(e).slice(0, 120) }));
+    check(icons.subsetApplied && icons.fontLoaded && icons.width > 0,
+      'bundled Font Awesome subset loads and icons render',
+      `subsetApplied=${icons.subsetApplied} fontLoaded=${icons.fontLoaded} iconWidth=${icons.width}${icons.error ? ' err=' + icons.error : ''}`);
+    check(cspErrors.length === 0, 'no Content-Security-Policy violations (no CDN assets)',
+      cspErrors.length ? cspErrors[0] : undefined);
 
     // ── 2b. RE-DISCOVER: the manual Discover button repopulates the list ─
     await iframe.evaluate(() => document.getElementById('discoverGates').click());
