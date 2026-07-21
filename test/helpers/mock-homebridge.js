@@ -68,9 +68,10 @@ class MockPlatformAccessory {
 
 // Service/Characteristic "types" only need identity — the platform passes them
 // around and compares them, it never constructs them directly.
-const SERVICE_TYPES = ['GarageDoorOpener', 'LockMechanism', 'Switch', 'AccessoryInformation'];
+const SERVICE_TYPES = ['GarageDoorOpener', 'LockMechanism', 'Switch', 'Valve', 'AccessoryInformation'];
 const CHARACTERISTIC_TYPES = [
   'CurrentDoorState', 'TargetDoorState', 'LockCurrentState', 'LockTargetState', 'On',
+  'Active', 'InUse', 'SetDuration', 'RemainingDuration', 'ValveType',
   'Manufacturer', 'Model', 'SerialNumber', 'FirmwareRevision', 'Name',
 ];
 
@@ -80,6 +81,9 @@ const CHARACTERISTIC_ENUMS = {
   TargetDoorState: { OPEN: 0, CLOSED: 1 },
   LockCurrentState: { UNSECURED: 0, SECURED: 1, JAMMED: 2, UNKNOWN: 3 },
   LockTargetState: { UNSECURED: 0, SECURED: 1 },
+  Active: { INACTIVE: 0, ACTIVE: 1 },
+  InUse: { NOT_IN_USE: 0, IN_USE: 1 },
+  ValveType: { GENERIC_VALVE: 0, IRRIGATION: 1, SHOWER_HEAD: 2, WATER_FAUCET: 3 },
 };
 
 function makeHap() {

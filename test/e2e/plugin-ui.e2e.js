@@ -17,11 +17,17 @@
  *   2. DISCOVER— on-load auto-discovery resolves to real gate cards (>=1); the
  *                manual Discover button also repopulates the list.
  *   3. GLOBAL  — change Default Settings (accessory type, trigger mode, delays,
- *                poll interval, relay), Save, and assert the values persisted.
+ *                poll interval, relay), Save, and assert the values persisted;
+ *                then switch the relay type to Valve and assert the valve-default-
+ *                duration field appears and its value persists (3b).
  *   4. PER-GATE— open a gate's Configure form, override its accessory type (and,
  *                for a latch-permitted gate, its relay), Save, and assert the
- *                customGates override persisted; then hide a second gate and
- *                assert hide:true persists.
+ *                customGates override persisted (4). Then assert the new UI (4c):
+ *                External Opens is ordered above Relay Mode, both toggles show a
+ *                "(global default)" tag, admin gates expose the External Opens
+ *                toggle, and a per-gate valve duration appears + persists; a
+ *                non-admin gate shows the admin-locked note + tooltip (4d). Then
+ *                hide a second gate and assert hide:true persists (4b).
  *   5. RESTART — (opt-in, E2E_RESTART=1) restart the live Homebridge, wait for it
  *                to come back up, and assert from the plugin's boot log that the
  *                saved config is actually applied (the overridden gate registers
@@ -229,11 +235,25 @@ function clickFormButton(iframe, sid, selector) {
       const fontLoaded = document.fonts ? [...document.fonts].some(f => f.family.includes('Font Awesome') && f.status === 'loaded') : false;
       const el = document.querySelector('#gateList .fas, #gateList i[class*="fa-"]');
       const width = el ? el.getBoundingClientRect().width : 0;
-      return { subsetApplied, fontLoaded, width };
+      // Verify the specific glyphs added to the subset actually render (a dropped glyph
+      // in a future subset rebuild would render blank while the generic check stays green).
+      const probeGlyph = (cls) => {
+        const i = document.createElement('i'); i.className = 'fas ' + cls; document.body.appendChild(i);
+        const w = i.getBoundingClientRect().width;
+        const content = getComputedStyle(i, '::before').content;
+        i.remove();
+        return w > 0 && !!content && content !== 'none' && content !== 'normal';
+      };
+      const faucet = probeGlyph('fa-faucet');
+      const circleInfo = probeGlyph('fa-circle-info');
+      return { subsetApplied, fontLoaded, width, faucet, circleInfo };
     }).catch(e => ({ error: String(e).slice(0, 120) }));
     check(icons.subsetApplied && icons.fontLoaded && icons.width > 0,
       'bundled Font Awesome subset loads and icons render',
       `subsetApplied=${icons.subsetApplied} fontLoaded=${icons.fontLoaded} iconWidth=${icons.width}${icons.error ? ' err=' + icons.error : ''}`);
+    check(icons.faucet && icons.circleInfo,
+      'valve (faucet) and info (circle-info) glyphs render from the subset',
+      `faucet=${icons.faucet} circleInfo=${icons.circleInfo}`);
     check(cspErrors.length === 0, 'no Content-Security-Policy violations (no CDN assets)',
       cspErrors.length ? cspErrors[0] : undefined);
 
@@ -292,6 +312,28 @@ function clickFormButton(iframe, sid, selector) {
     check(globalOk, 'global default settings persist via UI',
       globalOk ? undefined : `got ${JSON.stringify(pick(savedGlobal, Object.keys(GLOBAL).concat('enableRelayLocks')))}`);
 
+    // ── 3b. GLOBAL VALVE DURATION: field appears for Valve type and persists ─
+    await iframe.evaluate(() => {
+      const relay = document.getElementById('globalEnableRelay');
+      if (!relay.checked) { relay.checked = true; relay.dispatchEvent(new Event('change', { bubbles: true })); }
+      const t = document.getElementById('globalRelayType'); t.value = 'valve'; t.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    const valveFieldVisible = await iframe.evaluate(() => {
+      const g = document.getElementById('globalValveDurationGroup');
+      return !!g && getComputedStyle(g).display !== 'none';
+    });
+    check(valveFieldVisible, 'global valve duration field appears when relay type is Valve');
+    await iframe.evaluate(() => {
+      const el = document.getElementById('globalValveDuration');
+      el.value = '180'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('saveGlobalDefaults').click();
+    });
+    let savedValve = null;
+    try { savedValve = await rest.waitForConfig(c => c && c.valveDefaultDuration === 180); } catch (err) { savedValve = err.lastConfig; }
+    const valveGlobalOk = savedValve && savedValve.valveDefaultDuration === 180 && savedValve.relayAccessoryType === 'valve';
+    check(valveGlobalOk, 'global valveDefaultDuration + valve type persist via UI',
+      valveGlobalOk ? undefined : `got vdd=${savedValve && savedValve.valveDefaultDuration} type=${savedValve && savedValve.relayAccessoryType}`);
+
     // ── 4. PER-GATE: override accessory type + relay, assert persistence ─
     const relayGate = gates.find(g => g.latch);
     const target = relayGate || gates[0];
@@ -339,6 +381,82 @@ function clickFormButton(iframe, sid, selector) {
         relayOk ? undefined : `entry: ${JSON.stringify(entry)}`);
     } else {
       info('no latch-permitted gate discovered — skipped relay override assertion');
+    }
+
+    // ── 4c. NEW UI: reorder, "(global default)" tags, admin gating, valve duration ─
+    const reopened = await openGateForm(iframe, target.deviceId, sid);
+    if (reopened === 'ok') {
+      const ui = await iframe.evaluate((sid) => {
+        const anchor = document.getElementById('enable-' + sid);
+        const form = anchor && anchor.closest('.gate-expand-form');
+        const html = form ? form.innerHTML : '';
+        return {
+          externalBeforeRelay: html.indexOf('External Opens') > -1 && html.indexOf('Relay Mode') > -1 &&
+            html.indexOf('External Opens') < html.indexOf('Relay Mode'),
+          detectToggle: !!document.getElementById('detectExternal-' + sid),
+          detectTag: !!document.getElementById('detectExternalTag-' + sid),
+          relayTag: !!document.getElementById('relayEnabledTag-' + sid),
+        };
+      }, sid);
+      check(ui.externalBeforeRelay, 'External Opens section is ordered above Relay Mode');
+      if (target.admin) {
+        check(ui.detectToggle && ui.detectTag,
+          'admin gate exposes External Opens toggle + "(global default)" tag',
+          `toggle=${ui.detectToggle} tag=${ui.detectTag}`);
+      }
+      if (target.latch) {
+        check(ui.relayTag, 'relay enable has a "(global default)" tag');
+        // Per-gate valve duration: appears when Relay as Valve is checked; persists on save.
+        await iframe.evaluate((sid) => {
+          const relay = document.getElementById('relayEnabled-' + sid);
+          if (relay && !relay.checked) { relay.checked = true; relay.dispatchEvent(new Event('change', { bubbles: true })); }
+          const valve = document.getElementById('relayValve-' + sid);
+          if (valve) { valve.checked = true; valve.dispatchEvent(new Event('change', { bubbles: true })); }
+        }, sid);
+        const valveRowShown = await iframe.evaluate((sid) => {
+          const r = document.getElementById('valveDurationRow-' + sid);
+          return !!r && !r.classList.contains('d-none');
+        }, sid);
+        check(valveRowShown, 'per-gate valve duration row appears when Relay as Valve is checked');
+        await iframe.evaluate((sid) => {
+          const el = document.getElementById('valveDuration-' + sid);
+          if (el) { el.value = '240'; el.dispatchEvent(new Event('input', { bubbles: true })); }
+        }, sid);
+        await clickFormButton(iframe, sid, '.save-custom');
+        let savedVd = null;
+        try {
+          savedVd = await rest.waitForConfig(c => c && Array.isArray(c.customGates) &&
+            c.customGates.some(e => e.deviceId === target.deviceId && e.valveDefaultDuration === 240));
+        } catch (err) { savedVd = err.lastConfig; }
+        const vdEntry = savedVd && Array.isArray(savedVd.customGates)
+          ? savedVd.customGates.find(e => e.deviceId === target.deviceId) : null;
+        check(vdEntry && vdEntry.valveDefaultDuration === 240, 'per-gate valve duration persists via UI',
+          vdEntry ? JSON.stringify(vdEntry) : 'no entry');
+      }
+    }
+
+    // ── 4d. NON-ADMIN: External Opens shows the admin-locked note + tooltip ─
+    const nonAdminGate = gates.find(g => !g.admin);
+    if (nonAdminGate) {
+      const nsid = sidOf(nonAdminGate.deviceId);
+      const openedNa = await openGateForm(iframe, nonAdminGate.deviceId, nsid);
+      if (openedNa === 'ok') {
+        const na = await iframe.evaluate((sid) => {
+          const anchor = document.getElementById('enable-' + sid);
+          const form = anchor && anchor.closest('.gate-expand-form');
+          const html = form ? form.innerHTML : '';
+          return {
+            toggle: !!document.getElementById('detectExternal-' + sid),
+            lockedMsg: /Admin access to the gate is required to detect external opens/.test(html),
+            tip: !!(form && form.querySelector('.pg-tip[data-tip*="Assign Admin"]')),
+          };
+        }, nsid);
+        check(na.lockedMsg && !na.toggle && na.tip,
+          'non-admin gate shows External Opens locked note + "Ask an admin" tooltip',
+          `locked=${na.lockedMsg} toggle=${na.toggle} tip=${na.tip}`);
+      }
+    } else {
+      info('all discovered gates are admin — skipped non-admin locked-note assertion');
     }
 
     // ── 4b. HIDE: disable a gate in HomeKit; assert hide:true persists ──

@@ -114,6 +114,36 @@ test('getDeviceInfoOnce: flat (unwrapped) responses still pass through unchanged
   assert.equal(data.id, 'DEV8');
 });
 
+test('getDeviceLog / getDeviceLogOnce: unwrap the {log,...} envelope and build the id param', async () => {
+  // The live user/log endpoint wraps the array — regression guard for the same
+  // envelope class of bug as device/{id}/.
+  stub.route('GET /user/log', {
+    err: null, msg: 'ok', status: 'ok',
+    log: [{ userId: '9725', operation: 'Output 1', time: 123, type: 100 }],
+  });
+  const a = await api.getDeviceLog('tok', 'DEV1');
+  const b = await api.getDeviceLogOnce('tok', 'DEV1');
+  assert.equal(Array.isArray(a), true);
+  assert.equal(a.length, 1);
+  assert.equal(a[0].operation, 'Output 1');
+  assert.deepEqual(a, b);
+  assert.equal(stub.requests[0].path, '/user/log');
+  assert.equal(stub.requests[0].query.id, 'DEV1');
+});
+
+test('getDeviceLog: missing log array yields [] (never iterate undefined)', async () => {
+  stub.route('GET /user/log', { err: null, msg: 'ok', status: 'ok' });
+  const data = await api.getDeviceLog('tok', 'DEV1');
+  assert.deepEqual(data, []);
+});
+
+test('getDeviceLog: a bare array response passes through unchanged', async () => {
+  stub.route('GET /user/log', [{ operation: 'Output 2', time: 5 }]);
+  const data = await api.getDeviceLog('tok', 'DEV1');
+  assert.equal(data.length, 1);
+  assert.equal(data[0].operation, 'Output 2');
+});
+
 test('validateToken: calls check-token with timestamp params', async () => {
   stub.route('GET /user/check-token', { valid: true });
   const data = await api.validateToken('tok');
