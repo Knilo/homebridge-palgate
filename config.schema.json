@@ -109,8 +109,22 @@
 						"enum": [
 							"switch"
 						]
+					},
+					{
+						"title": "Valve (timed hold)",
+						"enum": [
+							"valve"
+						]
 					}
 				]
+			},
+			"valveDefaultDuration": {
+				"title": "Valve Default Duration (Seconds)",
+				"description": "Default hold time for Valve relay accessories, shown as the countdown timer in the Home app. 0 means hold indefinitely until manually released. Maximum 3600 (1 hour, HomeKit's limit). Default is 300 (5 minutes). Only applies when the relay accessory type is Valve.",
+				"type": "integer",
+				"default": 300,
+				"minimum": 0,
+				"maximum": 3600
 			},
 			"relayHoldOpen": {
 				"title": "Expose Hold Open Accessory",
@@ -130,6 +144,19 @@
 				"type": "integer",
 				"default": 60,
 				"minimum": 10
+			},
+			"detectExternalOpens": {
+				"title": "Detect External Opens",
+				"description": "Poll the PalGate operation log and animate accessories when a gate is opened outside HomeKit (PalGate app, dial-in call, another remote). Gives you native Home-app 'opened' notifications.",
+				"type": "boolean",
+				"default": false
+			},
+			"logPollInterval": {
+				"title": "External-Open Poll Interval (Seconds)",
+				"description": "How often in seconds to poll the operation log for external opens. Only applies when Detect External Opens is enabled. Default is 15, minimum 5.",
+				"type": "integer",
+				"default": 15,
+				"minimum": 5
 			},
 			"customGates": {
 				"title": "Custom Gate Settings",
@@ -197,6 +224,18 @@
 							"description": "Set to true to expose the virtual relays for this gate as Locks.",
 							"type": "boolean"
 						},
+						"relayValve": {
+							"title": "Expose Relay as Valve",
+							"description": "Set to true to expose the virtual relays for this gate as Valves (timed hold with a native Home-app countdown).",
+							"type": "boolean"
+						},
+						"valveDefaultDuration": {
+							"title": "Valve Default Duration (Seconds)",
+							"description": "Override the default Valve hold duration for this gate. 0 = indefinite, maximum 3600. Leave unset to use the global default.",
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 3600
+						},
 						"relayHoldOpen": {
 							"title": "Expose Hold Open",
 							"description": "Set to false to suppress the Hold Open relay accessory for this gate.",
@@ -216,6 +255,11 @@
 								{ "title": "Stateless", "enum": ["stateless"] },
 								{ "title": "Momentary", "enum": ["momentary"] }
 							]
+						},
+						"detectExternalOpens": {
+							"title": "Detect External Opens (Override)",
+							"description": "Override external-open detection for this gate. Defaults to the global setting.",
+							"type": "boolean"
 						}
 					}
 				}

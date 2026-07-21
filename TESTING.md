@@ -30,8 +30,10 @@ Tests `lib/api.js` against a programmable local stub of the PalGate HTTP API
 (`test/helpers/stub-palgate.js`, enabled by the `PALGATE_API_BASE_URL`
 override): retry-on-5xx, fail-fast-on-4xx, network-error retries, timeout
 handling, retry-budget exhaustion, endpoint/query construction for every API
-function, and the `device/{id}/` response-envelope unwrapping (regression for
-the poller bug where latch fields were read off the wrapper).
+function, and the response-envelope unwrapping for both `device/{id}/` and
+`user/log` (regression for the poller bug where fields were read off the wrapper;
+`getDeviceLog`/`getDeviceLogOnce` unwrap `{log,...}`, return `[]` when absent, and
+build the `?id=` param).
 
 ### 3. Platform — `test/platform/` (hermetic, CI)
 
@@ -59,6 +61,20 @@ Instantiates the real `PalGatePlatform` with a mock Homebridge API
 - **`poller-and-types.test.js`** — switch/lock accessory trigger + auto-reset
   behaviour, and `syncLockStates` poller sync (external latch changes reflect
   into HomeKit; fresh writes aren't clobbered).
+- **`external-opens.test.js`** — Feature 1 (external-open detection): high-water
+  mark (stale log entries don't animate), self-dedupe (own userId inside ±30s is
+  skipped, outside the window animates), multi-output `Output 2` → `:2` routing,
+  animation fires with **no** open-API call, unknown `type` still animates and
+  logs the raw number, backoff doubling/reset/5-min cap, and detection
+  enable/disable + per-gate override gating of the log poller.
+- **`valve.test.js`** — Feature 2 (valve relay accessories): both directions are
+  created for `relayAccessoryType: "valve"`; activate writes latch params + sets
+  Active/InUse and counts `RemainingDuration` down; expiry writes normal mode +
+  Inactive; `SetDuration=0` is an indefinite hold with no countdown; manual off
+  cancels the timer; activating one direction cancels the other's countdown; the
+  poller doesn't revert an active countdown but does sync an external latch change
+  when idle; restart mid-countdown releases to normal; per-gate `relayValve`
+  overrides the global relay type.
 
 ### 4. UI-server integration — `test/ui-server/` (hermetic, CI)
 
@@ -125,7 +141,7 @@ PalGate account** (the discovery/per-gate steps need real gates), Chrome, and
 ## Bundled icons
 
 The settings UI ships a **self-hosted Font Awesome 6.5.1 (Free, Solid) subset**
-in `homebridge-ui/public/fontawesome/` — only the ~24 glyphs the UI uses (~3KB
+in `homebridge-ui/public/fontawesome/` — only the ~26 glyphs the UI uses (~3KB
 woff2 + ~2KB CSS) instead of the ~156KB full face. It's bundled rather than
 CDN-loaded because config-ui-x's CSP (`style-src 'self'`; `font-src 'self' data:`)
 blocks external stylesheets/fonts, which silently blanked the icons.
@@ -153,7 +169,10 @@ occurs, so a regression here fails CI-style checks.
    config read-back plumbing now exists in layer 5; this item is only about
    removing the real-account dependency.)
 2. **Remaining platform coverage** — the garage-door restart-resume and
-   companion-animation timer paths are now covered (`timers.test.js`); still
-   open: switch/lock restart-resume, hold-closed relay handlers, `validateToken`
-   fallback in `openGateForAccessory`, and the poller's interval body (currently
-   only `syncLockStates` is tested directly). `palgate.js` line coverage is ~82%.
+   companion-animation timer paths are covered (`timers.test.js`), and the
+   external-open + valve paths are covered (`external-opens.test.js`,
+   `valve.test.js`); still open: switch/lock restart-resume, hold-closed relay
+   handlers, `validateToken` fallback in `openGateForAccessory`, and both pollers'
+   `setTimeout`/`setInterval` interval bodies (currently `syncLockStates` and
+   `_pollExternalOpens`/`_processLogEntries` are tested directly, not via the
+   scheduled tick).

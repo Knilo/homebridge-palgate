@@ -33,6 +33,12 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - **Multi-Gate Device Support:**  
   The plugin supports PalGate devices that control multiple gates as well as devices controlling a single gate.
 
+- **External-Open Detection (opt-in):**  
+  Poll the PalGate operation log and animate the accessory when a gate is opened outside HomeKit (from the PalGate app, a dial-in call, or another remote). This also gives you native Home-app "opened" notifications for free.
+
+- **Timed Hold via Valve Mode (opt-in):**  
+  Expose the Hold Open / Hold Closed relays as HomeKit Valves so you can set a duration and watch a live countdown natively in the Home app ("hold open for 30 minutes, then return to normal").
+
 - **CLI Support:**  
   All the main PalGate API features are supported through the custom CLI. 
   ```bash
@@ -114,6 +120,8 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
       "pollInterval": 60,
       "enableRelayLocks": true,
       "relayAccessoryType": "lock",
+      "detectExternalOpens": false,
+      "logPollInterval": 15,
       "customGates": [
         {
           "deviceId": "DEVICE_ID",
@@ -142,8 +150,11 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 | `gateOpeningDelay` | The duration in milliseconds that the gate remains in the "Opening" state before transitioning to fully "Open". **Only relevant for Garage Door accessories.** Default is `1000`. |
 | `gateCloseDelay` | The duration in milliseconds that a `garageDoor`, `switch`, or `lock` accessory remains in the open/unsecured/on state before automatically transitioning back to closed/locked/off. Default is `5000`. |
 | `pollInterval` | How often (in seconds) the plugin checks the PalGate API for changes made outside HomeKit, such as a relay toggled by another admin. Default is `60`, minimum `10`. |
+| `detectExternalOpens` | Poll the PalGate operation log and animate accessories when a gate is opened outside HomeKit (PalGate app, dial-in call, another remote). Applies only to gates where you have admin access (the operation log is admin-only; no latch permission required). Default is `false`. |
+| `logPollInterval` | How often (in seconds) to poll the operation log for external opens. Only applies when `detectExternalOpens` is enabled. Default is `15`, minimum `5`. |
 | `enableRelayLocks` | Expose virtual relay accessories (Hold Open / Hold Closed) for gates where you have latch permission. Default is `false`. |
-| `relayAccessoryType` | The accessory type to use for global virtual relay controllers. Valid values are `"lock"` or `"switch"`. Default is `"lock"`. |
+| `relayAccessoryType` | The accessory type to use for global virtual relay controllers. Valid values are `"lock"`, `"switch"`, or `"valve"`. Default is `"lock"`. |
+| `valveDefaultDuration` | Default hold time (in seconds) for Valve relay accessories, shown as the countdown timer in the Home app. `0` holds indefinitely until manually released. Maximum `3600` (1 hour, HomeKit's limit). Default is `300` (5 minutes). Only applies when the relay accessory type is `"valve"`. |
 | `relayHoldOpen` | When Relay Mode is enabled, expose the Hold Open accessory. Default is `true`. |
 | `relayHoldClosed` | When Relay Mode is enabled, expose the Hold Closed accessory. Default is `true`. |
 | `customGates` | An optional array of per-gate overrides. **Best managed through the plugin UI** — each entry contains only the settings you have overridden for that gate. See the per-gate options below. |
@@ -164,8 +175,11 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 | `relayEnabled` | Per-gate relay override. `true` enables relay accessories for this gate even when Relay Mode is globally disabled; `false` disables them regardless of the global setting. Omit to follow the global setting. Requires latch permission. |
 | `relaySwitch` | Set to `true` to expose the virtual relays for this gate as Switches. |
 | `relayLock` | Set to `true` to expose the virtual relays for this gate as Locks. |
+| `relayValve` | Set to `true` to expose the virtual relays for this gate as Valves (timed hold with a native Home-app countdown). |
+| `valveDefaultDuration` | Override the default Valve hold duration (in seconds) for this gate. `0` = indefinite, maximum `3600`. Omit to use the global `valveDefaultDuration`. |
 | `relayHoldOpen` | Set to `false` to hide the Hold Open accessory for this gate. |
 | `relayHoldClosed` | Set to `false` to hide the Hold Closed accessory for this gate. |
+| `detectExternalOpens` | Per-gate override for external-open detection. Only effective on gates where you have admin access. Omit to follow the global `detectExternalOpens` setting. |
 
 #### Notes on Accessory Types
 - You can expose a gate as a combination of `garageDoor`, `switch`, and `lock` simultaneously by setting the respective fields to true. 
@@ -178,6 +192,32 @@ Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (la
 * **Important Permissions Required**: 
   Make sure the user (phone) that this gate is linked through, has the special permission for this action (on Palgate app, admin user: **Gate settings** -> **Manager Options** -> **Users** -> **Selected user** -> **"Latch Output 1"**).
 * **Availability**: If the linked phone's user does not have the right permission, the Relays will not be exposed to Homekit. Once permission is granted, it will become operational.
+
+#### Valve Mode (timed hold)
+Set `relayAccessoryType` to `"valve"` (globally) or `relayValve: true` (per gate) to expose the Hold Open / Hold Closed relays as HomeKit **Valves**. Valves are the only HAP service with a native duration UI, so the Home app shows a live countdown on the tile and lets you set a default run time in the accessory's settings.
+
+* Turn the valve **on** to hold the gate; it counts down the duration you set and automatically returns the relay to normal mode when it reaches zero. Turning it **off** early cancels the countdown and returns to normal immediately.
+* A duration of `0` means an **indefinite** hold (no countdown), matching the Lock/Switch behaviour.
+* **Trade-offs**:
+  * The Home app renders valves with **water iconography** (a faucet/sprinkler tile) — there's no gate glyph for valves.
+  * The native duration picker **caps at 1 hour** (the HAP `SetDuration` spec limit of 3600 seconds).
+  * If Homebridge restarts mid-countdown, the hold is **released to normal** on startup (a lost timer must never become a permanent silent hold).
+
+#### Timed hold without Valve Mode (Switch users)
+If you prefer the Switch relay type but still want a timed hold, you don't need anything from the plugin — the Home app can do it natively:
+
+> Create an automation **"When \<Gate\> Hold Open turns On → Turn Off after 4 hours"**. The Home app offers an auto-off delay (up to 4 hours) on accessories toggled by an automation. When the switch turns off, the plugin returns the relay to normal mode.
+
+This is a zero-config alternative to Valve Mode when a 4-hour ceiling is enough and you'd rather keep the switch iconography.
+
+#### Notes on External-Open Detection
+When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened outside HomeKit — from the PalGate app, a dial-in call, or another remote.
+
+* **Admin only:** the operation log is accessible only to gate admins (no latch permission is required, unlike Relay Mode). Detection is offered only for gates where you have admin access; non-admin gates show a note explaining this and are never polled.
+* This surfaces native Home-app "opened" notifications for those events.
+* The plugin never replays history: on startup it only reacts to opens that happen from then on.
+* Opens triggered by the plugin itself (your own HomeKit taps) are de-duplicated so you won't see a doubled animation. The match window is at least 30 seconds and automatically grows to the poll interval, so a self-open is never misreported even with a long `logPollInterval`. Opens by your account from the PalGate app well after any HomeKit action are still surfaced.
+* Detection is read-only — it never issues an open command; it only mirrors what already happened.
 
 ## Support Me
 

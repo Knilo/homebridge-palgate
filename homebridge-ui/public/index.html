@@ -132,8 +132,10 @@
   html .fa-check:before { content: "\f00c" !important; }
   html .fa-chevron-right:before { content: "\f054" !important; }
   html .fa-chevron-up:before { content: "\f077" !important; }
+  html .fa-circle-info:before { content: "\f05a" !important; }
   html .fa-code:before { content: "\f121" !important; }
   html .fa-eye-slash:before { content: "\f070" !important; }
+  html .fa-faucet:before { content: "\e005" !important; }
   html .fa-floppy-disk:before { content: "\f0c7" !important; }
   html .fa-hand-pointer:before { content: "\f25a" !important; }
   html .fa-link:before { content: "\f0c1" !important; }
@@ -154,6 +156,31 @@
   html .fa-warehouse:before { content: "\f494" !important; }
   html .fa-spin { animation: pg-fa-spin 2s linear infinite; }
   @keyframes pg-fa-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  /* CSS-only hover tooltip. The native title attribute is unreliable inside the
+   * config-ui-x iframe (cursor changes but no bubble appears), and Bootstrap's JS
+   * tooltips aren't initialised here, so we render our own from a data-tip attribute. */
+  .pg-tip { position: relative; cursor: help; }
+  .pg-tip:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+    width: 240px;
+    max-width: 70vw;
+    background: rgba(28,28,30,0.98);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.35;
+    text-align: left;
+    padding: 7px 9px;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    white-space: normal;
+    z-index: 2000;
+    pointer-events: none;
+  }
 </style>
 
 <!-- ── Account Section ─────────────────────────────────────────── -->
@@ -249,6 +276,23 @@
       <div class="text-muted mt-1" style="font-size:0.78rem;">How often to check the PalGate API for changes made outside HomeKit, such as relay state toggled by another admin.</div>
     </div>
 
+    <div class="section-divider">External Opens</div>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <div class="fw-bold small">Detect External Opens</div>
+        <div class="text-muted" style="font-size:0.8rem;">Animate accessories when a gate opens outside HomeKit (PalGate app, dial-in, another remote). Applies only to gates where you have admin access.</div>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="globalDetectExternal"
+          style="width:2.5em; height:1.3em; margin-left:0;">
+      </div>
+    </div>
+    <div id="globalLogPollGroup" style="display:none;" class="mb-3">
+      <label class="form-label mb-1" for="globalLogPollInterval">External-Open Poll Interval (s)</label>
+      <input type="number" class="form-control form-control-sm" id="globalLogPollInterval" min="5" placeholder="15">
+      <div class="text-muted mt-1" style="font-size:0.78rem;">How often to poll the operation log for external opens. Minimum 5s.</div>
+    </div>
+
     <div class="section-divider">Relay Mode</div>
     <div class="d-flex justify-content-between align-items-center mb-2">
       <div>
@@ -262,11 +306,17 @@
     </div>
     <div id="globalRelayTypeGroup" style="display:none;" class="mb-3">
       <label class="form-label mb-1" for="globalRelayType">Relay Accessory Type</label>
-      <p class="text-muted small mb-2">Whether relay accessories appear as Locks or Switches in HomeKit. Locks show a locked/unlocked state; Switches show on/off.</p>
+      <p class="text-muted small mb-2">How relay accessories appear in HomeKit. Locks show a locked/unlocked state; Switches show on/off; Valves show a countdown timer for a timed hold.</p>
       <select class="form-select" id="globalRelayType">
         <option value="lock">Lock</option>
         <option value="switch">Switch</option>
+        <option value="valve">Valve</option>
       </select>
+    </div>
+    <div id="globalValveDurationGroup" style="display:none;" class="mb-3">
+      <label class="form-label mb-1" for="globalValveDuration">Valve Default Duration (s)</label>
+      <input type="number" class="form-control form-control-sm" id="globalValveDuration" min="0" max="3600" placeholder="300">
+      <div class="text-muted mt-1" style="font-size:0.78rem;">Default hold time shown as the Home app countdown for Valve relays. 0 = hold indefinitely. Max 3600 (1 hour).</div>
     </div>
     <div id="globalRelayDirectionGroup" style="display:none;" class="mb-3">
       <label class="form-label mb-1">Hold Directions</label>
@@ -331,8 +381,8 @@ function renderFatalLoadError() {
 // Font Awesome is bundled with the plugin (homebridge-ui/public/fontawesome/), not
 // loaded from a CDN. Config UI X injects its own FA stylesheet into this iframe, but
 // its font is SUBSET to the glyphs its own UI uses, so icons it doesn't use —
-// fa-warehouse, fa-right-left, fa-toggle-on, fa-hand-pointer, fa-lock-open — render
-// blank. Config UI X's CSP (style-src 'self'; font-src 'self') also blocks any CDN
+// fa-warehouse, fa-right-left, fa-toggle-on, fa-hand-pointer, fa-lock-open, fa-faucet —
+// render blank. Config UI X's CSP (style-src 'self'; font-src 'self') also blocks any CDN
 // stylesheet/font outright, so the previous cdnjs <link> silently failed.
 // Our subset (only the ~24 glyphs this UI uses) is ~3KB of woff2 + ~2KB CSS, served
 // same-origin so it's CSP-safe and needs no network. It's injected rather than a
@@ -463,13 +513,33 @@ function withTimeout(promise, ms, message) {
     const relayDirectionGroup = document.getElementById('globalRelayDirectionGroup');
     relayTypeGroup.style.display = relayToggle.checked ? 'block' : 'none';
     relayDirectionGroup.style.display = relayToggle.checked ? 'block' : 'none';
-    document.getElementById('globalRelayType').value = config.relayAccessoryType || 'lock';
+    const relayTypeSelect = document.getElementById('globalRelayType');
+    relayTypeSelect.value = config.relayAccessoryType || 'lock';
     document.getElementById('globalRelayHoldOpen').checked = config.relayHoldOpen !== false;
     document.getElementById('globalRelayHoldClosed').checked = config.relayHoldClosed !== false;
+
+    // Valve default duration — only relevant when relay is enabled AND the type is Valve.
+    const valveDurationGroup = document.getElementById('globalValveDurationGroup');
+    document.getElementById('globalValveDuration').value = config.valveDefaultDuration !== undefined ? config.valveDefaultDuration : '';
+    const updateValveDurationVis = () => {
+      valveDurationGroup.style.display = (relayToggle.checked && relayTypeSelect.value === 'valve') ? 'block' : 'none';
+    };
+    updateValveDurationVis();
+    relayTypeSelect.addEventListener('change', updateValveDurationVis);
 
     relayToggle.addEventListener('change', () => {
       relayTypeGroup.style.display = relayToggle.checked ? 'block' : 'none';
       relayDirectionGroup.style.display = relayToggle.checked ? 'block' : 'none';
+      updateValveDurationVis();
+    });
+
+    const detectToggle = document.getElementById('globalDetectExternal');
+    const logPollGroup = document.getElementById('globalLogPollGroup');
+    detectToggle.checked = config.detectExternalOpens === true;
+    logPollGroup.style.display = detectToggle.checked ? 'block' : 'none';
+    document.getElementById('globalLogPollInterval').value = config.logPollInterval !== undefined ? config.logPollInterval : '';
+    detectToggle.addEventListener('change', () => {
+      logPollGroup.style.display = detectToggle.checked ? 'block' : 'none';
     });
 
     document.getElementById('saveGlobalDefaults').addEventListener('click', saveGlobalDefaults);
@@ -485,8 +555,11 @@ function withTimeout(promise, ms, message) {
     const pollVal = document.getElementById('globalPollInterval').value.trim();
     const relayEnabled = document.getElementById('globalEnableRelay').checked;
     const relayAccessoryType = document.getElementById('globalRelayType').value;
+    const valveDurationVal = document.getElementById('globalValveDuration').value.trim();
     const relayHoldOpen = document.getElementById('globalRelayHoldOpen').checked;
     const relayHoldClosed = document.getElementById('globalRelayHoldClosed').checked;
+    const detectExternalOpens = document.getElementById('globalDetectExternal').checked;
+    const logPollVal = document.getElementById('globalLogPollInterval').value.trim();
 
     const saveBtn = document.getElementById('saveGlobalDefaults');
     if (saveBtn) saveBtn.disabled = true;
@@ -504,8 +577,11 @@ function withTimeout(promise, ms, message) {
       config.pollInterval = pollVal !== '' ? parseInt(pollVal, 10) : undefined;
       config.enableRelayLocks = relayEnabled;
       config.relayAccessoryType = relayAccessoryType;
+      config.valveDefaultDuration = valveDurationVal !== '' ? parseInt(valveDurationVal, 10) : undefined;
       config.relayHoldOpen = relayHoldOpen;
       config.relayHoldClosed = relayHoldClosed;
+      config.detectExternalOpens = detectExternalOpens;
+      config.logPollInterval = logPollVal !== '' ? parseInt(logPollVal, 10) : undefined;
       await persistPluginConfig();
       homebridge.toast.success('Saved. Restart Homebridge to apply changes.', 'Default Settings');
       // Re-render gate list so type rows reflect updated defaults
@@ -834,7 +910,9 @@ function withTimeout(promise, ms, message) {
       customEntry.triggerMode !== undefined ||
       customEntry.relayEnabled === false || customEntry.relayEnabled === true ||
       customEntry.relaySwitch !== undefined || customEntry.relayLock !== undefined ||
-      customEntry.relayHoldOpen === false || customEntry.relayHoldClosed === false
+      customEntry.relayValve !== undefined ||
+      customEntry.relayHoldOpen === false || customEntry.relayHoldClosed === false ||
+      customEntry.detectExternalOpens !== undefined
     ));
 
     const customBadge = isCustomized
@@ -962,9 +1040,9 @@ function withTimeout(promise, ms, message) {
     // when the gate lacks latch permission.
     const showRelay = gate.latch === true;
     const showRelayLocked = !gate.latch;
-    const relayLockedMsg = gate.admin
+    const relayLockedTip = gate.admin
       ? 'You have admin access. Enable latch for this output in the PalGate app: Gate Settings → Manager Options → Users → [this account] → Latch Output.'
-      : 'Latch permission is required for relay mode. Ask an admin to enable it in the PalGate app: Gate Settings → Manager Options → Users → [this account] → Latch Output.';
+      : 'Ask an admin to enable it in the PalGate app: Gate Settings → Manager Options → Users → [this account] → Latch Output.';
     // Effective per-gate state: when the global default is on, relay is on unless disabled
     // per-gate; when off, relay is on only if explicitly enabled per-gate.
     const relayEnabled = config.enableRelayLocks
@@ -972,8 +1050,12 @@ function withTimeout(promise, ms, message) {
       : customEntry.relayEnabled === true;
     const relaySwitch = customEntry.relaySwitch === true;
     const relayLock = customEntry.relayLock === true;
+    const relayValve = customEntry.relayValve === true;
     const relayHoldOpen = customEntry.relayHoldOpen !== false;
     const relayHoldClosed = customEntry.relayHoldClosed !== false;
+    const valveDuration = customEntry.valveDefaultDuration !== undefined ? customEntry.valveDefaultDuration : '';
+    const globalValveDuration = config.valveDefaultDuration !== undefined ? config.valveDefaultDuration : 300;
+    const detectExternal = customEntry.detectExternalOpens;
 
     // Global type info for the "not overriding" hint
     const globalTypeKey = config.accessoryType || 'garageDoor';
@@ -1112,11 +1194,36 @@ function withTimeout(promise, ms, message) {
           </div>
         </div>
 
+        <!-- External Opens (per-gate override) — admin only; the operation log is admin-gated -->
+        <div class="section-divider">External Opens</div>
+        ${gate.admin ? `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <div class="fw-bold small">Detect External Opens</div>
+            <div class="text-muted" style="font-size:0.8rem;">Animate this gate when opened outside HomeKit (PalGate app, dial-in, another remote)</div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted" id="detectExternalTag-${sid}" style="font-size:0.8em; white-space:nowrap;">(global default)</span>
+            <div class="form-check form-switch mb-0" style="padding-left:0;">
+              <input class="form-check-input" type="checkbox" role="switch"
+                id="detectExternal-${sid}" ${(detectExternal === undefined ? config.detectExternalOpens === true : detectExternal === true) ? 'checked' : ''}
+                style="width:2.5em; height:1.3em; margin-left:0;">
+            </div>
+          </div>
+        </div>
+        ` : `
+        <p class="text-muted small mb-0" style="opacity:0.7;">
+          <i class="fas fa-lock me-1"></i>Admin access to the gate is required to detect external opens.
+          <i class="fas fa-circle-info ms-1 pg-tip" style="font-size:0.85em; opacity:1;" data-tip="Ask an admin to enable it in the PalGate app: Gate Settings → Manager Options → Users → [this account] → Assign Admin."></i>
+        </p>
+        `}
+
         <!-- Relay Mode (conditional) -->
         ${showRelayLocked ? `
         <div class="section-divider">Relay Mode</div>
         <p class="text-muted small mb-0" style="opacity:0.7;">
-          <i class="fas fa-lock me-1"></i>${escapeHtml(relayLockedMsg)}
+          <i class="fas fa-lock me-1"></i>Latch permission is required for relay mode.
+          <i class="fas fa-circle-info ms-1 pg-tip" style="font-size:0.85em; opacity:1;" data-tip="${escapeHtml(relayLockedTip)}"></i>
         </p>
         ` : ''}
         ${showRelay ? `
@@ -1126,10 +1233,13 @@ function withTimeout(promise, ms, message) {
             <div class="fw-bold small">Enable Relay Accessories</div>
             <div class="text-muted" style="font-size:0.8rem;">Expose Hold Open / Hold Closed accessories for this gate</div>
           </div>
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" role="switch"
-              id="relayEnabled-${sid}" ${relayEnabled ? 'checked' : ''}
-              style="width:2.5em; height:1.3em; margin-left:0;">
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted" id="relayEnabledTag-${sid}" style="font-size:0.8em; white-space:nowrap;">(global default)</span>
+            <div class="form-check form-switch mb-0" style="padding-left:0;">
+              <input class="form-check-input" type="checkbox" role="switch"
+                id="relayEnabled-${sid}" ${relayEnabled ? 'checked' : ''}
+                style="width:2.5em; height:1.3em; margin-left:0;">
+            </div>
           </div>
         </div>
         <div id="relayOptions-${sid}" class="${!relayEnabled ? 'd-none' : ''} mb-3">
@@ -1141,11 +1251,31 @@ function withTimeout(promise, ms, message) {
               <i class="fas fa-toggle-on me-1"></i>Relay as Switch
             </label>
           </div>
-          <div class="form-check mb-3">
+          <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="relayLock-${sid}" ${relayLock ? 'checked' : ''}>
             <label class="form-check-label" for="relayLock-${sid}">
               <i class="fas fa-lock me-1"></i>Relay as Lock
             </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="relayValve-${sid}" ${relayValve ? 'checked' : ''}>
+            <label class="form-check-label" for="relayValve-${sid}">
+              <i class="fas fa-faucet me-1"></i>Relay as Valve
+            </label>
+            <i class="fas fa-circle-info text-muted ms-1 pg-tip" style="font-size:0.85em;"
+              data-tip="Exposes the relay as a HomeKit Valve with a countdown timer — a timed hold that automatically returns to normal when it expires."></i>
+          </div>
+          <div id="valveDurationRow-${sid}" class="${relayValve ? '' : 'd-none'} mb-3 ps-4">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label mb-0" for="valveDuration-${sid}" style="font-size:0.88rem;">Valve Duration (s)</label>
+              <a href="#" class="reset-link${valveDuration !== '' ? '' : ' d-none'}" id="resetValveDuration-${sid}">↺ reset</a>
+            </div>
+            <input type="number" class="form-control form-control-sm"
+              id="valveDuration-${sid}"
+              value="${escapeHtml(String(valveDuration))}"
+              placeholder="${escapeHtml(String(globalValveDuration))}s (global)"
+              min="0" max="3600">
+            <div class="text-muted mt-1" style="font-size:0.78rem;">Countdown before returning to normal. 0 = indefinite. Blank uses the global default.</div>
           </div>
           <label class="form-label mb-1">Hold Directions</label>
           <p class="text-muted small mb-2">Choose which relay accessories to expose for this gate. Uncheck a direction to hide that accessory from HomeKit.</p>
@@ -1225,13 +1355,47 @@ function withTimeout(promise, ms, message) {
       resetTypeLink.classList.add('d-none');
     });
 
+    // "(global default)" tags — shown while a toggle matches the global default (i.e. the
+    // gate isn't overriding it); hidden the moment it deviates. Mirrors the deviation-only
+    // save logic, so no explicit reset is needed: flip back to match global to "reset".
+    const detectExternalToggle = container.querySelector(`#detectExternal-${sid}`);
+    const detectExternalTag = container.querySelector(`#detectExternalTag-${sid}`);
+    if (detectExternalToggle && detectExternalTag) {
+      const globalDetect = config.detectExternalOpens === true;
+      const syncDetectTag = () => detectExternalTag.classList.toggle('d-none', detectExternalToggle.checked !== globalDetect);
+      syncDetectTag();
+      detectExternalToggle.addEventListener('change', syncDetectTag);
+    }
+
     // Relay enable toggle
     const relayEnabledToggle = container.querySelector(`#relayEnabled-${sid}`);
     if (relayEnabledToggle) {
       const relayOptions = container.querySelector(`#relayOptions-${sid}`);
+      const relayEnabledTag = container.querySelector(`#relayEnabledTag-${sid}`);
+      const globalRelay = config.enableRelayLocks === true;
+      const syncRelayTag = () => { if (relayEnabledTag) relayEnabledTag.classList.toggle('d-none', relayEnabledToggle.checked !== globalRelay); };
+      syncRelayTag();
       relayEnabledToggle.addEventListener('change', () => {
         relayOptions.classList.toggle('d-none', !relayEnabledToggle.checked);
+        syncRelayTag();
       });
+    }
+
+    // Valve duration row — only relevant when the relay is exposed as a Valve.
+    const relayValveCheckbox = container.querySelector(`#relayValve-${sid}`);
+    const valveDurationRow = container.querySelector(`#valveDurationRow-${sid}`);
+    if (relayValveCheckbox && valveDurationRow) {
+      relayValveCheckbox.addEventListener('change', () => {
+        valveDurationRow.classList.toggle('d-none', !relayValveCheckbox.checked);
+      });
+    }
+    const valveDurationInput = container.querySelector(`#valveDuration-${sid}`);
+    const resetValveDurationLink = container.querySelector(`#resetValveDuration-${sid}`);
+    if (valveDurationInput && resetValveDurationLink) {
+      valveDurationInput.addEventListener('input', () => {
+        resetValveDurationLink.classList.toggle('d-none', valveDurationInput.value === '');
+      });
+      resetValveDurationLink.addEventListener('click', e => { e.preventDefault(); valveDurationInput.value = ''; resetValveDurationLink.classList.add('d-none'); });
     }
 
     // Trigger mode override/reset
@@ -1306,9 +1470,12 @@ function withTimeout(promise, ms, message) {
       const closeVal = closeInput.value.trim();
       const relaySwitchEl = getValue(`relaySwitch-${sid}`);
       const relayLockEl = getValue(`relayLock-${sid}`);
+      const relayValveEl = getValue(`relayValve-${sid}`);
+      const valveDurationEl = getValue(`valveDuration-${sid}`);
       const relayEnabledEl = getValue(`relayEnabled-${sid}`);
       const relayHoldOpenEl = getValue(`relayHoldOpen-${sid}`);
       const relayHoldClosedEl = getValue(`relayHoldClosed-${sid}`);
+      const detectExternalEl = getValue(`detectExternal-${sid}`);
       const triggerModeOverrideActive = triggerModeRadiosEl && !triggerModeRadiosEl.classList.contains('d-none');
       const triggerModeEl = triggerModeOverrideActive ? container.querySelector(`input[name="triggerMode-${sid}"]:checked`) : null;
 
@@ -1329,8 +1496,11 @@ function withTimeout(promise, ms, message) {
         relayEnabled: relayEnabledEl ? relayEnabledEl.checked : undefined,
         relaySwitch: relaySwitchEl ? relaySwitchEl.checked : undefined,
         relayLock: relayLockEl ? relayLockEl.checked : undefined,
+        relayValve: relayValveEl ? relayValveEl.checked : undefined,
+        valveDefaultDuration: (valveDurationEl && valveDurationEl.value.trim() !== '') ? parseInt(valveDurationEl.value.trim(), 10) : undefined,
         relayHoldOpen: relayHoldOpenEl ? relayHoldOpenEl.checked : undefined,
         relayHoldClosed: relayHoldClosedEl ? relayHoldClosedEl.checked : undefined,
+        detectExternalOpens: detectExternalEl ? detectExternalEl.checked : undefined,
         triggerMode: triggerModeEl ? triggerModeEl.value : undefined
       }, container);
     });
@@ -1389,8 +1559,24 @@ function withTimeout(promise, ms, message) {
         if (effectivelyEnabled) {
           if (values.relaySwitch === true) entry.relaySwitch = true;
           if (values.relayLock === true) entry.relayLock = true;
+          if (values.relayValve === true) entry.relayValve = true;
+          // Per-gate valve duration override only when this gate is exposed as a Valve.
+          if (values.relayValve === true && values.valveDefaultDuration !== undefined && !isNaN(values.valveDefaultDuration)) {
+            entry.valveDefaultDuration = values.valveDefaultDuration;
+          }
           if (values.relayHoldOpen === false) entry.relayHoldOpen = false;
           if (values.relayHoldClosed === false) entry.relayHoldClosed = false;
+        }
+      }
+
+      // External-open detection: persist only as a real deviation from the global default,
+      // so it doubles as the per-gate override and keeps configs clean.
+      if (values.detectExternalOpens !== undefined) {
+        const globalDetect = config.detectExternalOpens === true;
+        if (globalDetect && values.detectExternalOpens === false) {
+          entry.detectExternalOpens = false;
+        } else if (!globalDetect && values.detectExternalOpens === true) {
+          entry.detectExternalOpens = true;
         }
       }
 
