@@ -12,20 +12,21 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - [Installation](#installation)
 - [Automatic Configuration](#automatic-configuration)
 - [Manual Configuration](#manual-configuration)
-- [Usage](#usage)
+- [Support Me](#support-me)
 - [Credits](#credits)
+- [License](#license)
 - [Disclaimer](#disclaimer)
 
 ## Features
 
 - **Set Up using the Homebridge UI:**  
-  No complicated token extraction required! Simply use the Set Up screen in the Homebridge UI to get everythign configured.
+  No complicated token extraction required! Simply use the Set Up screen in the Homebridge UI to get everything configured.
 
 - **Automatic Device Discovery:**  
   After Homebridge launches, the plugin automatically retrieves and registers your gate devices using the PalGate API.
   
 - **Flexible Accessory Types:**  
-  Configure each discovered gate as either a garage door or a switch. The default behavior can be overridden on a per-device basis.
+  Expose each discovered gate as a garage door, switch, or lock. The default type can be overridden on a per-device basis.
 
 - **Custom Gate Settings:**  
   Use the Homebridge UI or the `customGates` configuration option to rename, hide, or change the behavior of individual gates.
@@ -181,25 +182,25 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 | `relayHoldClosed` | Set to `false` to hide the Hold Closed accessory for this gate. |
 | `detectExternalOpens` | Per-gate override for external-open detection. Only effective on gates where you have admin access. Omit to follow the global `detectExternalOpens` setting. |
 
-#### Notes on Accessory Types
+#### Accessory Types
 - You can expose a gate as a combination of `garageDoor`, `switch`, and `lock` simultaneously by setting the respective fields to true. 
 - While you can use a `garageDoor` or `lock` in automations, due to Apple security restrictions, the automation will need to be approved through a push notification. A `switch` can be used without this step. 
 - CarPlay will automatically surface a `garageDoor` as you approach your home. This does not happen to a `switch` or `lock`.
 - The state HomeKit shows is animated on a timer, not the gate's real position (PalGate doesn't report it). In `stateful` and `stateless` modes, all three accessory types behave the same: after a trigger the accessory returns to its resting state — a `garageDoor` to "closed", a `lock` to "locked", a `switch` to "off" — after `gateOpeningDelay` + `gateCloseDelay` (the same total for every type). The only difference is cosmetic: a `garageDoor` splits that window into an "Opening" animation (`gateOpeningDelay`) followed by "Open" (`gateCloseDelay`), whereas a `switch` and `lock` show no intermediate state and just stay on/unlocked for the whole window. In `momentary` mode the accessory resets immediately instead.
 
-#### Notes on Trigger Modes
+#### Trigger Modes
 `triggerMode` controls how an accessory reacts to a tap — set it globally or per gate.
 - **Stateful** (default): Tap to open; the accessory animates open, then returns to rest after the open delay. Tapping again while it's still "open" just cancels the animation — it does **not** send another open command. Best when you want the tile to reflect an open/closed cycle.
 - **Stateless**: Every tap sends an open command, even if the accessory is already open or mid-cycle. Best for gates you may want to re-trigger, or where the on-screen state doesn't matter.
 - **Momentary**: Sends an open command, then immediately snaps back to closed/locked/off with no open window. Best for a push-button feel, or for triggering from automations and Siri.
 
-#### Notes on Relay Mode Controllers
+#### Relay Mode
 Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (latch/hold open) or "Always Closed" (hold closed) state.
 * **Important Permissions Required**: 
   Make sure the user (phone) that this gate is linked through, has the special permission for this action (on Palgate app, admin user: **Gate settings** -> **Manager Options** -> **Users** -> **Selected user** -> **"Latch Output 1"**).
 * **Availability**: If the linked phone's user does not have the right permission, the Relays will not be exposed to Homekit. Once permission is granted, it will become operational.
 
-#### Valve Mode (timed hold)
+#### Valve Mode
 Set `relayAccessoryType` to `"valve"` (globally) or `relayValve: true` (per gate) to expose the Hold Open / Hold Closed relays as HomeKit **Valves**. Valves are the only HAP service with a native duration UI, so the Home app shows a live countdown on the tile and lets you set a default run time in the accessory's settings.
 
 * Turn the valve **on** to hold the gate; it counts down the duration you set and automatically returns the relay to normal mode when it reaches zero. Turning it **off** early cancels the countdown and returns to normal immediately.
@@ -209,10 +210,10 @@ Set `relayAccessoryType` to `"valve"` (globally) or `relayValve: true` (per gate
   * The native duration picker **caps at 1 hour**.
   * If Homebridge restarts mid-countdown, the hold is **released to normal** on startup to avoid issues.
 
-#### Timed hold without Valve Mode (Switch users)
+#### Timed Hold Without Valve Mode
 If you prefer the Switch relay type but still want a timed hold, you can use an automation to achieve this. Create an automation **"When \<Gate\> Hold Open turns On → Turn Off after 4 hours"**. The Home app offers an auto-off delay (up to 4 hours) on accessories toggled by an automation. When the switch turns off, the plugin returns the relay to normal mode.
 
-#### Notes on External-Open Detection
+#### External-Open Detection
 When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened outside HomeKit — from the PalGate app, a dial-in call, or another remote.
 
 * **Admin only:** the operation log is accessible only to gate admins (no latch permission is required, unlike Relay Mode). Detection is offered only for gates where you have admin access; non-admin gates show a note explaining this and are never polled.
@@ -223,7 +224,7 @@ When `detectExternalOpens` is enabled, the plugin polls the PalGate operation lo
 
 ## Support Me
 
-If you appreciate this contribution the community, [please consider leaving me a tip!](https://ko-fi.com/knilo)
+If you appreciate this contribution to the community, [please consider leaving me a tip!](https://ko-fi.com/knilo)
 
 [![Ko-fi](https://img.shields.io/badge/support_me_on_ko--fi-F16061?style=for-the-badge&logo=kofi&logoColor=f5f5f5)](https://ko-fi.com/Knilo)
 
