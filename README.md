@@ -147,8 +147,8 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 | `tokenType` | The linking type. Each PalGate account supports two device link slots. Valid values: <br> - `0` for SMS <br> - `1` for Linked Device 1 <br> - `2` for Linked Device 2 |
 | `accessoryType`| Defines the default type for discovered devices; valid values are `"garageDoor"`, `"switch"`, or `"lock"`. |
 | `triggerMode` | How accessories respond to a tap. Valid values: <br> - `"stateful"` — tap to open; tap again to trigger the closing animation in the Home app <br> - `"stateless"` — always triggers a new opening, even if the gate is listed as open <br> - `"momentary"` — triggers an opening, then immediately resets the accessory state to closed <br> Default is `"stateful"`. |
-| `gateOpeningDelay` | The duration in milliseconds that the gate remains in the "Opening" state before transitioning to fully "Open". **Only relevant for Garage Door accessories.** Default is `1000`. |
-| `gateCloseDelay` | The duration in milliseconds that a `garageDoor`, `switch`, or `lock` accessory remains in the open/unsecured/on state before automatically transitioning back to closed/locked/off. Default is `5000`. |
+| `gateOpeningDelay` | The first part (ms) of the open window. A `garageDoor` shows it as the "Opening" state before "Open"; a `switch` or `lock` has no "Opening" state, but the time still counts toward how long it stays on/unlocked. The full window is `gateOpeningDelay` + `gateCloseDelay` for every type. Default is `1000`. |
+| `gateCloseDelay` | The second part (ms) of the open window, after `gateOpeningDelay`, before the accessory returns to closed/locked/off. The full window is `gateOpeningDelay` + `gateCloseDelay`. Default is `5000`. |
 | `pollInterval` | How often (in seconds) the plugin checks the PalGate API for changes made outside HomeKit, such as a relay toggled by another admin. Default is `60`, minimum `10`. |
 | `detectExternalOpens` | Poll the PalGate operation log and animate accessories when a gate is opened outside HomeKit (PalGate app, dial-in call, another remote). Applies only to gates where you have admin access (the operation log is admin-only; no latch permission required). Default is `false`. |
 | `logPollInterval` | How often (in seconds) to poll the operation log for external opens. Only applies when `detectExternalOpens` is enabled. Default is `15`, minimum `5`. |
@@ -170,7 +170,7 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 | `lock` | Set to `true` to expose as a lock. |
 | `hide` | Set to `true` to hide the gate from HomeKit. |
 | `triggerMode` | Override the trigger mode for this gate; same values as the global `triggerMode`. |
-| `gateOpeningDelay` | Override the opening state duration (in ms) for this specific gate. **Only relevant for Garage Door accessories.** |
+| `gateOpeningDelay` | Override `gateOpeningDelay` (in ms) for this gate — part of the open window for every accessory type (see above). |
 | `gateCloseDelay` | Override the close delay (in ms) for this specific gate. |
 | `relayEnabled` | Per-gate relay override. `true` enables relay accessories for this gate even when Relay Mode is globally disabled; `false` disables them regardless of the global setting. Omit to follow the global setting. Requires latch permission. |
 | `relaySwitch` | Set to `true` to expose the virtual relays for this gate as Switches. |
@@ -185,7 +185,13 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 - You can expose a gate as a combination of `garageDoor`, `switch`, and `lock` simultaneously by setting the respective fields to true. 
 - While you can use a `garageDoor` or `lock` in automations, due to Apple security restrictions, the automation will need to be approved through a push notification. A `switch` can be used without this step. 
 - CarPlay will automatically surface a `garageDoor` as you approach your home. This does not happen to a `switch` or `lock`.
-- The state HomeKit shows is animated on a timer, not the gate's real position (PalGate doesn't report it). In `stateful` and `stateless` modes, all three accessory types behave the same: after a trigger the accessory returns to its resting state — a `garageDoor` to "closed", a `lock` to "locked", a `switch` to "off" — once the open delay elapses. The only difference is cosmetic: a `garageDoor` shows an "Opening" animation (`gateOpeningDelay`) before "Open", whereas a `switch` and `lock` have no intermediate state. In `momentary` mode the accessory resets immediately instead.
+- The state HomeKit shows is animated on a timer, not the gate's real position (PalGate doesn't report it). In `stateful` and `stateless` modes, all three accessory types behave the same: after a trigger the accessory returns to its resting state — a `garageDoor` to "closed", a `lock` to "locked", a `switch` to "off" — after `gateOpeningDelay` + `gateCloseDelay` (the same total for every type). The only difference is cosmetic: a `garageDoor` splits that window into an "Opening" animation (`gateOpeningDelay`) followed by "Open" (`gateCloseDelay`), whereas a `switch` and `lock` show no intermediate state and just stay on/unlocked for the whole window. In `momentary` mode the accessory resets immediately instead.
+
+#### Notes on Trigger Modes
+`triggerMode` controls how an accessory reacts to a tap — set it globally or per gate.
+- **Stateful** (default): Tap to open; the accessory animates open, then returns to rest after the open delay. Tapping again while it's still "open" just cancels the animation — it does **not** send another open command. Best when you want the tile to reflect an open/closed cycle.
+- **Stateless**: Every tap sends an open command, even if the accessory is already open or mid-cycle. Best for gates you may want to re-trigger, or where the on-screen state doesn't matter.
+- **Momentary**: Sends an open command, then immediately snaps back to closed/locked/off with no open window. Best for a push-button feel, or for triggering from automations and Siri.
 
 #### Notes on Relay Mode Controllers
 Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (latch/hold open) or "Always Closed" (hold closed) state.
