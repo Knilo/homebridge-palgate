@@ -185,7 +185,7 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 - You can expose a gate as a combination of `garageDoor`, `switch`, and `lock` simultaneously by setting the respective fields to true. 
 - While you can use a `garageDoor` or `lock` in automations, due to Apple security restrictions, the automation will need to be approved through a push notification. A `switch` can be used without this step. 
 - CarPlay will automatically surface a `garageDoor` as you approach your home. This does not happen to a `switch` or `lock`.
-- The state reported by HomeKit does not reflect the actual physical state of the gate. For `garageDoor`s and `lock`s, the accessory will automatically switch to “closed”/”locked” after the delay specified by `gateCloseDelay` (and `gateOpeningDelay`), regardless of the door’s physical state. A `switch` will also remain "on" for the duration of the Close Delay before automatically switching back to "off".
+- The state HomeKit shows is animated on a timer, not the gate's real position (PalGate doesn't report it). In `stateful` and `stateless` modes, all three accessory types behave the same: after a trigger the accessory returns to its resting state — a `garageDoor` to "closed", a `lock` to "locked", a `switch` to "off" — once the open delay elapses. The only difference is cosmetic: a `garageDoor` shows an "Opening" animation (`gateOpeningDelay`) before "Open", whereas a `switch` and `lock` have no intermediate state. In `momentary` mode the accessory resets immediately instead.
 
 #### Notes on Relay Mode Controllers
 Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (latch/hold open) or "Always Closed" (hold closed) state.
@@ -200,15 +200,11 @@ Set `relayAccessoryType` to `"valve"` (globally) or `relayValve: true` (per gate
 * A duration of `0` means an **indefinite** hold (no countdown), matching the lock/switch behavior.
 * **Trade-offs**:
   * The Home app renders valves with **water iconography** (a faucet/sprinkler tile) — there's no gate glyph for valves.
-  * The native duration picker **caps at 1 hour** (the HAP `SetDuration` spec limit of 3600 seconds).
-  * If Homebridge restarts mid-countdown, the hold is **released to normal** on startup (a lost timer must never become a permanent silent hold).
+  * The native duration picker **caps at 1 hour**.
+  * If Homebridge restarts mid-countdown, the hold is **released to normal** on startup to avoid issues.
 
 #### Timed hold without Valve Mode (Switch users)
-If you prefer the Switch relay type but still want a timed hold, you don't need anything from the plugin — the Home app can do it natively:
-
-> Create an automation **"When \<Gate\> Hold Open turns On → Turn Off after 4 hours"**. The Home app offers an auto-off delay (up to 4 hours) on accessories toggled by an automation. When the switch turns off, the plugin returns the relay to normal mode.
-
-This is a zero-config alternative to Valve Mode when a 4-hour ceiling is enough and you'd rather keep the switch iconography.
+If you prefer the Switch relay type but still want a timed hold, you can use an automation to achieve this. Create an automation **"When \<Gate\> Hold Open turns On → Turn Off after 4 hours"**. The Home app offers an auto-off delay (up to 4 hours) on accessories toggled by an automation. When the switch turns off, the plugin returns the relay to normal mode.
 
 #### Notes on External-Open Detection
 When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened outside HomeKit — from the PalGate app, a dial-in call, or another remote.
