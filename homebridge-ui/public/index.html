@@ -153,6 +153,7 @@
   html .fa-sync:before { content: "\f021" !important; }
   html .fa-toggle-on:before { content: "\f205" !important; }
   html .fa-triangle-exclamation:before { content: "\f071" !important; }
+  html .fa-user:before { content: "\f007" !important; }
   html .fa-warehouse:before { content: "\f494" !important; }
   html .fa-spin { animation: pg-fa-spin 2s linear infinite; }
   @keyframes pg-fa-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -903,27 +904,19 @@ function withTimeout(promise, ms, message) {
 
     const customEntry = config.customGates.find(e => e.deviceId === gate.deviceId);
     const displayName = (customEntry && customEntry.name) || gate.defaultName || gate.deviceId;
-    const isCustomized = !!(customEntry && (
-      customEntry.name || customEntry.hide === true ||
-      customEntry.garageDoor !== undefined || customEntry.switch !== undefined || customEntry.lock !== undefined ||
-      customEntry.gateOpeningDelay !== undefined || customEntry.gateCloseDelay !== undefined ||
-      customEntry.triggerMode !== undefined ||
-      customEntry.relayEnabled === false || customEntry.relayEnabled === true ||
-      customEntry.relaySwitch !== undefined || customEntry.relayLock !== undefined ||
-      customEntry.relayValve !== undefined ||
-      customEntry.relayHoldOpen === false || customEntry.relayHoldClosed === false ||
-      customEntry.detectExternalOpens !== undefined
-    ));
 
-    const customBadge = isCustomized
-      ? '<span class="badge bg-primary" style="font-size:0.66rem; vertical-align:middle;"><i class="fas fa-pen" style="font-size:0.6rem;"></i> Custom</span>'
-      : '';
-    const adminBadge = gate.admin
-      ? '<span class="badge bg-warning text-dark admin-badge" style="font-size:0.66rem; vertical-align:middle;"><i class="fas fa-shield" style="font-size:0.6rem;"></i> Admin</span>'
-      : '';
-    const latchBadge = gate.latch
-      ? '<span class="badge bg-info text-dark latch-badge" style="font-size:0.66rem; vertical-align:middle;"><i class="fas fa-bolt" style="font-size:0.6rem;"></i> Latch</span>'
-      : '';
+    // Gate capabilities (admin / latch) render as a muted line in the card body rather than
+    // coloured header pills — they're just attributes of the gate. The .admin-badge /
+    // .latch-badge classes are kept so the in-place enrichment and the e2e can find them.
+    const capsHtml = (g) => {
+      const caps = [];
+      if (g.admin) caps.push('<span class="admin-badge">Admin</span>');
+      if (g.latch) caps.push('<span class="latch-badge">Latch</span>');
+      if (!caps.length) return '';
+      // A person silhouette frames "Admin · Latch" as the account's access on this gate —
+      // a plain decorative leader like the other card rows' icons (not hoverable).
+      return '<i class="fas fa-user me-1"></i>' + caps.join(' · ');
+    };
 
     const typeRow = buildTypeIconRow(gate, customEntry);
     const triggerRow = buildTriggerModeRow(customEntry);
@@ -931,13 +924,11 @@ function withTimeout(promise, ms, message) {
     card.innerHTML = `
       <div class="d-flex justify-content-between align-items-start gap-2">
         <div style="min-width:0; flex:1;">
-          <div class="d-flex align-items-center flex-wrap gap-1 mb-1">
-            <span class="fw-bold">${escapeHtml(displayName)}</span>
-            ${customBadge}${adminBadge}${latchBadge}
-          </div>
+          <div class="fw-bold mb-1">${escapeHtml(displayName)}</div>
           <div class="mb-1">${typeRow}</div>
           ${triggerRow ? `<div class="mb-1">${triggerRow}</div>` : ''}
-          <div class="text-muted" style="font-size:0.73rem;">${escapeHtml(gate.deviceId)}</div>
+          <div class="text-muted gate-caps" style="font-size:0.73rem;">${capsHtml(gate)}</div>
+          <div class="text-muted gate-id" style="font-size:0.73rem;">${escapeHtml(gate.deviceId)}</div>
         </div>
         <button class="btn btn-secondary btn-sm configure-btn flex-shrink-0">
           <i class="fas fa-sliders me-1"></i>Configure
@@ -977,22 +968,9 @@ function withTimeout(promise, ms, message) {
               gate.latch = enriched.latch;
               gate.defaultName = enriched.defaultName || gate.defaultName;
               gate.isPrePopulated = false;
-              // Update the card header in-place so badges appear immediately
-              const nameRow = card.querySelector('.fw-bold').parentElement;
-              if (gate.admin && !nameRow.querySelector('.admin-badge')) {
-                const el = document.createElement('span');
-                el.className = 'badge bg-warning text-dark admin-badge';
-                el.style.cssText = 'font-size:0.66rem; vertical-align:middle;';
-                el.innerHTML = '<i class="fas fa-shield" style="font-size:0.6rem;"></i> Admin';
-                nameRow.appendChild(el);
-              }
-              if (gate.latch && !nameRow.querySelector('.latch-badge')) {
-                const el = document.createElement('span');
-                el.className = 'badge bg-info text-dark latch-badge';
-                el.style.cssText = 'font-size:0.66rem; vertical-align:middle;';
-                el.innerHTML = '<i class="fas fa-bolt" style="font-size:0.6rem;"></i> Latch';
-                nameRow.appendChild(el);
-              }
+              // Refresh the muted capability line in-place so admin/latch appear immediately.
+              const capsEl = card.querySelector('.gate-caps');
+              if (capsEl) capsEl.innerHTML = capsHtml(gate);
             }
           }
         } catch (_) {

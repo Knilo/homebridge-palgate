@@ -213,10 +213,10 @@ function clickFormButton(iframe, sid, selector) {
 
     // Read the discovered gates (deviceId + latch badge) straight from the cards.
     const gates = await iframe.evaluate(() => {
-      // The deviceId is rendered as the card's only <div class="text-muted"> (type
-      // and trigger rows use <span class="text-muted">, so a div selector is exact).
+      // deviceId is its own .gate-id row; admin/latch are muted .admin-badge/.latch-badge
+      // spans in the .gate-caps line (no longer coloured header pills).
       return [...document.querySelectorAll('#gateList .card')].map(card => ({
-        deviceId: (card.querySelector('div.text-muted')?.textContent || '').trim(),
+        deviceId: (card.querySelector('.gate-id')?.textContent || '').trim(),
         latch: !!card.querySelector('.latch-badge'),
         admin: !!card.querySelector('.admin-badge'),
       })).filter(g => g.deviceId);
