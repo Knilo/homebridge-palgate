@@ -197,7 +197,7 @@ Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (la
 Set `relayAccessoryType` to `"valve"` (globally) or `relayValve: true` (per gate) to expose the Hold Open / Hold Closed relays as HomeKit **Valves**. Valves are the only HAP service with a native duration UI, so the Home app shows a live countdown on the tile and lets you set a default run time in the accessory's settings.
 
 * Turn the valve **on** to hold the gate; it counts down the duration you set and automatically returns the relay to normal mode when it reaches zero. Turning it **off** early cancels the countdown and returns to normal immediately.
-* A duration of `0` means an **indefinite** hold (no countdown), matching the Lock/Switch behaviour.
+* A duration of `0` means an **indefinite** hold (no countdown), matching the lock/switch behavior.
 * **Trade-offs**:
   * The Home app renders valves with **water iconography** (a faucet/sprinkler tile) — there's no gate glyph for valves.
   * The native duration picker **caps at 1 hour** (the HAP `SetDuration` spec limit of 3600 seconds).
