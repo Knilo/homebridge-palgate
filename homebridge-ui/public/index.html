@@ -277,23 +277,6 @@
       <div class="text-muted mt-1" style="font-size:0.78rem;">How often to check the PalGate API for changes made outside HomeKit, such as relay state toggled by another admin.</div>
     </div>
 
-    <div class="section-divider">External Opens</div>
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <div>
-        <div class="fw-bold small">Detect External Opens</div>
-        <div class="text-muted" style="font-size:0.8rem;">Animate accessories when a gate opens outside HomeKit (PalGate app, dial-in, another remote). Applies only to gates where you have admin access.</div>
-      </div>
-      <div class="form-check form-switch mb-0">
-        <input class="form-check-input" type="checkbox" role="switch" id="globalDetectExternal"
-          style="width:2.5em; height:1.3em; margin-left:0;">
-      </div>
-    </div>
-    <div id="globalLogPollGroup" style="display:none;" class="mb-3">
-      <label class="form-label mb-1" for="globalLogPollInterval">External-Open Poll Interval (s)</label>
-      <input type="number" class="form-control form-control-sm" id="globalLogPollInterval" min="5" placeholder="15">
-      <div class="text-muted mt-1" style="font-size:0.78rem;">How often to poll the operation log for external opens. Minimum 5s.</div>
-    </div>
-
     <div class="section-divider">Relay Mode</div>
     <div class="d-flex justify-content-between align-items-center mb-2">
       <div>
@@ -330,6 +313,23 @@
         <input class="form-check-input" type="checkbox" id="globalRelayHoldClosed">
         <label class="form-check-label" for="globalRelayHoldClosed">Hold Closed</label>
       </div>
+    </div>
+
+    <div class="section-divider">External Opens</div>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <div class="fw-bold small">Detect External Opens</div>
+        <div class="text-muted" style="font-size:0.8rem;">Animate accessories when a gate opens outside HomeKit (PalGate app, dial-in, another remote). Applies only to gates where you have admin access.</div>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="globalDetectExternal"
+          style="width:2.5em; height:1.3em; margin-left:0;">
+      </div>
+    </div>
+    <div id="globalLogPollGroup" style="display:none;" class="mb-3">
+      <label class="form-label mb-1" for="globalLogPollInterval">External-Open Poll Interval (s)</label>
+      <input type="number" class="form-control form-control-sm" id="globalLogPollInterval" min="5" placeholder="15">
+      <div class="text-muted mt-1" style="font-size:0.78rem;">How often to poll the operation log for external opens. Minimum 5s.</div>
     </div>
 
     <button class="btn btn-primary btn-sm" id="saveGlobalDefaults">
@@ -1172,30 +1172,6 @@ function withTimeout(promise, ms, message) {
           </div>
         </div>
 
-        <!-- External Opens (per-gate override) — admin only; the operation log is admin-gated -->
-        <div class="section-divider">External Opens</div>
-        ${gate.admin ? `
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div>
-            <div class="fw-bold small">Detect External Opens</div>
-            <div class="text-muted" style="font-size:0.8rem;">Animate this gate when opened outside HomeKit (PalGate app, dial-in, another remote)</div>
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <span class="text-muted" id="detectExternalTag-${sid}" style="font-size:0.8em; white-space:nowrap;">(global default)</span>
-            <div class="form-check form-switch mb-0" style="padding-left:0;">
-              <input class="form-check-input" type="checkbox" role="switch"
-                id="detectExternal-${sid}" ${(detectExternal === undefined ? config.detectExternalOpens === true : detectExternal === true) ? 'checked' : ''}
-                style="width:2.5em; height:1.3em; margin-left:0;">
-            </div>
-          </div>
-        </div>
-        ` : `
-        <p class="text-muted small mb-0" style="opacity:0.7;">
-          <i class="fas fa-lock me-1"></i>Admin access to the gate is required to detect external opens.
-          <i class="fas fa-circle-info ms-1 pg-tip" style="font-size:0.85em; opacity:1;" data-tip="Ask an admin to enable it in the PalGate app: Gate Settings → Manager Options → Users → [this account] → Assign Admin."></i>
-        </p>
-        `}
-
         <!-- Relay Mode (conditional) -->
         ${showRelayLocked ? `
         <div class="section-divider">Relay Mode</div>
@@ -1271,6 +1247,30 @@ function withTimeout(promise, ms, message) {
           </div>
         </div>
         ` : ''}
+
+        <!-- External Opens (per-gate override) — admin only; the operation log is admin-gated -->
+        <div class="section-divider">External Opens</div>
+        ${gate.admin ? `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <div class="fw-bold small">Detect External Opens</div>
+            <div class="text-muted" style="font-size:0.8rem;">Animate this gate when opened outside HomeKit (PalGate app, dial-in, another remote)</div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted" id="detectExternalTag-${sid}" style="font-size:0.8em; white-space:nowrap;">(global default)</span>
+            <div class="form-check form-switch mb-0" style="padding-left:0;">
+              <input class="form-check-input" type="checkbox" role="switch"
+                id="detectExternal-${sid}" ${(detectExternal === undefined ? config.detectExternalOpens === true : detectExternal === true) ? 'checked' : ''}
+                style="width:2.5em; height:1.3em; margin-left:0;">
+            </div>
+          </div>
+        </div>
+        ` : `
+        <p class="text-muted small mb-0" style="opacity:0.7;">
+          <i class="fas fa-lock me-1"></i>Admin access to the gate is required to detect external opens.
+          <i class="fas fa-circle-info ms-1 pg-tip" style="font-size:0.85em; opacity:1;" data-tip="Ask an admin to enable it in the PalGate app: Gate Settings → Manager Options → Users → [this account] → Assign Admin."></i>
+        </p>
+        `}
 
       </div>
 

@@ -23,7 +23,7 @@
  *   4. PER-GATE— open a gate's Configure form, override its accessory type (and,
  *                for a latch-permitted gate, its relay), Save, and assert the
  *                customGates override persisted (4). Then assert the new UI (4c):
- *                External Opens is ordered above Relay Mode, both toggles show a
+ *                Relay Mode is ordered above External Opens, both toggles show a
  *                "(global default)" tag, admin gates expose the External Opens
  *                toggle, and a per-gate valve duration appears + persists; a
  *                non-admin gate shows the admin-locked note + tooltip (4d). Then
@@ -391,14 +391,14 @@ function clickFormButton(iframe, sid, selector) {
         const form = anchor && anchor.closest('.gate-expand-form');
         const html = form ? form.innerHTML : '';
         return {
-          externalBeforeRelay: html.indexOf('External Opens') > -1 && html.indexOf('Relay Mode') > -1 &&
-            html.indexOf('External Opens') < html.indexOf('Relay Mode'),
+          relayBeforeExternal: html.indexOf('External Opens') > -1 && html.indexOf('Relay Mode') > -1 &&
+            html.indexOf('Relay Mode') < html.indexOf('External Opens'),
           detectToggle: !!document.getElementById('detectExternal-' + sid),
           detectTag: !!document.getElementById('detectExternalTag-' + sid),
           relayTag: !!document.getElementById('relayEnabledTag-' + sid),
         };
       }, sid);
-      check(ui.externalBeforeRelay, 'External Opens section is ordered above Relay Mode');
+      check(ui.relayBeforeExternal, 'Relay Mode section is ordered above External Opens');
       if (target.admin) {
         check(ui.detectToggle && ui.detectTag,
           'admin gate exposes External Opens toggle + "(global default)" tag',

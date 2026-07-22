@@ -35,10 +35,10 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
   The plugin supports PalGate devices that control multiple gates as well as devices controlling a single gate.
 
 - **Hold Open & Hold Closed Control:**  
-  Control the gate's latch relays from HomeKit to hold it open or closed. Expose them as locks, switches, or valves — a valve adds a native countdown timer for a timed hold ("hold open for 30 minutes, then return to normal").
+  Control the gate's latch relays from HomeKit to hold it open or closed. Expose them as locks, switches, or valves. Requires Latch permissions on the gate.
 
 - **External-Open Detection:**  
-  Poll the PalGate operation log and animate the accessory when a gate is opened outside HomeKit (from the PalGate app, a dial-in call, or another remote). This also gives you native Home-app "opened" notifications.
+  Poll the PalGate operation log and animate the accessory when a gate is opened outside HomeKit (from the PalGate app, a dial-in call, or another remote). This also gives you native Home-app "opened" notifications. Requires Admin permissions on the gate.
 
 - **CLI Support:**  
   All the main PalGate API features are supported through the custom CLI. 
@@ -194,15 +194,6 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 - **Stateless**: Every tap sends an open command, even if the accessory is already open or mid-cycle. Best for gates you may want to re-trigger, or where the on-screen state doesn't matter.
 - **Momentary**: Sends an open command, then immediately snaps back to closed/locked/off with no open window. Best for a push-button feel, or for triggering from automations and Siri.
 
-#### External-Open Detection
-When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened outside HomeKit — from the PalGate app, a dial-in call, or another remote.
-
-* **Permissions:** requires **admin** access to the gate — the plugin reads the operation log (no latch permission needed). An admin can grant it in the PalGate app: **Gate Settings → Manager Options → Users → [this account] → Assign Admin**. Without it, detection is skipped and the gate shows a note.
-* This surfaces native Home-app "opened" notifications for those events.
-* The plugin never replays history: on startup it only reacts to opens that happen from then on.
-* Opens triggered by the plugin itself (your own HomeKit taps) are de-duplicated so you won't see a doubled animation. The match window is at least 30 seconds and automatically grows to the poll interval, so a self-open is never misreported even with a long `logPollInterval`. Opens by your account from the PalGate app well after any HomeKit action are still surfaced.
-* Detection is read-only — it never issues an open command; it only mirrors what already happened.
-
 #### Relay Mode
 Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (hold open) or "Always Closed" (hold closed) state.
 
@@ -218,6 +209,15 @@ Set `relayAccessoryType` to `"valve"` (globally) or `relayValve: true` (per gate
   * The native duration picker **caps at 1 hour**.
   * If Homebridge restarts mid-countdown, the hold is **released to normal** on startup to avoid issues.
 * You can get a timed hold without Valve Mode: with the Switch relay type, create a Home automation **"When Hold Open turns On → Turn Off after N hours"** (the Home app offers an auto-off delay up to 4 hours). When the switch turns off, the plugin returns the relay to normal. You can also use a pair of automations to enable and disable any of the Relay types (Switch, Lock, or Valve) on a schedule.
+
+#### External-Open Detection
+When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened outside HomeKit — from the PalGate app, a dial-in call, or another remote.
+
+* **Permissions:** requires **admin** access to the gate — the plugin reads the operation log (no latch permission needed). An admin can grant it in the PalGate app: **Gate Settings → Manager Options → Users → [this account] → Assign Admin**. Without it, detection is skipped and the gate shows a note.
+* This surfaces native Home-app "opened" notifications for those events.
+* The plugin never replays history: on startup it only reacts to opens that happen from then on.
+* Opens triggered by the plugin itself (your own HomeKit taps) are de-duplicated so you won't see a doubled animation. The match window is at least 30 seconds and automatically grows to the poll interval, so a self-open is never misreported even with a long `logPollInterval`. Opens by your account from the PalGate app well after any HomeKit action are still surfaced.
+* Detection is read-only — it never issues an open command; it only mirrors what already happened.
 
 
 ## Support Me
