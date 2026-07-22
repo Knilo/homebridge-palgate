@@ -6,11 +6,18 @@ Conventions and context for working in this repo (a Homebridge plugin for PalGat
 PalGate admin panel — user management, log-browsing UIs, scheduling engines, etc. are out
 of scope. Every feature should make the gates behave like first-class HomeKit accessories.
 
-## Commit messages
+## Commits
+- **Commit as you go.** Make small, focused commits — one logical change each — as each
+  piece of work is finished and verified, rather than batching everything into one big
+  commit at the end. This keeps history readable and easy to revert.
+- **One concern per commit.** Don't mix unrelated changes (e.g. a feature and a doc tidy, or
+  two separate fixes) in the same commit — split them into separate commits.
+- Verify before committing: run the relevant tests, and leave the working tree clean after
+  each commit.
 - Conventional Commits, lowercase: `feat`, `fix`, `docs`, `test`, `chore`, `style`, `ci`.
   Scopes seen: `ui`, `api`, `platform`, `e2e`, `deps`. Combine when a change spans areas —
   e.g. `fix(ui):`, `chore(deps):`, `docs+ui:`, `fix(api)+test:`.
-- Keep them **short** — a single concise title line. Add at most a one-line body when it
+- Keep messages **short** — a single concise title line. Add at most a one-line body when it
   genuinely adds context; avoid long multi-paragraph bodies.
 - **No `Co-Authored-By` trailer.**
 - Commit directly to `master` (repo convention). Version bumps are their own commit:
