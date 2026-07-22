@@ -147,7 +147,7 @@
 			},
 			"detectExternalOpens": {
 				"title": "Detect External Opens",
-				"description": "Poll the PalGate operation log and animate accessories when a gate is opened outside HomeKit (PalGate app, dial-in call, another remote). Gives you native Home-app 'opened' notifications.",
+				"description": "Poll the PalGate operation log and animate accessories when a gate is opened from the PalGate app or a dial-in call (the opens PalGate records). Gives you native Home-app 'opened' notifications.",
 				"type": "boolean",
 				"default": false
 			},

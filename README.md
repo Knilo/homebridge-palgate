@@ -38,7 +38,7 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
   Control the gate's latch relays from HomeKit to hold it open or closed. Expose them as locks, switches, or valves. Requires Latch permissions on the gate.
 
 - **External-Open Detection:**  
-  Poll the PalGate operation log and animate the accessory when a gate is opened outside HomeKit (from the PalGate app, a dial-in call, or another remote). This also gives you native Home-app "opened" notifications. Requires Admin permissions on the gate.
+  Poll the PalGate operation log and animate the accessory when a gate is opened from the PalGate app or a dial-in call — the opens PalGate records. This also gives you native Home-app "opened" notifications. Requires Admin permissions on the gate.
 
 - **CLI Support:**  
   All the main PalGate API features are supported through the custom CLI. 
@@ -151,7 +151,7 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 | `gateOpeningDelay` | The first part (ms) of the open window. A `garageDoor` shows it as the "Opening" state before "Open"; a `switch` or `lock` has no "Opening" state, but the time still counts toward how long it stays on/unlocked. The full window is `gateOpeningDelay` + `gateCloseDelay` for every type. Default is `1000`. |
 | `gateCloseDelay` | The second part (ms) of the open window, after `gateOpeningDelay`, before the accessory returns to closed/locked/off. The full window is `gateOpeningDelay` + `gateCloseDelay`. Default is `5000`. |
 | `pollInterval` | How often (in seconds) the plugin checks the PalGate API for changes made outside HomeKit, such as a relay toggled by another admin. Default is `60`, minimum `10`. |
-| `detectExternalOpens` | Poll the PalGate operation log and animate accessories when a gate is opened outside HomeKit (PalGate app, dial-in call, another remote). Applies only to gates where you have admin access (the operation log is admin-only; no latch permission required). Default is `false`. |
+| `detectExternalOpens` | Poll the PalGate operation log and animate accessories when a gate is opened from the PalGate app or a dial-in call (the opens PalGate records). Applies only to gates where you have admin access (the operation log is admin-only; no latch permission required). Default is `false`. |
 | `logPollInterval` | How often (in seconds) to poll the operation log for external opens. Only applies when `detectExternalOpens` is enabled. Default is `15`, minimum `5`. |
 | `enableRelayLocks` | Expose virtual relay accessories (Hold Open / Hold Closed) for gates where you have latch permission. Default is `false`. |
 | `relayAccessoryType` | The accessory type to use for global virtual relay controllers. Valid values are `"lock"`, `"switch"`, or `"valve"`. Default is `"lock"`. |
@@ -211,7 +211,7 @@ Set `relayAccessoryType` to `"valve"` (globally) or `relayValve: true` (per gate
 * You can get a timed hold without Valve Mode: with the Switch relay type, create a Home automation **"When Hold Open turns On → Turn Off after N hours"** (the Home app offers an auto-off delay up to 4 hours). When the switch turns off, the plugin returns the relay to normal. You can also use a pair of automations to enable and disable any of the Relay types (Switch, Lock, or Valve) on a schedule.
 
 #### External-Open Detection
-When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened outside HomeKit — from the PalGate app, a dial-in call, or another remote.
+When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened from the PalGate app or a dial-in call — the opens PalGate records in its log. Opens that don't go through PalGate (such as a physical remote, key fob, or keypad) aren't logged, so they can't be detected.
 
 * **Permissions:** requires **admin** access to the gate — the plugin reads the operation log (no latch permission needed). An admin can grant it in the PalGate app: **Gate Settings → Manager Options → Users → [this account] → Assign Admin**. Without it, detection is skipped and the gate shows a note.
 * This surfaces native Home-app "opened" notifications for those events.
