@@ -34,11 +34,11 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - **Multi-Gate Device Support:**  
   The plugin supports PalGate devices that control multiple gates as well as devices controlling a single gate.
 
-- **External-Open Detection (opt-in):**  
-  Poll the PalGate operation log and animate the accessory when a gate is opened outside HomeKit (from the PalGate app, a dial-in call, or another remote). This also gives you native Home-app "opened" notifications for free.
+- **Hold Open & Hold Closed Control:**  
+  Control the gate's latch relays from HomeKit to hold it open or closed. Expose them as locks, switches, or valves — a valve adds a native countdown timer for a timed hold ("hold open for 30 minutes, then return to normal").
 
-- **Timed Hold via Valve Mode (opt-in):**  
-  Expose the Hold Open / Hold Closed relays as HomeKit Valves so you can set a duration and watch a live countdown natively in the Home app ("hold open for 30 minutes, then return to normal").
+- **External-Open Detection:**  
+  Poll the PalGate operation log and animate the accessory when a gate is opened outside HomeKit (from the PalGate app, a dial-in call, or another remote). This also gives you native Home-app "opened" notifications.
 
 - **CLI Support:**  
   All the main PalGate API features are supported through the custom CLI. 
