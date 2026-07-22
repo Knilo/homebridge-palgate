@@ -194,6 +194,15 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 - **Stateless**: Every tap sends an open command, even if the accessory is already open or mid-cycle. Best for gates you may want to re-trigger, or where the on-screen state doesn't matter.
 - **Momentary**: Sends an open command, then immediately snaps back to closed/locked/off with no open window. Best for a push-button feel, or for triggering from automations and Siri.
 
+#### External-Open Detection
+When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened outside HomeKit — from the PalGate app, a dial-in call, or another remote.
+
+* **Admin only:** the operation log is accessible only to gate admins (no latch permission is required, unlike Relay Mode). Detection is offered only for gates where you have admin access; non-admin gates show a note explaining this and are never polled.
+* This surfaces native Home-app "opened" notifications for those events.
+* The plugin never replays history: on startup it only reacts to opens that happen from then on.
+* Opens triggered by the plugin itself (your own HomeKit taps) are de-duplicated so you won't see a doubled animation. The match window is at least 30 seconds and automatically grows to the poll interval, so a self-open is never misreported even with a long `logPollInterval`. Opens by your account from the PalGate app well after any HomeKit action are still surfaced.
+* Detection is read-only — it never issues an open command; it only mirrors what already happened.
+
 #### Relay Mode
 Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (latch/hold open) or "Always Closed" (hold closed) state.
 * **Important Permissions Required**: 
@@ -209,18 +218,8 @@ Set `relayAccessoryType` to `"valve"` (globally) or `relayValve: true` (per gate
   * The Home app renders valves with **water iconography** (a faucet/sprinkler tile) — there's no gate glyph for valves.
   * The native duration picker **caps at 1 hour**.
   * If Homebridge restarts mid-countdown, the hold is **released to normal** on startup to avoid issues.
+* You can get a timed hold without Valve Mode: with the Switch relay type, create a Home automation **"When Hold Open turns On → Turn Off after N hours"** (the Home app offers an auto-off delay up to 4 hours). When the switch turns off, the plugin returns the relay to normal. You can also use a pair of automations to enable and disable any of the Relay types (Switch, Lock, or Valve) on a schedule.
 
-#### Timed Hold Without Valve Mode
-If you prefer the Switch relay type but still want a timed hold, you can use an automation to achieve this. Create an automation **"When \<Gate\> Hold Open turns On → Turn Off after 4 hours"**. The Home app offers an auto-off delay (up to 4 hours) on accessories toggled by an automation. When the switch turns off, the plugin returns the relay to normal mode.
-
-#### External-Open Detection
-When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened outside HomeKit — from the PalGate app, a dial-in call, or another remote.
-
-* **Admin only:** the operation log is accessible only to gate admins (no latch permission is required, unlike Relay Mode). Detection is offered only for gates where you have admin access; non-admin gates show a note explaining this and are never polled.
-* This surfaces native Home-app "opened" notifications for those events.
-* The plugin never replays history: on startup it only reacts to opens that happen from then on.
-* Opens triggered by the plugin itself (your own HomeKit taps) are de-duplicated so you won't see a doubled animation. The match window is at least 30 seconds and automatically grows to the poll interval, so a self-open is never misreported even with a long `logPollInterval`. Opens by your account from the PalGate app well after any HomeKit action are still surfaced.
-* Detection is read-only — it never issues an open command; it only mirrors what already happened.
 
 ## Support Me
 
