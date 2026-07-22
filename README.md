@@ -197,17 +197,16 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 #### External-Open Detection
 When `detectExternalOpens` is enabled, the plugin polls the PalGate operation log (`logPollInterval`, default 15s) and animates the matching accessory whenever the gate is opened outside HomeKit — from the PalGate app, a dial-in call, or another remote.
 
-* **Admin only:** the operation log is accessible only to gate admins (no latch permission is required, unlike Relay Mode). Detection is offered only for gates where you have admin access; non-admin gates show a note explaining this and are never polled.
+* **Permissions:** requires **admin** access to the gate — the plugin reads the operation log (no latch permission needed). An admin can grant it in the PalGate app: **Gate Settings → Manager Options → Users → [this account] → Assign Admin**. Without it, detection is skipped and the gate shows a note.
 * This surfaces native Home-app "opened" notifications for those events.
 * The plugin never replays history: on startup it only reacts to opens that happen from then on.
 * Opens triggered by the plugin itself (your own HomeKit taps) are de-duplicated so you won't see a doubled animation. The match window is at least 30 seconds and automatically grows to the poll interval, so a self-open is never misreported even with a long `logPollInterval`. Opens by your account from the PalGate app well after any HomeKit action are still surfaced.
 * Detection is read-only — it never issues an open command; it only mirrors what already happened.
 
 #### Relay Mode
-Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (latch/hold open) or "Always Closed" (hold closed) state.
-* **Important Permissions Required**: 
-  Make sure the user (phone) that this gate is linked through, has the special permission for this action (on Palgate app, admin user: **Gate settings** -> **Manager Options** -> **Users** -> **Selected user** -> **"Latch Output 1"**).
-* **Availability**: If the linked phone's user does not have the right permission, the Relays will not be exposed to Homekit. Once permission is granted, it will become operational.
+Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (hold open) or "Always Closed" (hold closed) state.
+
+* **Permissions:** requires **latch** permission for the output. An admin can grant it in the PalGate app: **Gate Settings → Manager Options → Users → [this account] → Latch Output**. Without it, the relay accessories aren't exposed to HomeKit.
 
 #### Valve Mode
 Set `relayAccessoryType` to `"valve"` (globally) or `relayValve: true` (per gate) to expose the Hold Open / Hold Closed relays as HomeKit **Valves**. Valves are the only HAP service with a native duration UI, so the Home app shows a live countdown on the tile and lets you set a default run time in the accessory's settings.
