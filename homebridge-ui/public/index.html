@@ -187,34 +187,32 @@
 <!-- ── Account Section ─────────────────────────────────────────── -->
 <div class="card card-body mb-3">
   <div class="d-flex align-items-center justify-content-between mb-2">
-    <h6 class="mb-0"><i class="fas fa-link me-2"></i>PalGate Account</h6>
+    <h6 class="mb-0"><i class="fas fa-link me-2"></i>PalGate Accounts</h6>
     <span class="badge bg-success d-none" id="linkedBadge">
       <i class="fas fa-check me-1"></i>Linked
     </span>
   </div>
 
-  <!-- Shown when already linked -->
-  <div id="linkedStateArea" class="d-none">
-    <div class="d-flex align-items-center justify-content-between">
-      <div>
-        <div class="fw-bold small" id="linkedPhone"></div>
-        <div class="text-muted" style="font-size: 0.8rem;" id="linkedTokenType"></div>
-      </div>
-      <button class="btn btn-primary btn-sm" id="relinkBtn">
-        <i class="fas fa-sync me-1"></i>Re-link
-      </button>
-    </div>
+  <!-- Linked accounts (one row per account) -->
+  <div id="accountList"></div>
+
+  <!-- Add-account button (shown once at least one account is linked) -->
+  <div id="addAccountArea" class="d-none mt-2">
+    <button class="btn btn-outline-primary btn-sm" id="addAccountBtn">
+      <i class="fas fa-link me-1"></i>Add Account
+    </button>
   </div>
 
-  <!-- Shown when not linked (or re-linking) -->
+  <!-- QR linking flow — shown on first run and when adding/re-linking an account -->
   <div id="linkingFlowArea">
-    <p class="text-muted small mb-3">
+    <p class="text-muted small mb-3" id="linkingIntro">
       Connect your PalGate account by scanning a QR code in the PalGate app
       (<strong>Device Linking → Link a Device</strong>).
     </p>
     <button class="btn btn-primary" id="generateQR">
       <i class="fas fa-qrcode me-2"></i>Connect to PalGate
     </button>
+    <button class="btn btn-outline-secondary ms-2 d-none" id="cancelLink">Cancel</button>
     <div id="qrCodeArea" class="mt-3 text-center"></div>
     <div id="linkStatus" class="mt-2"></div>
   </div>
@@ -443,6 +441,10 @@ function withTimeout(promise, ms, message) {
   let pollInFlight = false;
   let manualConfigVisible = false;
   let qrSessionId = 0;
+  // Account linking flow state: whether the QR flow is currently shown, and — when
+  // re-linking — which existing account (by id) the completed link should replace.
+  let linkFlowVisible = false;
+  let relinkTargetId = null;
   // Shared across manual Discover, post-link autoDiscover, and the Configure-triggered
   // discovery so they can't stack into overlapping getDevices calls (PalGate 429 risk)
   // or racing re-renders.
@@ -469,7 +471,7 @@ function withTimeout(promise, ms, message) {
     if (stored !== null) manualConfigVisible = stored === 'true';
   } catch (_) {}
 
-  renderLinkedState();
+  renderAccounts();
   updateManualConfigVisibility();
   updateDiscoverButtonState();
   initDefaultSettings();
@@ -486,7 +488,8 @@ function withTimeout(promise, ms, message) {
 
   // ── Event listeners ───────────────────────────────────────────────
   document.getElementById('generateQR').addEventListener('click', handleGenerateQR);
-  document.getElementById('relinkBtn').addEventListener('click', handleRelink);
+  document.getElementById('addAccountBtn').addEventListener('click', handleAddAccount);
+  document.getElementById('cancelLink').addEventListener('click', handleCancelLink);
   document.getElementById('discoverGates').addEventListener('click', handleDiscoverGates);
   document.getElementById('toggleManualConfig').addEventListener('click', handleToggleManualConfig);
 
@@ -595,21 +598,78 @@ function withTimeout(promise, ms, message) {
     }
   }
 
-  // ── Linked State ──────────────────────────────────────────────────
-  function renderLinkedState() {
-    const isLinked = hasLinkingCredentials();
-    document.getElementById('linkedBadge').classList.toggle('d-none', !isLinked);
-    document.getElementById('linkedStateArea').classList.toggle('d-none', !isLinked);
-    document.getElementById('linkingFlowArea').classList.toggle('d-none', isLinked);
-
-    if (isLinked) {
-      document.getElementById('linkedPhone').textContent = config.phoneNumber;
-      document.getElementById('linkedTokenType').textContent =
-        TOKEN_TYPE_LABELS[config.tokenType] ?? `Token type ${config.tokenType}`;
+  // ── Accounts ──────────────────────────────────────────────────────
+  // Normalized view of the linked accounts. Reads config.accounts, falling back to the
+  // legacy top-level token/phoneNumber/tokenType as a single implicit account so existing
+  // single-account configs keep working untouched. An account's id is its phone number.
+  function getAccounts() {
+    const norm = (a, i) => ({
+      id: String(a.phoneNumber),
+      label: (a.label && String(a.label).trim()) || `Account ${i + 1}`,
+      token: a.token,
+      phoneNumber: String(a.phoneNumber),
+      tokenType: parseInt(a.tokenType, 10),
+    });
+    const valid = a => a && a.token && a.phoneNumber && a.tokenType !== undefined && a.tokenType !== null;
+    if (Array.isArray(config.accounts) && config.accounts.length > 0) {
+      return config.accounts.filter(valid).map(norm);
     }
+    if (valid(config)) return [norm(config, 0)];
+    return [];
+  }
+
+  // Writes the working account list back into config.accounts and clears the legacy
+  // top-level credentials once superseded, so there's a single source of truth on disk.
+  function writeAccounts(accounts) {
+    config.accounts = accounts.map(a => ({
+      label: a.label, token: a.token, phoneNumber: a.phoneNumber, tokenType: a.tokenType,
+    }));
+    if (config.accounts.length > 0) {
+      config.token = undefined;
+      config.phoneNumber = undefined;
+      config.tokenType = undefined;
+    }
+  }
+
+  function renderAccounts() {
+    const accounts = getAccounts();
+    const isLinked = accounts.length > 0;
+    document.getElementById('linkedBadge').classList.toggle('d-none', !isLinked);
+
+    const listEl = document.getElementById('accountList');
+    listEl.innerHTML = '';
+    accounts.forEach(acct => {
+      const typeLabel = TOKEN_TYPE_LABELS[acct.tokenType] ?? `Token type ${acct.tokenType}`;
+      const row = document.createElement('div');
+      row.className = 'd-flex align-items-center justify-content-between py-2';
+      row.style.borderTop = '1px solid rgba(255,255,255,0.06)';
+      row.innerHTML = `
+        <div style="min-width:0;">
+          <div class="fw-bold small">${escapeHtml(acct.label)}</div>
+          <div class="text-muted" style="font-size:0.8rem;">${escapeHtml(acct.phoneNumber)} · ${escapeHtml(typeLabel)}</div>
+        </div>
+        <div class="d-flex gap-2 flex-shrink-0">
+          <button class="btn btn-outline-secondary btn-sm" data-relink="${escapeHtml(acct.id)}"><i class="fas fa-sync me-1"></i>Re-link</button>
+          <button class="btn btn-outline-danger btn-sm" data-remove="${escapeHtml(acct.id)}">Remove</button>
+        </div>`;
+      listEl.appendChild(row);
+    });
+    listEl.querySelectorAll('[data-relink]').forEach(b =>
+      b.addEventListener('click', () => handleRelinkAccount(b.getAttribute('data-relink'))));
+    listEl.querySelectorAll('[data-remove]').forEach(b =>
+      b.addEventListener('click', () => handleRemoveAccount(b.getAttribute('data-remove'))));
+
+    // With accounts linked, default to the compact list + Add button and hide the QR flow
+    // until the user explicitly adds or re-links. With none, show the QR flow (first run).
+    document.getElementById('addAccountArea').classList.toggle('d-none', !isLinked || linkFlowVisible);
+    document.getElementById('linkingFlowArea').classList.toggle('d-none', isLinked && !linkFlowVisible);
+
+    const intro = document.getElementById('linkingIntro');
+    if (intro) intro.textContent = relinkTargetId
+      ? 'Re-link this account by scanning a fresh QR code in the PalGate app (Device Linking → Link a Device).'
+      : 'Connect your PalGate account by scanning a QR code in the PalGate app (Device Linking → Link a Device).';
 
     // Gates card hint tracks linked state: point at linking first, discovery second.
-    // Hidden entirely once gates render.
     const hint = document.getElementById('gateListHint');
     if (hint) {
       hint.textContent = isLinked
@@ -618,12 +678,60 @@ function withTimeout(promise, ms, message) {
     }
   }
 
-  function handleRelink() {
-    document.getElementById('linkedBadge').classList.add('d-none');
-    document.getElementById('linkedStateArea').classList.add('d-none');
-    document.getElementById('linkingFlowArea').classList.remove('d-none');
+  // Reveal the QR flow to add a brand-new account.
+  function handleAddAccount() {
+    relinkTargetId = null;
+    linkFlowVisible = true;
+    renderAccounts();
+    handleGenerateQR();
+  }
+
+  // Reveal the QR flow to replace an existing account's credentials (keeps its label).
+  function handleRelinkAccount(id) {
+    relinkTargetId = id;
+    linkFlowVisible = true;
+    renderAccounts();
+    handleGenerateQR();
+  }
+
+  function handleCancelLink() {
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    linkingComplete = false;
+    linkFlowVisible = false;
+    relinkTargetId = null;
     document.getElementById('qrCodeArea').innerHTML = '';
     setStatus(document.getElementById('linkStatus'));
+    restoreConnectButton();
+    renderAccounts();
+  }
+
+  // Merges a freshly linked account into the list. On re-link (relinkTargetId set) the old
+  // entry's label is preserved and it's replaced even if its phone number changed; otherwise
+  // a same-phone account is updated in place, and a genuinely new account gets "Account N".
+  function upsertLinkedAccount(creds) {
+    const accounts = getAccounts();
+    const prior = accounts.find(a => a.id === relinkTargetId) || accounts.find(a => a.id === creds.phoneNumber);
+    const label = (prior && prior.label) || `Account ${accounts.length + 1}`;
+    const remaining = accounts.filter(a => a.id !== creds.phoneNumber && a.id !== relinkTargetId);
+    remaining.push({ label, token: creds.token, phoneNumber: creds.phoneNumber, tokenType: creds.tokenType });
+    writeAccounts(remaining);
+  }
+
+  async function handleRemoveAccount(id) {
+    const remaining = getAccounts().filter(a => a.id !== id);
+    try {
+      safeShowSpinner();
+      await syncConfigFromSdk();
+      writeAccounts(remaining);
+      await persistPluginConfig();
+      homebridge.toast.success('Account removed. Restart Homebridge to apply changes.', 'Accounts');
+      // Re-discover so the gate list reflects the removed account's gates disappearing.
+      if (hasLinkingCredentials()) autoDiscover(true); else renderGateList([]);
+    } catch (err) {
+      homebridge.toast.error(formatError(err), 'Remove Failed');
+    } finally {
+      safeHideSpinner();
+    }
   }
 
   // ── QR / Linking flow ─────────────────────────────────────────────
@@ -642,8 +750,10 @@ function withTimeout(promise, ms, message) {
       const initData = await homebridge.request('/link/init');
       if (!initData.success) throw new Error(initData.error || 'Failed to initiate linking.');
 
-      // Hide the button — QR code takes over the space
+      // Hide the button — QR code takes over the space. Reveal Cancel so the user can
+      // back out of an add/re-link without abandoning the whole settings screen.
       generateBtn.style.display = 'none';
+      document.getElementById('cancelLink').classList.remove('d-none');
       document.getElementById('qrCodeArea').innerHTML = `
         <img src="${initData.qrCode}" alt="QR Code" class="img-fluid mb-2" style="max-width:200px;">
         <p class="text-muted small mb-0">Open the PalGate app → Device Linking → Link a Device</p>
@@ -668,6 +778,8 @@ function withTimeout(promise, ms, message) {
       btn.disabled = false;
       btn.innerHTML = '<i class="fas fa-qrcode me-2"></i>Connect to PalGate';
     }
+    const cancel = document.getElementById('cancelLink');
+    if (cancel) cancel.classList.add('d-none');
   }
 
   function startConfirmationPolling(uniqueId, sessionId) {
@@ -696,16 +808,22 @@ function withTimeout(promise, ms, message) {
           if (linkingComplete) return;
           linkingComplete = true;
           if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+          document.getElementById('cancelLink').classList.add('d-none');
           document.getElementById('qrCodeArea').innerHTML = '';
           setStatus(document.getElementById('linkStatus'), 'success', 'Linking complete.');
           homebridge.toast.success('Device linked successfully!', 'Linked');
           // Sync fresh so credentials merge into (not clobber) any manual-form edits;
           // best-effort so a transient read failure never blocks a completed link.
           try { await syncConfigFromSdk(); } catch (_) {}
-          config.token = data.sessionToken;
-          config.phoneNumber = data.phoneNumber;
-          config.tokenType = parseInt(data.tokenType, 10);
+          upsertLinkedAccount({
+            token: data.sessionToken,
+            phoneNumber: String(data.phoneNumber),
+            tokenType: parseInt(data.tokenType, 10),
+          });
+          linkFlowVisible = false;
+          relinkTargetId = null;
           await persistPluginConfig();
+          renderAccounts();
           autoDiscover();
         } else if (data.waiting) {
           // Still waiting — nothing to update
@@ -759,12 +877,36 @@ function withTimeout(promise, ms, message) {
   // Discovery timeout/backoff/sequence state lives in the State section above — it
   // must be initialized before the on-load autoDiscover call in Init.
 
-  function discoverRequest() {
-    return withTimeout(homebridge.request('/devices/discover', {
-      token: config.token,
-      phoneNumber: config.phoneNumber,
-      tokenType: config.tokenType
-    }), DISCOVER_TIMEOUT_MS, 'Discovery timed out.');
+  // Discovers gates across every linked account and merges them into one list. Each account
+  // is queried with its own credentials; a gate seen in more than one account (a physically
+  // shared gate) is kept once, tagged to the first account in order. Resolves with the same
+  // { success, gates } shape as a single call so callers are unchanged; success is true if
+  // any account succeeded, and gates carry accountId/accountLabel for display.
+  async function discoverRequest() {
+    const accounts = getAccounts();
+    const merged = [];
+    const seen = new Set();
+    let anySuccess = false;
+    let lastError = null;
+    for (const acct of accounts) {
+      let data;
+      try {
+        data = await withTimeout(homebridge.request('/devices/discover', {
+          token: acct.token,
+          phoneNumber: acct.phoneNumber,
+          tokenType: acct.tokenType,
+        }), DISCOVER_TIMEOUT_MS, 'Discovery timed out.');
+      } catch (err) { lastError = err; continue; }
+      if (!data || !data.success) { lastError = new Error((data && data.error) || 'Discovery failed.'); continue; }
+      anySuccess = true;
+      (data.gates || []).forEach(g => {
+        if (seen.has(g.deviceId)) return;
+        seen.add(g.deviceId);
+        merged.push(Object.assign({}, g, { accountId: acct.id, accountLabel: acct.label }));
+      });
+    }
+    if (!anySuccess && lastError) return { success: false, error: formatError(lastError) };
+    return { success: true, gates: merged };
   }
 
   // Discovery is read-only: results live in discoveredGates and are never written to
@@ -920,11 +1062,16 @@ function withTimeout(promise, ms, message) {
 
     const typeRow = buildTypeIconRow(gate, customEntry);
     const triggerRow = buildTriggerModeRow(customEntry);
+    // Which account this gate belongs to — only worth showing when more than one is linked.
+    const accountRow = (getAccounts().length > 1 && gate.accountLabel)
+      ? `<div class="text-muted mb-1" style="font-size:0.78rem;"><i class="fas fa-link me-1"></i>${escapeHtml(gate.accountLabel)}</div>`
+      : '';
 
     card.innerHTML = `
       <div class="d-flex justify-content-between align-items-start gap-2">
         <div style="min-width:0; flex:1;">
           <div class="fw-bold mb-1">${escapeHtml(displayName)}</div>
+          ${accountRow}
           <div class="mb-1">${typeRow}</div>
           ${triggerRow ? `<div class="mb-1">${triggerRow}</div>` : ''}
           <div class="text-muted gate-caps" style="font-size:0.73rem;">${capsHtml(gate)}</div>
@@ -1647,7 +1794,7 @@ function withTimeout(promise, ms, message) {
       new Promise(resolve => setTimeout(resolve, 500)),
     ]);
 
-    renderLinkedState();
+    renderAccounts();
     updateDiscoverButtonState();
   }
 
@@ -1676,12 +1823,7 @@ function withTimeout(promise, ms, message) {
 
   // ── Helpers ───────────────────────────────────────────────────────
   function hasLinkingCredentials() {
-    return Boolean(
-      config.token &&
-      config.phoneNumber &&
-      config.tokenType !== undefined &&
-      config.tokenType !== null
-    );
+    return getAccounts().length > 0;
   }
 
   function updateDiscoverButtonState() {
