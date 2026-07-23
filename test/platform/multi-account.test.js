@@ -91,7 +91,7 @@ test('each accessory is tagged with the account that discovered it', async () =>
   assert.equal(b.context.accountId, PHONE_B);
 });
 
-test('a gate shared across accounts is registered once; first account in order wins', async () => {
+test('a gate shared across accounts with equal privileges is registered once; first account wins', async () => {
   routeDevicesByAccount({
     [PHONE_A]: [{ id: 'SHARED', name1: 'Shared Gate', output1: true }],
     [PHONE_B]: [{ id: 'SHARED', name1: 'Shared Gate', output1: true }],
@@ -101,8 +101,27 @@ test('a gate shared across accounts is registered once; first account in order w
   api.emit('shutdown');
   assert.deepEqual(accessorySummary(api), ['SHARED|garageDoor|Shared Gate']);
   const shared = api.registered.find(x => x.context.deviceId === 'SHARED');
-  assert.equal(shared.context.accountId, PHONE_A, 'first account (Home) owns the shared gate');
+  assert.equal(shared.context.accountId, PHONE_A, 'first account (Home) owns the shared gate on a tie');
   assert.ok(log.has('info', /already managed by "Home"/));
+});
+
+test('a shared gate is operated by the account with elevated (latch/admin) privileges, not just the first', async () => {
+  routeDevicesByAccount({
+    // Home is listed first but has no special permissions on the shared gate.
+    [PHONE_A]: [{ id: 'SHARED', name1: 'Shared Gate', output1: true }],
+    // Office has latch + admin — it must win ownership so relay/external-open keep working.
+    [PHONE_B]: [{ id: 'SHARED', name1: 'Shared Gate', output1: true, output1Latch: true, admin: true }],
+  });
+  const { api, log } = makePlatform({ ...TWO_ACCOUNTS, enableRelayLocks: true });
+  await api.launch();
+  api.emit('shutdown');
+  assert.deepEqual(accessorySummary(api), [
+    'SHARED|garageDoor|Shared Gate',
+    'SHARED|holdClosedLock|Shared Gate Hold Closed',
+    'SHARED|holdOpenLock|Shared Gate Hold Open',
+  ], 'relay accessories exist because the latch-capable account (Office) owns the gate');
+  api.registered.forEach(acc => assert.equal(acc.context.accountId, PHONE_B, 'Office (elevated) owns every accessory for the shared gate'));
+  assert.ok(log.has('info', /higher privileges than "Home"/));
 });
 
 test('opening a gate uses its owning account credentials', async () => {
