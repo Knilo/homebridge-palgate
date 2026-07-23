@@ -619,30 +619,33 @@ async function waitForGates(iframe, timeoutMs) {
       const { phase, gates: scenGates } = await waitForGates(scenIframe, GATE_LIST_TIMEOUT_MS);
       gateCountByScenario[scenario.n] = scenGates.length;
 
-      const ui = await scenIframe.evaluate(() => {
+      const ui = await scenIframe.evaluate((n) => {
         const list = document.getElementById('accountList');
-        const relink = list ? [...list.querySelectorAll('button[data-relink]')] : [];
-        const remove = list ? [...list.querySelectorAll('button[data-remove]')] : [];
+        const kebabs = list ? list.querySelectorAll('[data-kebab]') : [];
+        const relink = list ? [...list.querySelectorAll('[data-relink]')] : [];
+        const remove = list ? [...list.querySelectorAll('[data-remove]')] : [];
         const addArea = document.getElementById('addAccountArea');
-        const solid = (els, cls) => els.length > 0 && els.every(b => b.classList.contains(cls) && !b.className.includes('outline'));
+        const countEl = document.getElementById('accountCount');
         return {
           cards: list ? list.querySelectorAll('.card').length : 0,
+          kebabs: kebabs.length,
           relink: relink.length,
           remove: remove.length,
-          relinkSolid: solid(relink, 'btn-primary'),
-          removeSolid: solid(remove, 'btn-danger'),
+          removeDanger: remove.length > 0 && remove.every(b => b.classList.contains('pg-menu-danger')),
           addVisible: !!addArea && !addArea.classList.contains('d-none'),
-          badge: !document.getElementById('linkedBadge').classList.contains('d-none'),
+          countText: countEl ? countEl.textContent.trim() : '',
+          countVisible: !!countEl && !countEl.classList.contains('d-none'),
           affiliation: !!document.querySelector('#gateList .card i.fa-link'),
         };
-      });
+      }, scenario.n);
 
-      check(ui.cards === scenario.n && ui.badge,
-        `[${scenario.name}] accounts section renders ${scenario.n} account card(s)`,
-        `cards=${ui.cards} badge=${ui.badge}`);
-      check(ui.relink === scenario.n && ui.remove === scenario.n && ui.relinkSolid && ui.removeSolid,
-        `[${scenario.name}] each account has a solid Re-link + Remove button`,
-        `relink=${ui.relink}(solid=${ui.relinkSolid}) remove=${ui.remove}(solid=${ui.removeSolid})`);
+      const expectedCount = `${scenario.n} account${scenario.n === 1 ? '' : 's'}`;
+      check(ui.cards === scenario.n && ui.kebabs === scenario.n && ui.countVisible && ui.countText === expectedCount,
+        `[${scenario.name}] accounts section renders ${scenario.n} card(s) + "${expectedCount}" count`,
+        `cards=${ui.cards} kebabs=${ui.kebabs} count="${ui.countText}"`);
+      check(ui.relink === scenario.n && ui.remove === scenario.n && ui.removeDanger,
+        `[${scenario.name}] each account's kebab menu has Re-link + a red Remove`,
+        `relink=${ui.relink} remove=${ui.remove} removeDanger=${ui.removeDanger}`);
       check(ui.addVisible, `[${scenario.name}] "Add Account" button is available`);
       check(phase === 'gates',
         `[${scenario.name}] discovery resolves to gate cards`,
