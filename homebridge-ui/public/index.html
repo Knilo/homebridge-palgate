@@ -270,10 +270,10 @@
   </div>
 </div>
 
-<!-- ── Default Settings ───────────────────────────────────────── -->
+<!-- ── Global Settings ────────────────────────────────────────── -->
 <div class="card card-body mb-3">
   <div class="d-flex align-items-center justify-content-between" id="defaultSettingsToggle" style="cursor:pointer;">
-    <h6 class="mb-0"><i class="fas fa-sliders me-2"></i>Default Settings</h6>
+    <h6 class="mb-0"><i class="fas fa-sliders me-2"></i>Global Settings</h6>
     <i class="fas fa-chevron-right text-muted" id="defaultSettingsChevron" style="transition:transform 0.2s;"></i>
   </div>
   <div id="defaultSettingsBody" style="display:none; margin-top:16px;">
@@ -383,7 +383,7 @@
     </div>
 
     <button class="btn btn-primary btn-sm" id="saveGlobalDefaults">
-      <i class="fas fa-floppy-disk me-1"></i>Save Defaults
+      <i class="fas fa-floppy-disk me-1"></i>Save Global Settings
     </button>
   </div>
 </div>
@@ -555,7 +555,7 @@ function withTimeout(promise, ms, message) {
     document.querySelectorAll('.pg-menu.open').forEach(m => m.classList.remove('open'));
   });
 
-  // ── Default Settings ──────────────────────────────────────────────
+  // ── Global Settings ───────────────────────────────────────────────
   function initDefaultSettings() {
     const body = document.getElementById('defaultSettingsBody');
     const chevron = document.getElementById('defaultSettingsChevron');
@@ -649,7 +649,7 @@ function withTimeout(promise, ms, message) {
       config.detectExternalOpens = detectExternalOpens;
       config.logPollInterval = logPollVal !== '' ? parseInt(logPollVal, 10) : undefined;
       await persistPluginConfig();
-      homebridge.toast.success('Saved. Restart Homebridge to apply changes.', 'Default Settings');
+      homebridge.toast.success('Saved. Restart Homebridge to apply changes.', 'Global Settings');
       // Re-render gate list so type rows reflect updated defaults
       if (discoveredGates.length > 0) renderGateList(discoveredGates);
     } catch (err) {
@@ -790,7 +790,7 @@ function withTimeout(promise, ms, message) {
     linkFlowVisible = false;
     relinkTargetId = null;
     document.getElementById('qrCodeArea').innerHTML = '';
-    setStatus(document.getElementById('linkStatus'));
+    renderLinkStatus();
     restoreConnectButton();
     renderAccounts();
   }
@@ -885,7 +885,7 @@ function withTimeout(promise, ms, message) {
     generateBtn.disabled = true;
     generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connecting…';
     safeShowSpinner();
-    setStatus(document.getElementById('linkStatus'), 'info', 'Preparing linking session…');
+    renderLinkStatus('waiting', 'Preparing…');
 
     try {
       const initData = await homebridge.request('/link/init');
@@ -900,11 +900,11 @@ function withTimeout(promise, ms, message) {
         <p class="text-muted small mb-0">Open the PalGate app → Device Linking → Link a Device</p>
       `;
       safeHideSpinner();
-      setStatus(document.getElementById('linkStatus'), 'info', 'Waiting for QR scan…');
+      renderLinkStatus('waiting', 'Waiting for you to scan the code…');
       startConfirmationPolling(initData.uniqueId, sessionId);
     } catch (err) {
       const msg = formatError(err);
-      setStatus(document.getElementById('linkStatus'), 'error', msg);
+      renderLinkStatus('error', msg);
       homebridge.toast.error(msg, 'Error');
       safeHideSpinner();
       generateBtn.disabled = false;
@@ -937,7 +937,7 @@ function withTimeout(promise, ms, message) {
       if (Date.now() - pollStartTime > POLL_TIMEOUT_MS) {
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
         document.getElementById('qrCodeArea').innerHTML = '';
-        setStatus(document.getElementById('linkStatus'), 'error', 'Session expired. Click "Connect to PalGate" to try again.');
+        renderLinkStatus('error', 'Session expired. Click "Connect to PalGate" to try again.');
         restoreConnectButton();
         return;
       }
@@ -951,7 +951,7 @@ function withTimeout(promise, ms, message) {
           if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
           document.getElementById('cancelLink').classList.add('d-none');
           document.getElementById('qrCodeArea').innerHTML = '';
-          setStatus(document.getElementById('linkStatus'), 'success', 'Linking complete.');
+          renderLinkStatus();  // clear — the flow tears down on success; toast confirms
           homebridge.toast.success('Device linked successfully!', 'Linked');
           // Sync fresh so credentials merge into (not clobber) any manual-form edits;
           // best-effort so a transient read failure never blocks a completed link.
@@ -973,14 +973,14 @@ function withTimeout(promise, ms, message) {
           if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
           const msg = data.error || 'Unknown error';
           document.getElementById('qrCodeArea').innerHTML = '';
-          setStatus(document.getElementById('linkStatus'), 'error', msg);
+          renderLinkStatus('error', msg);
           homebridge.toast.error(msg, 'Linking Failed');
           restoreConnectButton();
         }
       } catch (err) {
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
         const msg = formatError(err);
-        setStatus(document.getElementById('linkStatus'), 'error', msg);
+        renderLinkStatus('error', msg);
         homebridge.toast.error(msg, 'Error');
         restoreConnectButton();
       } finally {
@@ -2064,6 +2064,18 @@ function withTimeout(promise, ms, message) {
     if (!msg) { el.innerHTML = ''; return; }
     const cls = { info: 'alert-info', success: 'alert-success', error: 'alert-danger' }[type] || 'alert-secondary';
     el.innerHTML = `<div class="alert ${cls} mb-0 small py-2">${escapeHtml(msg)}</div>`;
+  }
+
+  // Linking-flow status line. Kept on-theme (muted text + spinner while waiting, red text
+  // for errors) rather than a Bootstrap alert box, so it matches the rest of the UI. No
+  // success state is needed — a completed link tears the whole flow down.
+  function renderLinkStatus(state, msg) {
+    const el = document.getElementById('linkStatus');
+    if (!el) return;
+    if (!msg) { el.innerHTML = ''; return; }
+    el.innerHTML = state === 'error'
+      ? `<div class="small" style="color:#ff6b6b;"><i class="fas fa-triangle-exclamation me-1"></i>${escapeHtml(msg)}</div>`
+      : `<div class="text-muted small"><i class="fas fa-spinner fa-spin me-1"></i>${escapeHtml(msg)}</div>`;
   }
 
   function formatError(err) {

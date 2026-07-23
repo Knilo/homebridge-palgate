@@ -106,7 +106,7 @@ by scraping logs:
    and that **no CSP violations** occurred (guards the regression where icons
    loaded from a CDN render blank under config-ui-x's `style-src`/`font-src`
    `'self'` policy — see "Bundled icons" below).
-3. **Global settings** — drives the Default Settings form (accessory type,
+3. **Global settings** — drives the Global Settings form (accessory type,
    trigger mode, opening/close delays, poll interval, relay enable + type),
    Saves, and asserts every value landed in the config.
 4. **Per-gate overrides** — opens a gate's Configure form, overrides its
