@@ -1252,9 +1252,9 @@ function withTimeout(promise, ms, message) {
       if (g.admin) caps.push('<span class="admin-badge">Admin</span>');
       if (g.latch) caps.push('<span class="latch-badge">Latch</span>');
       if (!caps.length) return '';
-      // A person silhouette frames "Admin · Latch" as the account's access on this gate —
-      // a plain decorative leader like the other card rows' icons (not hoverable).
-      return '<i class="fas fa-user me-1"></i>' + caps.join(' · ');
+      // A shield frames "Admin · Latch" as the account's permissions on this gate — a
+      // distinct icon from the account itself (fa-user), so the two aren't confused.
+      return '<i class="fas fa-shield me-1"></i>' + caps.join(' · ');
     };
 
     const typeRow = buildTypeIconRow(gate, customEntry);
@@ -1268,7 +1268,7 @@ function withTimeout(promise, ms, message) {
       ? gate.accountIds.map(id => idToLabel.get(id) || id)
       : (gate.accountLabels || (gate.accountLabel ? [gate.accountLabel] : []));
     const accountRow = (allAccounts.length > 1 && accountLabels.length)
-      ? `<div class="text-muted gate-account" style="font-size:0.73rem;"><i class="fas fa-link me-1"></i>${escapeHtml(accountLabels.join(' · '))}</div>`
+      ? `<div class="text-muted gate-account" style="font-size:0.73rem;"><i class="fas fa-user me-1"></i>${escapeHtml(accountLabels.join(' · '))}</div>`
       : '';
 
     card.innerHTML = `

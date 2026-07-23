@@ -299,14 +299,15 @@ async function waitForGates(iframe, timeoutMs) {
       const circleInfo = probeGlyph('fa-circle-info');
       const ellipsisV = probeGlyph('fa-ellipsis-v');
       const trash = probeGlyph('fa-trash');
-      return { subsetApplied, fontLoaded, width, faucet, circleInfo, ellipsisV, trash };
+      const shield = probeGlyph('fa-shield');
+      return { subsetApplied, fontLoaded, width, faucet, circleInfo, ellipsisV, trash, shield };
     }).catch(e => ({ error: String(e).slice(0, 120) }));
     check(icons.subsetApplied && icons.fontLoaded && icons.width > 0,
       'bundled Font Awesome subset loads and icons render',
       `subsetApplied=${icons.subsetApplied} fontLoaded=${icons.fontLoaded} iconWidth=${icons.width}${icons.error ? ' err=' + icons.error : ''}`);
-    check(icons.faucet && icons.circleInfo && icons.ellipsisV && icons.trash,
-      'valve (faucet), info (circle-info), kebab (ellipsis-v) and trash glyphs render from the subset',
-      `faucet=${icons.faucet} circleInfo=${icons.circleInfo} ellipsisV=${icons.ellipsisV} trash=${icons.trash}`);
+    check(icons.faucet && icons.circleInfo && icons.ellipsisV && icons.trash && icons.shield,
+      'valve, info, kebab (ellipsis-v), trash and shield glyphs render from the subset',
+      `faucet=${icons.faucet} circleInfo=${icons.circleInfo} ellipsisV=${icons.ellipsisV} trash=${icons.trash} shield=${icons.shield}`);
     check(cspErrors.length === 0, 'no Content-Security-Policy violations (no CDN assets)',
       cspErrors.length ? cspErrors[0] : undefined);
 
@@ -640,7 +641,7 @@ async function waitForGates(iframe, timeoutMs) {
           addVisible: !!addArea && !addArea.classList.contains('d-none'),
           countText: countEl ? countEl.textContent.trim() : '',
           countVisible: !!countEl && !countEl.classList.contains('d-none'),
-          affiliation: !!document.querySelector('#gateList .card i.fa-link'),
+          affiliation: !!document.querySelector('#gateList .card .gate-account'),
           filterVisible: !!filter && !filter.classList.contains('d-none'),
           filterOptions: filter ? filter.options.length : 0,
         };
