@@ -628,6 +628,7 @@ async function waitForGates(iframe, timeoutMs) {
         const remove = list ? [...list.querySelectorAll('[data-remove]')] : [];
         const addArea = document.getElementById('addAccountArea');
         const countEl = document.getElementById('accountCount');
+        const filter = document.getElementById('accountFilter');
         return {
           cards: list ? list.querySelectorAll('.card').length : 0,
           kebabs: kebabs.length,
@@ -638,6 +639,8 @@ async function waitForGates(iframe, timeoutMs) {
           countText: countEl ? countEl.textContent.trim() : '',
           countVisible: !!countEl && !countEl.classList.contains('d-none'),
           affiliation: !!document.querySelector('#gateList .card i.fa-link'),
+          filterVisible: !!filter && !filter.classList.contains('d-none'),
+          filterOptions: filter ? filter.options.length : 0,
         };
       }, scenario.n);
 
@@ -657,6 +660,13 @@ async function waitForGates(iframe, timeoutMs) {
       check(affiliationOk,
         `[${scenario.name}] gate cards ${scenario.n > 1 ? 'show' : 'omit'} account affiliation labels`,
         `affiliation=${ui.affiliation}`);
+      // The account filter appears only with 2+ accounts, offering "All accounts" + one per account.
+      const filterOk = scenario.n > 1
+        ? (ui.filterVisible && ui.filterOptions === scenario.n + 1)
+        : !ui.filterVisible;
+      check(filterOk,
+        `[${scenario.name}] account filter ${scenario.n > 1 ? 'shows with All + per-account options' : 'is hidden'}`,
+        `visible=${ui.filterVisible} options=${ui.filterOptions}`);
     }
 
     // Two accounts should surface at least as many gates as one (the union of both).

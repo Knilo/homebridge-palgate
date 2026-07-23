@@ -391,11 +391,15 @@
 
 <!-- ── Gates Section ──────────────────────────────────────────── -->
 <div class="card card-body mb-3">
-  <div class="d-flex align-items-center justify-content-between mb-3">
+  <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
     <h6 class="mb-0"><i class="fas fa-warehouse me-2"></i>Gates</h6>
-    <button class="btn btn-primary btn-sm" id="discoverGates">
-      <i class="fas fa-search me-1"></i>Discover
-    </button>
+    <div class="d-flex align-items-center gap-2">
+      <!-- Filter the list by account — only shown when more than one account is linked. -->
+      <select class="form-select form-select-sm d-none" id="accountFilter" style="width:auto;"></select>
+      <button class="btn btn-primary btn-sm" id="discoverGates">
+        <i class="fas fa-search me-1"></i>Discover
+      </button>
+    </div>
   </div>
   <p class="text-muted small mb-2" id="gateListHint">
     Discover your gates to configure accessory types and per-gate overrides.
@@ -544,6 +548,7 @@ function withTimeout(promise, ms, message) {
   document.getElementById('addAccountBtn').addEventListener('click', handleAddAccount);
   document.getElementById('cancelLink').addEventListener('click', handleCancelLink);
   document.getElementById('discoverGates').addEventListener('click', handleDiscoverGates);
+  document.getElementById('accountFilter').addEventListener('change', () => renderGateList(discoveredGates));
   document.getElementById('toggleManualConfig').addEventListener('click', handleToggleManualConfig);
   // Close any open account kebab menu when clicking elsewhere (the kebab itself stops
   // propagation, so opening one doesn't immediately re-close it).
@@ -742,9 +747,11 @@ function withTimeout(promise, ms, message) {
     document.getElementById('linkingFlowArea').classList.toggle('d-none', isLinked && !linkFlowVisible);
 
     const intro = document.getElementById('linkingIntro');
+    // Keep the intro short — the exact "Device Linking → Link a Device" path is shown once,
+    // under the QR code, at the moment it's needed.
     if (intro) intro.textContent = relinkTargetId
-      ? 'Re-link this account by scanning a fresh QR code in the PalGate app (Device Linking → Link a Device).'
-      : 'Connect your PalGate account by scanning a QR code in the PalGate app (Device Linking → Link a Device).';
+      ? 'Re-link this account by scanning a fresh QR code in the PalGate app.'
+      : 'Connect your PalGate account by scanning a QR code in the PalGate app.';
 
     // Gates card hint tracks linked state: point at linking first, discovery second.
     const hint = document.getElementById('gateListHint');
@@ -753,6 +760,9 @@ function withTimeout(promise, ms, message) {
         ? 'Discover your gates to configure accessory types and per-gate overrides.'
         : 'Connect to PalGate above to get started.';
     }
+
+    // Keep the gate account filter in sync with the linked accounts.
+    updateAccountFilter();
   }
 
   // Reveal the QR flow to add a brand-new account.
@@ -959,6 +969,15 @@ function withTimeout(promise, ms, message) {
   // shared gate) is kept once, tagged to the first account in order. Resolves with the same
   // { success, gates } shape as a single call so callers are unchanged; success is true if
   // any account succeeded, and gates carry accountId/accountLabel for display.
+  // Privilege score for a discovered gate, mirroring the plugin's dedupe: latch (relay)
+  // outranks admin (external-open), both outranks either. Determines the primary owner.
+  function gatePrivilegeScore(g) {
+    if (g.admin && g.latch) return 3;
+    if (g.latch) return 2;
+    if (g.admin) return 1;
+    return 0;
+  }
+
   async function discoverRequest() {
     const accounts = getAccounts();
     const merged = [];
@@ -977,15 +996,24 @@ function withTimeout(promise, ms, message) {
       if (!data || !data.success) { lastError = new Error((data && data.error) || 'Discovery failed.'); continue; }
       anySuccess = true;
       (data.gates || []).forEach(g => {
+        const score = gatePrivilegeScore(g);
         const existing = byId.get(g.deviceId);
         if (existing) {
-          // A gate shared across accounts is kept once and operated by the first account
-          // that saw it (matches the plugin's single-token behavior), but every account it
-          // belongs to is recorded so the card can show all affiliations.
-          if (!existing.accountLabels.includes(acct.label)) existing.accountLabels.push(acct.label);
+          // A gate shared across accounts is kept once. Record every account it belongs to
+          // (for the affiliation labels and the filter), and promote the highest-privilege
+          // account to primary owner — matching the plugin's single-token behavior.
+          if (!existing.accountIds.includes(acct.id)) { existing.accountIds.push(acct.id); existing.accountLabels.push(acct.label); }
+          if (score > existing._score) {
+            existing._score = score;
+            existing.accountId = acct.id;
+            existing.accountLabel = acct.label;
+            existing.admin = g.admin;
+            existing.latch = g.latch;
+            existing.defaultName = g.defaultName || existing.defaultName;
+          }
           return;
         }
-        const gate = Object.assign({}, g, { accountId: acct.id, accountLabel: acct.label, accountLabels: [acct.label] });
+        const gate = Object.assign({}, g, { accountId: acct.id, accountLabel: acct.label, accountIds: [acct.id], accountLabels: [acct.label], _score: score });
         byId.set(g.deviceId, gate);
         merged.push(gate);
       });
@@ -1082,14 +1110,43 @@ function withTimeout(promise, ms, message) {
     }
   }
 
+  // Gates matching the current account filter ('' = all). A gate matches if the selected
+  // account is among the accounts it was discovered under.
+  function getFilteredGates(gates) {
+    const sel = document.getElementById('accountFilter');
+    const val = sel ? sel.value : '';
+    if (!val) return gates;
+    return gates.filter(g => (g.accountIds || (g.accountId ? [g.accountId] : [])).includes(val));
+  }
+
   function renderGateList(gates) {
     const gateListEl = document.getElementById('gateList');
-    if (!gates || gates.length === 0) {
+    const all = gates || [];
+    if (all.length === 0) {
       setStatus(gateListEl, 'info', 'No gates found.');
       return;
     }
+    const filtered = getFilteredGates(all);
+    if (filtered.length === 0) {
+      setStatus(gateListEl, 'info', 'No gates for the selected account.');
+      return;
+    }
     gateListEl.innerHTML = '';
-    gates.forEach(gate => gateListEl.appendChild(createGateCard(gate)));
+    filtered.forEach(gate => gateListEl.appendChild(createGateCard(gate)));
+  }
+
+  // Populates the account filter with the current accounts and shows it only when more than
+  // one is linked. Preserves the current selection when still valid, else resets to All.
+  function updateAccountFilter() {
+    const sel = document.getElementById('accountFilter');
+    if (!sel) return;
+    const accounts = getAccounts();
+    const show = accounts.length > 1;
+    sel.classList.toggle('d-none', !show);
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">All accounts</option>' +
+      accounts.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.label)}</option>`).join('');
+    sel.value = (show && accounts.some(a => a.id === prev)) ? prev : '';
   }
 
   // ── Gate Cards ────────────────────────────────────────────────────
