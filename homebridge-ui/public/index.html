@@ -1150,17 +1150,17 @@ function withTimeout(promise, ms, message) {
     // first one; see discoverRequest), so the affiliation is clear.
     const accountLabels = gate.accountLabels || (gate.accountLabel ? [gate.accountLabel] : []);
     const accountRow = (getAccounts().length > 1 && accountLabels.length)
-      ? `<div class="text-muted mb-1" style="font-size:0.78rem;"><i class="fas fa-link me-1"></i>${escapeHtml(accountLabels.join(' · '))}</div>`
+      ? `<div class="text-muted gate-account" style="font-size:0.73rem;"><i class="fas fa-link me-1"></i>${escapeHtml(accountLabels.join(' · '))}</div>`
       : '';
 
     card.innerHTML = `
       <div class="d-flex justify-content-between align-items-start gap-2">
         <div style="min-width:0; flex:1;">
           <div class="fw-bold mb-1">${escapeHtml(displayName)}</div>
-          ${accountRow}
           <div class="mb-1">${typeRow}</div>
           ${triggerRow ? `<div class="mb-1">${triggerRow}</div>` : ''}
           <div class="text-muted gate-caps" style="font-size:0.73rem;">${capsHtml(gate)}</div>
+          ${accountRow}
           <div class="text-muted gate-id" style="font-size:0.73rem;">${escapeHtml(gate.deviceId)}</div>
         </div>
         <button class="btn btn-secondary btn-sm configure-btn flex-shrink-0">
