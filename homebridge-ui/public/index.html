@@ -158,6 +158,50 @@
   html .fa-spin { animation: pg-fa-spin 2s linear infinite; }
   @keyframes pg-fa-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+  /* Per-account actions menu (kebab). Bootstrap's JS dropdowns aren't initialised in
+   * this iframe — same reason tooltips are CSS-only — so this is a small custom menu
+   * toggled by our own JS, styled to match config-ui-x's dark dropdowns. */
+  .pg-kebab {
+    background: transparent;
+    border: none;
+    color: #8a8a8f;
+    font-size: 1.15rem;
+    line-height: 1;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .pg-kebab:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
+  .pg-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    min-width: 160px;
+    background: #2d2d2d;
+    border: 1px solid #3d3d3d;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    padding: 4px;
+    z-index: 1500;
+  }
+  .pg-menu.open { display: block; }
+  .pg-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 0.85rem;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .pg-menu-item:hover { background: rgba(255, 255, 255, 0.08); }
+  .pg-menu-item.pg-menu-danger { color: #ff6b6b; }
+  .pg-menu-item.pg-menu-danger:hover { background: rgba(255, 107, 107, 0.12); }
+
   /* CSS-only hover tooltip. The native title attribute is unreliable inside the
    * config-ui-x iframe (cursor changes but no bubble appears), and Bootstrap's JS
    * tooltips aren't initialised here, so we render our own from a data-tip attribute. */
@@ -188,9 +232,7 @@
 <div class="card card-body mb-3">
   <div class="d-flex align-items-center justify-content-between mb-2">
     <h6 class="mb-0"><i class="fas fa-link me-2"></i>PalGate Accounts</h6>
-    <span class="badge bg-success d-none" id="linkedBadge">
-      <i class="fas fa-check me-1"></i>Linked
-    </span>
+    <span class="text-muted small d-none" id="accountCount"></span>
   </div>
 
   <!-- Linked accounts (one row per account) -->
@@ -492,6 +534,11 @@ function withTimeout(promise, ms, message) {
   document.getElementById('cancelLink').addEventListener('click', handleCancelLink);
   document.getElementById('discoverGates').addEventListener('click', handleDiscoverGates);
   document.getElementById('toggleManualConfig').addEventListener('click', handleToggleManualConfig);
+  // Close any open account kebab menu when clicking elsewhere (the kebab itself stops
+  // propagation, so opening one doesn't immediately re-close it).
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.pg-menu.open').forEach(m => m.classList.remove('open'));
+  });
 
   // ── Default Settings ──────────────────────────────────────────────
   function initDefaultSettings() {
@@ -634,14 +681,19 @@ function withTimeout(promise, ms, message) {
   function renderAccounts() {
     const accounts = getAccounts();
     const isLinked = accounts.length > 0;
-    document.getElementById('linkedBadge').classList.toggle('d-none', !isLinked);
+    // Quiet muted count instead of a loud "Linked" pill — the account cards already show
+    // the linked state, so the header just notes how many.
+    const countEl = document.getElementById('accountCount');
+    countEl.textContent = isLinked ? `${accounts.length} account${accounts.length === 1 ? '' : 's'}` : '';
+    countEl.classList.toggle('d-none', !isLinked);
 
     const listEl = document.getElementById('accountList');
     listEl.innerHTML = '';
     accounts.forEach(acct => {
       const typeLabel = TOKEN_TYPE_LABELS[acct.tokenType] ?? `Token type ${acct.tokenType}`;
-      // One nested card per account — mirrors the gate list so the section feels native
-      // to config-ui-x and the rest of this UI.
+      // One nested card per account — mirrors the gate list so the section feels native to
+      // config-ui-x. Actions live behind a kebab (⋮) menu, like config-ui-x's own plugin
+      // cards, so they don't dominate the row.
       const card = document.createElement('div');
       card.className = 'card card-body mb-2';
       card.innerHTML = `
@@ -650,13 +702,24 @@ function withTimeout(promise, ms, message) {
             <div class="fw-bold small"><i class="fas fa-user me-2"></i>${escapeHtml(acct.label)}</div>
             <div class="text-muted" style="font-size:0.8rem;">${escapeHtml(acct.phoneNumber)} · ${escapeHtml(typeLabel)}</div>
           </div>
-          <div class="d-flex gap-2 flex-shrink-0">
-            <button class="btn btn-primary btn-sm" data-relink="${escapeHtml(acct.id)}"><i class="fas fa-sync me-1"></i>Re-link</button>
-            <button class="btn btn-danger btn-sm" data-remove="${escapeHtml(acct.id)}">Remove</button>
-          </div>
-        </div>`;
+          <div class="flex-shrink-0" style="position:relative;">
+            <button type="button" class="pg-kebab" data-kebab aria-label="Account actions">⋮</button>
+            <div class="pg-menu" role="menu">
+              <button type="button" class="pg-menu-item" data-relink="${escapeHtml(acct.id)}">Re-link</button>
+              <button type="button" class="pg-menu-item pg-menu-danger" data-remove="${escapeHtml(acct.id)}">Remove</button>
+            </div>
+          </div>`;
       listEl.appendChild(card);
     });
+    // Kebab toggles its own menu and closes any other that's open.
+    listEl.querySelectorAll('[data-kebab]').forEach(btn =>
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const menu = btn.parentElement.querySelector('.pg-menu');
+        const wasOpen = menu.classList.contains('open');
+        listEl.querySelectorAll('.pg-menu.open').forEach(m => m.classList.remove('open'));
+        if (!wasOpen) menu.classList.add('open');
+      }));
     listEl.querySelectorAll('[data-relink]').forEach(b =>
       b.addEventListener('click', () => handleRelinkAccount(b.getAttribute('data-relink'))));
     listEl.querySelectorAll('[data-remove]').forEach(b =>
