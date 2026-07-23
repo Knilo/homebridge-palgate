@@ -888,7 +888,7 @@ function withTimeout(promise, ms, message) {
   async function discoverRequest() {
     const accounts = getAccounts();
     const merged = [];
-    const seen = new Set();
+    const byId = new Map();
     let anySuccess = false;
     let lastError = null;
     for (const acct of accounts) {
@@ -903,9 +903,17 @@ function withTimeout(promise, ms, message) {
       if (!data || !data.success) { lastError = new Error((data && data.error) || 'Discovery failed.'); continue; }
       anySuccess = true;
       (data.gates || []).forEach(g => {
-        if (seen.has(g.deviceId)) return;
-        seen.add(g.deviceId);
-        merged.push(Object.assign({}, g, { accountId: acct.id, accountLabel: acct.label }));
+        const existing = byId.get(g.deviceId);
+        if (existing) {
+          // A gate shared across accounts is kept once and operated by the first account
+          // that saw it (matches the plugin's single-token behavior), but every account it
+          // belongs to is recorded so the card can show all affiliations.
+          if (!existing.accountLabels.includes(acct.label)) existing.accountLabels.push(acct.label);
+          return;
+        }
+        const gate = Object.assign({}, g, { accountId: acct.id, accountLabel: acct.label, accountLabels: [acct.label] });
+        byId.set(g.deviceId, gate);
+        merged.push(gate);
       });
     }
     if (!anySuccess && lastError) return { success: false, error: formatError(lastError) };
@@ -1065,9 +1073,12 @@ function withTimeout(promise, ms, message) {
 
     const typeRow = buildTypeIconRow(gate, customEntry);
     const triggerRow = buildTriggerModeRow(customEntry);
-    // Which account this gate belongs to — only worth showing when more than one is linked.
-    const accountRow = (getAccounts().length > 1 && gate.accountLabel)
-      ? `<div class="text-muted mb-1" style="font-size:0.78rem;"><i class="fas fa-link me-1"></i>${escapeHtml(gate.accountLabel)}</div>`
+    // Which account(s) this gate is affiliated with — shown only when more than one account
+    // is linked. A gate shared across accounts lists them all (it's still operated by the
+    // first one; see discoverRequest), so the affiliation is clear.
+    const accountLabels = gate.accountLabels || (gate.accountLabel ? [gate.accountLabel] : []);
+    const accountRow = (getAccounts().length > 1 && accountLabels.length)
+      ? `<div class="text-muted mb-1" style="font-size:0.78rem;"><i class="fas fa-link me-1"></i>${escapeHtml(accountLabels.join(' · '))}</div>`
       : '';
 
     card.innerHTML = `
