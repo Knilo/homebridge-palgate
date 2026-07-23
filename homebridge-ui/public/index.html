@@ -712,16 +712,18 @@ function withTimeout(promise, ms, message) {
       // cards, so they don't dominate the row.
       const card = document.createElement('div');
       card.className = 'card card-body mb-2';
+      card.dataset.account = acct.id;
       card.innerHTML = `
         <div class="d-flex justify-content-between align-items-center gap-2">
           <div style="min-width:0;">
-            <div class="fw-bold small"><i class="fas fa-user me-2"></i>${escapeHtml(acct.label)}</div>
+            <div class="fw-bold small pg-acct-label"><i class="fas fa-user me-2"></i><span class="pg-acct-name">${escapeHtml(acct.label)}</span></div>
             <div class="text-muted" style="font-size:0.8rem;">${escapeHtml(acct.phoneNumber)} · ${escapeHtml(typeLabel)}</div>
           </div>
           <div class="flex-shrink-0" style="position:relative;">
             <button type="button" class="pg-kebab" data-kebab aria-label="Account actions"><i class="fas fa-ellipsis-v"></i></button>
             <div class="pg-menu" role="menu">
               <button type="button" class="pg-menu-item" data-relink="${escapeHtml(acct.id)}"><i class="fas fa-sync"></i>Re-link</button>
+              <button type="button" class="pg-menu-item" data-rename="${escapeHtml(acct.id)}"><i class="fas fa-pen"></i>Rename</button>
               <button type="button" class="pg-menu-item pg-menu-danger" data-remove="${escapeHtml(acct.id)}"><i class="fas fa-trash"></i>Remove</button>
             </div>
           </div>`;
@@ -738,6 +740,8 @@ function withTimeout(promise, ms, message) {
       }));
     listEl.querySelectorAll('[data-relink]').forEach(b =>
       b.addEventListener('click', () => handleRelinkAccount(b.getAttribute('data-relink'))));
+    listEl.querySelectorAll('[data-rename]').forEach(b =>
+      b.addEventListener('click', () => handleRenameAccount(b.getAttribute('data-rename'))));
     listEl.querySelectorAll('[data-remove]').forEach(b =>
       b.addEventListener('click', () => handleRemoveAccount(b.getAttribute('data-remove'))));
 
@@ -816,6 +820,57 @@ function withTimeout(promise, ms, message) {
       if (hasLinkingCredentials()) autoDiscover(true); else renderGateList([]);
     } catch (err) {
       homebridge.toast.error(formatError(err), 'Remove Failed');
+    } finally {
+      safeHideSpinner();
+    }
+  }
+
+  // Inline-renames an account: swaps its label for a text input (Enter/blur saves, Esc
+  // cancels, blank reverts to the auto "Account N"). Labels surface in the account list,
+  // the per-gate affiliation line, and the account filter, so a rename updates all three.
+  function handleRenameAccount(id) {
+    const acct = getAccounts().find(a => a.id === id);
+    const labelEl = document.querySelector(`#accountList .card[data-account="${id}"] .pg-acct-label`);
+    if (!acct || !labelEl) return;
+    const original = labelEl.innerHTML;
+    labelEl.innerHTML = '<i class="fas fa-user me-2"></i>' +
+      '<input type="text" class="form-control form-control-sm pg-acct-name-input" ' +
+      'style="display:inline-block; width:auto; max-width:190px;">';
+    const input = labelEl.querySelector('input');
+    input.value = acct.label;
+    input.focus();
+    input.select();
+    let done = false;
+    const finish = (commit) => {
+      if (done) return;
+      done = true;
+      const val = input.value.trim();
+      // Commit only a real change; blank means "revert to auto name".
+      if (commit && (val === '' || val !== acct.label)) commitAccountRename(id, val);
+      else labelEl.innerHTML = original;
+    };
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', () => finish(true));
+  }
+
+  async function commitAccountRename(id, label) {
+    try {
+      safeShowSpinner();
+      await syncConfigFromSdk();
+      // Blank reverts to the positional auto name; otherwise use the trimmed label.
+      const accounts = getAccounts().map((a, i) =>
+        a.id === id ? { ...a, label: label || `Account ${i + 1}` } : a);
+      writeAccounts(accounts);
+      await persistPluginConfig();
+      homebridge.toast.success('Account renamed. Restart Homebridge to apply changes.', 'Accounts');
+      renderAccounts();
+      if (discoveredGates.length) renderGateList(discoveredGates); // refresh affiliation labels
+    } catch (err) {
+      homebridge.toast.error(formatError(err), 'Rename Failed');
+      renderAccounts();
     } finally {
       safeHideSpinner();
     }
@@ -1205,10 +1260,14 @@ function withTimeout(promise, ms, message) {
     const typeRow = buildTypeIconRow(gate, customEntry);
     const triggerRow = buildTriggerModeRow(customEntry);
     // Which account(s) this gate is affiliated with — shown only when more than one account
-    // is linked. A gate shared across accounts lists them all (it's still operated by the
-    // first one; see discoverRequest), so the affiliation is clear.
-    const accountLabels = gate.accountLabels || (gate.accountLabel ? [gate.accountLabel] : []);
-    const accountRow = (getAccounts().length > 1 && accountLabels.length)
+    // is linked. Labels are resolved from the gate's account IDs against the current accounts
+    // so a rename reflects here immediately (falls back to cached labels for older results).
+    const allAccounts = getAccounts();
+    const idToLabel = new Map(allAccounts.map(a => [a.id, a.label]));
+    const accountLabels = gate.accountIds
+      ? gate.accountIds.map(id => idToLabel.get(id) || id)
+      : (gate.accountLabels || (gate.accountLabel ? [gate.accountLabel] : []));
+    const accountRow = (allAccounts.length > 1 && accountLabels.length)
       ? `<div class="text-muted gate-account" style="font-size:0.73rem;"><i class="fas fa-link me-1"></i>${escapeHtml(accountLabels.join(' · '))}</div>`
       : '';
 

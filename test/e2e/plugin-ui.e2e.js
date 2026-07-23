@@ -625,6 +625,7 @@ async function waitForGates(iframe, timeoutMs) {
         const list = document.getElementById('accountList');
         const kebabs = list ? list.querySelectorAll('[data-kebab]') : [];
         const relink = list ? [...list.querySelectorAll('[data-relink]')] : [];
+        const rename = list ? [...list.querySelectorAll('[data-rename]')] : [];
         const remove = list ? [...list.querySelectorAll('[data-remove]')] : [];
         const addArea = document.getElementById('addAccountArea');
         const countEl = document.getElementById('accountCount');
@@ -633,6 +634,7 @@ async function waitForGates(iframe, timeoutMs) {
           cards: list ? list.querySelectorAll('.card').length : 0,
           kebabs: kebabs.length,
           relink: relink.length,
+          rename: rename.length,
           remove: remove.length,
           removeDanger: remove.length > 0 && remove.every(b => b.classList.contains('pg-menu-danger')),
           addVisible: !!addArea && !addArea.classList.contains('d-none'),
@@ -648,9 +650,9 @@ async function waitForGates(iframe, timeoutMs) {
       check(ui.cards === scenario.n && ui.kebabs === scenario.n && ui.countVisible && ui.countText === expectedCount,
         `[${scenario.name}] accounts section renders ${scenario.n} card(s) + "${expectedCount}" count`,
         `cards=${ui.cards} kebabs=${ui.kebabs} count="${ui.countText}"`);
-      check(ui.relink === scenario.n && ui.remove === scenario.n && ui.removeDanger,
-        `[${scenario.name}] each account's kebab menu has Re-link + a red Remove`,
-        `relink=${ui.relink} remove=${ui.remove} removeDanger=${ui.removeDanger}`);
+      check(ui.relink === scenario.n && ui.rename === scenario.n && ui.remove === scenario.n && ui.removeDanger,
+        `[${scenario.name}] each account's kebab menu has Re-link, Rename + a red Remove`,
+        `relink=${ui.relink} rename=${ui.rename} remove=${ui.remove} removeDanger=${ui.removeDanger}`);
       check(ui.addVisible, `[${scenario.name}] "Add Account" button is available`);
       check(phase === 'gates',
         `[${scenario.name}] discovery resolves to gate cards`,
