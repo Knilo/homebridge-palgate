@@ -93,10 +93,11 @@ config back through the config-ui-x REST API (`test/helpers/hb-rest.js`), not
 by scraping logs:
 
 0. **Setup** — snapshots the current plugin config, then wipes it down to the
-   token/linking fields (`token`, `phoneNumber`, `tokenType` + structural keys)
-   via REST, so the run starts from a known-clean baseline. The original config
-   is **restored at the end** (in `finally`), so a real Homebridge is left
-   exactly as it was. `KEEP_WIPED=1` skips the restore for debugging.
+   linking credentials (either the legacy `token`/`phoneNumber`/`tokenType` or the
+   `accounts[]` array — both are preserved) plus structural keys, via REST, so the
+   run starts from a known-clean baseline. The original config is **restored at the
+   end** (in `finally`), so a real Homebridge is left exactly as it was.
+   `KEEP_WIPED=1` skips the restore for debugging.
 1. **Login** — UI login succeeds; the settings modal and custom iframe load.
 2. **Discovery** — on-load auto-discovery resolves to real gate cards (≥1);
    the harness reads back each gate's deviceId and latch permission, then clicks
@@ -124,6 +125,14 @@ by scraping logs:
    real gates — hence opt-in.
 6. **Reset** — clicks a gate's "Reset all" and asserts its `customGates` entry
    is removed entirely, not left as a hollow `{ deviceId }`.
+7. **Accounts** — re-points the config at one account, then (when a second is
+   linked) at two, reloading the settings UI each time via REST. Asserts the
+   accounts section renders one card per account with solid **Re-link** /
+   **Remove** buttons and an **Add Account** button, that discovery still resolves
+   to gate cards, and that per-gate **account affiliation labels** appear only in
+   the two-account pass (they're hidden with a single account). Also asserts the
+   two-account pass surfaces at least as many gates as the one-account pass. The
+   two-account half is skipped with a note if only one account is linked.
 
 The `DataCloneError` that config-ui-x's own SDK throws from `savePluginConfig`
 (an un-awaited Promise posted into `postMessage`; the write still persists) is
@@ -136,7 +145,8 @@ gate discovery) could only be caught this way.
 
 Needs: running Homebridge + config-ui-x with this plugin **linked to a real
 PalGate account** (the discovery/per-gate steps need real gates), Chrome, and
-`HB_UI_PASSWORD` (see the file header for all environment variables).
+`HB_UI_PASSWORD` (see the file header for all environment variables). Link a
+**second** account to exercise the two-account pass in step 7.
 
 ## Bundled icons
 
