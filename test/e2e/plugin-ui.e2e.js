@@ -298,14 +298,15 @@ async function waitForGates(iframe, timeoutMs) {
       const faucet = probeGlyph('fa-faucet');
       const circleInfo = probeGlyph('fa-circle-info');
       const ellipsisV = probeGlyph('fa-ellipsis-v');
-      return { subsetApplied, fontLoaded, width, faucet, circleInfo, ellipsisV };
+      const trash = probeGlyph('fa-trash');
+      return { subsetApplied, fontLoaded, width, faucet, circleInfo, ellipsisV, trash };
     }).catch(e => ({ error: String(e).slice(0, 120) }));
     check(icons.subsetApplied && icons.fontLoaded && icons.width > 0,
       'bundled Font Awesome subset loads and icons render',
       `subsetApplied=${icons.subsetApplied} fontLoaded=${icons.fontLoaded} iconWidth=${icons.width}${icons.error ? ' err=' + icons.error : ''}`);
-    check(icons.faucet && icons.circleInfo && icons.ellipsisV,
-      'valve (faucet), info (circle-info) and kebab (ellipsis-v) glyphs render from the subset',
-      `faucet=${icons.faucet} circleInfo=${icons.circleInfo} ellipsisV=${icons.ellipsisV}`);
+    check(icons.faucet && icons.circleInfo && icons.ellipsisV && icons.trash,
+      'valve (faucet), info (circle-info), kebab (ellipsis-v) and trash glyphs render from the subset',
+      `faucet=${icons.faucet} circleInfo=${icons.circleInfo} ellipsisV=${icons.ellipsisV} trash=${icons.trash}`);
     check(cspErrors.length === 0, 'no Content-Security-Policy violations (no CDN assets)',
       cspErrors.length ? cspErrors[0] : undefined);
 
