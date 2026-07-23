@@ -1769,8 +1769,21 @@ function withTimeout(promise, ms, message) {
       .filter(e => e.deviceId && Object.keys(e).length > 1);
   }
 
+  // Folds a legacy single-account config (top-level token/phoneNumber/tokenType) into the
+  // accounts array so config.json converges on one shape. Runs only as part of an explicit
+  // save the user was already making — never on load — so it adds no write and can't surprise
+  // anyone. A no-op once already migrated, or when there are no linked credentials.
+  function migrateLegacyAccounts() {
+    const hasLegacy = config.token || config.phoneNumber || config.tokenType !== undefined;
+    const hasAccounts = Array.isArray(config.accounts) && config.accounts.length > 0;
+    if (!hasLegacy || hasAccounts) return;
+    const accounts = getAccounts();
+    if (accounts.length > 0) writeAccounts(accounts);
+  }
+
   async function persistPluginConfig() {
     cleanCustomGates();
+    migrateLegacyAccounts();
 
     // Step 1: sync Config UI X's in-memory model with our config array. The parent
     // merges this into its own state (Object.assign per block), so it's also what its
