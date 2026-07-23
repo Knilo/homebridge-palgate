@@ -15,19 +15,55 @@
 				"type": "string",
 				"default": "PalGate Platform"
 			},
+			"accounts": {
+				"title": "Linked PalGate Accounts",
+				"description": "One or more linked PalGate accounts. Each account is linked from the plugin settings screen; gates from every account are managed together. Leave empty and use the legacy Session Token / Phone Number / Token Type fields for a single account.",
+				"type": "array",
+				"required": false,
+				"items": {
+					"type": "object",
+					"properties": {
+						"label": {
+							"title": "Account Label",
+							"description": "A friendly name for this account (shown in logs).",
+							"type": "string"
+						},
+						"token": {
+							"title": "Session Token",
+							"description": "The session token generated during device linking.",
+							"type": "string"
+						},
+						"phoneNumber": {
+							"title": "Phone Number",
+							"description": "The account's phone number (e.g., 972500000000).",
+							"type": "string"
+						},
+						"tokenType": {
+							"title": "Token Type",
+							"description": "How this Homebridge instance is linked to the account. SMS uses a one-time code; each PalGate account supports two device link slots (1 and 2).",
+							"type": "number",
+							"oneOf": [
+								{ "title": "SMS", "enum": [0] },
+								{ "title": "Linked Device 1", "enum": [1] },
+								{ "title": "Linked Device 2", "enum": [2] }
+							]
+						}
+					}
+				}
+			},
 			"token": {
 				"title": "Session Token",
-				"description": "The session token generated during device linking.",
+				"description": "Legacy single-account session token generated during device linking. Superseded by the Linked PalGate Accounts list.",
 				"type": "string"
 			},
 			"phoneNumber": {
 				"title": "Phone Number",
-				"description": "Your account's phone number (e.g., 972500000000).",
+				"description": "Legacy single-account phone number (e.g., 972500000000). Superseded by the Linked PalGate Accounts list.",
 				"type": "string"
 			},
 			"tokenType": {
 				"title": "Token Type",
-				"description": "How this Homebridge instance is linked. SMS uses a one-time code; each PalGate account supports two device link slots (1 and 2).",
+				"description": "Legacy single-account link type. SMS uses a one-time code; each PalGate account supports two device link slots (1 and 2).",
 				"type": "number",
 				"oneOf": [
 					{ "title": "SMS", "enum": [0] },
@@ -266,9 +302,6 @@
 			}
 		},
 		"required": [
-			"token",
-			"phoneNumber",
-			"tokenType",
 			"accessoryType",
 			"gateOpeningDelay",
 			"gateCloseDelay",
