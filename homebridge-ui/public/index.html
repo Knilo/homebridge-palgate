@@ -153,6 +153,7 @@
   html .fa-spinner:before { content: "\f110" !important; }
   html .fa-sync:before { content: "\f021" !important; }
   html .fa-toggle-on:before { content: "\f205" !important; }
+  html .fa-trash:before { content: "\f1f8" !important; }
   html .fa-triangle-exclamation:before { content: "\f071" !important; }
   html .fa-user:before { content: "\f007" !important; }
   html .fa-warehouse:before { content: "\f494" !important; }
@@ -207,6 +208,7 @@
   }
   .pg-menu-item:hover,
   .pg-menu-item:focus { background: #444; }  /* config-ui-x dropdown-item hover/focus */
+  .pg-menu-item i { width: 1.1em; margin-right: 10px; text-align: center; }
   .pg-menu-item.pg-menu-danger { color: #ff6b6b; }
 
   /* CSS-only hover tooltip. The native title attribute is unreliable inside the
@@ -712,8 +714,8 @@ function withTimeout(promise, ms, message) {
           <div class="flex-shrink-0" style="position:relative;">
             <button type="button" class="pg-kebab" data-kebab aria-label="Account actions"><i class="fas fa-ellipsis-v"></i></button>
             <div class="pg-menu" role="menu">
-              <button type="button" class="pg-menu-item" data-relink="${escapeHtml(acct.id)}">Re-link</button>
-              <button type="button" class="pg-menu-item pg-menu-danger" data-remove="${escapeHtml(acct.id)}">Remove</button>
+              <button type="button" class="pg-menu-item" data-relink="${escapeHtml(acct.id)}"><i class="fas fa-sync"></i>Re-link</button>
+              <button type="button" class="pg-menu-item pg-menu-danger" data-remove="${escapeHtml(acct.id)}"><i class="fas fa-trash"></i>Remove</button>
             </div>
           </div>`;
       listEl.appendChild(card);

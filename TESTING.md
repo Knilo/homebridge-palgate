@@ -151,7 +151,7 @@ PalGate account** (the discovery/per-gate steps need real gates), Chrome, and
 ## Bundled icons
 
 The settings UI ships a **self-hosted Font Awesome 6.5.1 (Free, Solid) subset**
-in `homebridge-ui/public/fontawesome/` — only the ~28 glyphs the UI uses (~3KB
+in `homebridge-ui/public/fontawesome/` — only the ~29 glyphs the UI uses (~3KB
 woff2 + ~2KB CSS) instead of the ~156KB full face. It's bundled rather than
 CDN-loaded because config-ui-x's CSP (`style-src 'self'`; `font-src 'self' data:`)
 blocks external stylesheets/fonts, which silently blanked the icons.
