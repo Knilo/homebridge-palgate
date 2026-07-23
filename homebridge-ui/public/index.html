@@ -184,13 +184,12 @@
     display: none;
     position: absolute;
     right: 0;
-    top: calc(100% + 4px);
+    top: calc(100% + 2px);
     min-width: 160px;
-    background: #222;
-    border: 1px solid rgba(0, 0, 0, 0.176);
+    background: #222;                        /* config-ui-x dropdown bg */
+    border: 1px solid rgba(0, 0, 0, 0.176);  /* config-ui-x border-color-translucent */
     border-radius: 6px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-    padding: 8px 0;
+    padding: 8px 0;                          /* vertical only; items are full-width */
     z-index: 1500;
   }
   .pg-menu.open { display: block; }
@@ -201,13 +200,14 @@
     background: transparent;
     border: none;
     color: #eee;                 /* config-ui-x dropdown-item colour */
-    font-size: 1rem;
+    font-size: 16px;
+    line-height: 24px;           /* matches config-ui-x's ~32px row height */
     padding: 4px 16px;
     cursor: pointer;
   }
-  .pg-menu-item:hover { background: rgba(255, 255, 255, 0.07); }
+  .pg-menu-item:hover,
+  .pg-menu-item:focus { background: #444; }  /* config-ui-x dropdown-item hover/focus */
   .pg-menu-item.pg-menu-danger { color: #ff6b6b; }
-  .pg-menu-item.pg-menu-danger:hover { background: rgba(255, 107, 107, 0.12); }
 
   /* CSS-only hover tooltip. The native title attribute is unreliable inside the
    * config-ui-x iframe (cursor changes but no bubble appears), and Bootstrap's JS
