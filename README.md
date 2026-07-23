@@ -23,7 +23,7 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
   No complicated token extraction required! Simply use the Set Up screen in the Homebridge UI to get everything configured.
 
 - **Multiple Accounts:**  
-  Link more than one PalGate account and manage all their gates from a single Homebridge instance. Add, re-link, rename, or remove accounts in the Homebridge UI; gates from every account appear together and are labeled by account, and you can filter the list to one account. Single-account setups are unaffected.
+  Link more than one PalGate account and manage all their gates from a single Homebridge instance.
 
 - **Automatic Device Discovery:**  
   After Homebridge launches, the plugin automatically retrieves and registers your gate devices using the PalGate API.
