@@ -71,6 +71,7 @@ This plugin features an automatic configuration UI that simplifies the device li
 4. Open the PalGate App, and navigate to Device Linking > Link a Device and then scan the QR code.
 5. The linking will complete and configuration will be updated automatically. 
 6. Once linked, you can use Customise Gates button to change the name or accessory type of each gate connected to your account.
+7. To manage gates from more than one PalGate account, click Add Account and link each one with its own QR code. Gates from every linked account appear in a single list, and you can re-link or remove an account at any time. A gate shared across accounts appears once, operated by the first account you linked it under.
 
 ### Using the CLI
 
@@ -139,10 +140,35 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 }
 ```
 
+### Multiple accounts
+
+To manage gates from more than one PalGate account, replace the top-level `token` /
+`phoneNumber` / `tokenType` with an `accounts` array — one entry per account. Gates from
+every account are managed together, and a gate shared across accounts is handled by the
+first account listed. The legacy top-level fields still work and are treated as a single
+account, so existing configs need no changes.
+
+```json
+{
+  "platforms": [
+    {
+      "platform": "PalGatePlatform",
+      "name": "PalGate Platform",
+      "accounts": [
+        { "label": "Home",   "token": "<session_token>", "phoneNumber": "<phone_number>", "tokenType": 1 },
+        { "label": "Office", "token": "<session_token>", "phoneNumber": "<phone_number>", "tokenType": 1 }
+      ],
+      "accessoryType": "garageDoor"
+    }
+  ]
+}
+```
+
 ### Options
 
 | Option | Description |
 |---|---|
+| `accounts` | Optional array of linked accounts, each with its own `label` (optional), `token`, `phoneNumber`, and `tokenType`. Use this instead of the top-level `token` / `phoneNumber` / `tokenType` to manage gates from more than one PalGate account. |
 | `token` | Your session token generated during device linking. |
 | `phoneNumber` | Your account’s phone number (e.g., `972500000000`). |
 | `tokenType` | The linking type. Each PalGate account supports two device link slots. Valid values: <br> - `0` for SMS <br> - `1` for Linked Device 1 <br> - `2` for Linked Device 2 |
