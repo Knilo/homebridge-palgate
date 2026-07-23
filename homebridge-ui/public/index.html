@@ -247,7 +247,7 @@
   <div id="accountList"></div>
 
   <!-- Add-account button (shown once at least one account is linked) -->
-  <div id="addAccountArea" class="d-none mt-2">
+  <div id="addAccountArea" class="d-none">
     <button class="btn btn-primary btn-sm" id="addAccountBtn">
       <i class="fas fa-link me-1"></i>Add Account
     </button>
@@ -256,7 +256,7 @@
   <!-- QR linking flow — shown on first run and when adding/re-linking an account.
        Wrapped in a nested card so it reads as a contained panel, matching the account
        rows and gate cards, rather than tacking onto the bottom of the section. -->
-  <div id="linkingFlowArea" class="card card-body mt-2">
+  <div id="linkingFlowArea" class="card card-body">
     <p class="text-muted small mb-3" id="linkingIntro">
       Connect your PalGate account by scanning a QR code in the PalGate app
       (<strong>Device Linking → Link a Device</strong>).
@@ -265,7 +265,7 @@
       <i class="fas fa-qrcode me-2"></i>Connect to PalGate
     </button>
     <div id="qrCodeArea" class="mt-3 text-center"></div>
-    <div id="linkStatus" class="mt-2"></div>
+    <div id="linkStatus" class="mt-2 text-center"></div>
     <button class="btn btn-secondary mt-2 d-none" id="cancelLink">Cancel</button>
   </div>
 </div>
@@ -937,7 +937,7 @@ function withTimeout(promise, ms, message) {
       if (Date.now() - pollStartTime > POLL_TIMEOUT_MS) {
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
         document.getElementById('qrCodeArea').innerHTML = '';
-        renderLinkStatus('error', 'Session expired. Click "Connect to PalGate" to try again.');
+        renderLinkStatus('error', 'Linking timed out. Tap Connect to PalGate to restart.');
         restoreConnectButton();
         return;
       }
