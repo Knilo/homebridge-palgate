@@ -22,6 +22,9 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - **Set Up using the Homebridge UI:**  
   No complicated token extraction required! Simply use the Set Up screen in the Homebridge UI to get everything configured.
 
+- **Multiple Accounts:**  
+  Link more than one PalGate account and manage all their gates from a single Homebridge instance. Add, re-link, rename, or remove accounts in the Homebridge UI; gates from every account appear together and are labeled by account, and you can filter the list to one account. Single-account setups are unaffected.
+
 - **Automatic Device Discovery:**  
   After Homebridge launches, the plugin automatically retrieves and registers your gate devices using the PalGate API.
   
@@ -71,7 +74,7 @@ This plugin features an automatic configuration UI that simplifies the device li
 4. Open the PalGate App, and navigate to Device Linking > Link a Device and then scan the QR code.
 5. The linking will complete and configuration will be updated automatically. 
 6. Once linked, you can use Customise Gates button to change the name or accessory type of each gate connected to your account.
-7. To manage gates from more than one PalGate account, click Add Account and link each one with its own QR code. Gates from every linked account appear in a single list, and you can re-link or remove an account at any time. A gate shared across accounts appears once, operated by the first account you linked it under.
+7. To manage gates from more than one PalGate account, click Add Account and link each one with its own QR code. Gates from every linked account appear in a single list (labeled by account, with a filter to show just one), and you can re-link, rename, or remove an account at any time. A gate shared across accounts appears once, operated by whichever account has the most access to it (admin/latch).
 
 ### Using the CLI
 
@@ -144,9 +147,9 @@ To configure the PalGate Platform, add the following snippet to your Homebridge 
 
 To manage gates from more than one PalGate account, replace the top-level `token` /
 `phoneNumber` / `tokenType` with an `accounts` array — one entry per account. Gates from
-every account are managed together, and a gate shared across accounts is handled by the
-first account listed. The legacy top-level fields still work and are treated as a single
-account, so existing configs need no changes.
+every account are managed together, and a gate shared across accounts is operated by
+whichever account has the most access to it (admin/latch). The legacy top-level fields
+still work and are treated as a single account, so existing configs need no changes.
 
 ```json
 {
