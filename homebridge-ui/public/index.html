@@ -258,8 +258,7 @@
        rows and gate cards, rather than tacking onto the bottom of the section. -->
   <div id="linkingFlowArea" class="card card-body">
     <p class="text-muted small mb-3" id="linkingIntro">
-      Connect your PalGate account by scanning a QR code in the PalGate app
-      (<strong>Device Linking → Link a Device</strong>).
+      Link a PalGate account by scanning a QR code with the PalGate app.
     </p>
     <button class="btn btn-primary" id="generateQR">
       <i class="fas fa-qrcode me-2"></i>Connect to PalGate
@@ -753,8 +752,8 @@ function withTimeout(promise, ms, message) {
     // Keep the intro short — the exact "Device Linking → Link a Device" path is shown once,
     // under the QR code, at the moment it's needed.
     if (intro) intro.textContent = relinkTargetId
-      ? 'Re-link this account by scanning a fresh QR code in the PalGate app.'
-      : 'Connect your PalGate account by scanning a QR code in the PalGate app.';
+      ? 'Re-link this account by scanning a fresh QR code with the PalGate app.'
+      : 'Link a PalGate account by scanning a QR code with the PalGate app.';
 
     // Gates card hint tracks linked state: point at linking first, discovery second.
     const hint = document.getElementById('gateListHint');
@@ -904,11 +903,9 @@ function withTimeout(promise, ms, message) {
       startConfirmationPolling(initData.uniqueId, sessionId);
     } catch (err) {
       const msg = formatError(err);
-      renderLinkStatus('error', msg);
-      homebridge.toast.error(msg, 'Error');
       safeHideSpinner();
-      generateBtn.disabled = false;
-      generateBtn.innerHTML = '<i class="fas fa-qrcode me-2"></i>Connect to PalGate';
+      showRestartState(msg);
+      homebridge.toast.error(msg, 'Error');
     }
   }
 
@@ -921,6 +918,16 @@ function withTimeout(promise, ms, message) {
     }
     const cancel = document.getElementById('cancelLink');
     if (cancel) cancel.classList.add('d-none');
+  }
+
+  // Shown after a link attempt times out or fails: a red status plus a "Restart linking"
+  // primary and a Cancel, so the user can retry or back out.
+  function showRestartState(msg) {
+    renderLinkStatus('error', msg);
+    const btn = document.getElementById('generateQR');
+    if (btn) { btn.style.display = ''; btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync me-2"></i>Restart linking'; }
+    const cancel = document.getElementById('cancelLink');
+    if (cancel) cancel.classList.remove('d-none');
   }
 
   function startConfirmationPolling(uniqueId, sessionId) {
@@ -937,8 +944,7 @@ function withTimeout(promise, ms, message) {
       if (Date.now() - pollStartTime > POLL_TIMEOUT_MS) {
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
         document.getElementById('qrCodeArea').innerHTML = '';
-        renderLinkStatus('error', 'Linking timed out. Tap Connect to PalGate to restart.');
-        restoreConnectButton();
+        showRestartState('Linking timed out.');
         return;
       }
 
@@ -973,16 +979,14 @@ function withTimeout(promise, ms, message) {
           if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
           const msg = data.error || 'Unknown error';
           document.getElementById('qrCodeArea').innerHTML = '';
-          renderLinkStatus('error', msg);
+          showRestartState(msg);
           homebridge.toast.error(msg, 'Linking Failed');
-          restoreConnectButton();
         }
       } catch (err) {
         if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
         const msg = formatError(err);
-        renderLinkStatus('error', msg);
+        showRestartState(msg);
         homebridge.toast.error(msg, 'Error');
-        restoreConnectButton();
       } finally {
         pollInFlight = false;
       }
