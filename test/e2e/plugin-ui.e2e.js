@@ -36,6 +36,13 @@
  *                again so the live bridge ends on your real config.
  *   6. RESET   — click a gate's "Reset all" and assert its customGates entry is
  *                removed entirely (not left as a hollow { deviceId }).
+ *   7. ACCOUNTS— re-point the config at one account, then (if two are linked) at two,
+ *                reloading the settings UI each time. Asserts the accounts section
+ *                renders one card per account with solid Re-link/Remove + Add Account
+ *                buttons, that discovery still resolves, and that per-gate account
+ *                affiliation labels appear only in the two-account pass. This is the
+ *                multi-account coverage — it needs a second linked account to exercise
+ *                the two-account pass (otherwise that half is skipped with a note).
  *   throughout — no uncaught page errors in any frame (TDZ/reference errors etc).
  *
  * This is also the harness that caught the on-load auto-discover TDZ bug: script
@@ -44,7 +51,9 @@
  *
  * Requirements (local only — not run in CI):
  *   - Homebridge with config-ui-x running, this plugin installed (npm link)
- *   - A real, linked PalGate account in the plugin config (token fields present)
+ *   - At least one real, linked PalGate account in the plugin config (legacy token
+ *     fields or an accounts[] entry). Link a second account to exercise step 7's
+ *     two-account pass.
  *   - Google Chrome installed
  *
  * Usage:
@@ -62,7 +71,7 @@
  */
 
 const puppeteer = require('puppeteer-core');
-const { createHbRest, stripToTokenFields } = require('../helpers/hb-rest');
+const { createHbRest, stripToTokenFields, extractAccounts } = require('../helpers/hb-rest');
 
 const HB_UI_URL = process.env.HB_UI_URL || 'http://localhost:8581';
 const USERNAME = process.env.HB_UI_USERNAME || 'admin';
@@ -123,6 +132,60 @@ function clickFormButton(iframe, sid, selector) {
   }, { sid, selector });
 }
 
+// Navigate to /plugins, open this plugin's config modal, and return its settings iframe.
+// Reusable so a scenario can reload the UI after re-pointing the config via REST.
+async function openSettings(page) {
+  await page.goto(`${HB_UI_URL}/plugins`, { waitUntil: 'networkidle2', timeout: 20000 });
+  await page.waitForSelector('.card', { timeout: 15000 });
+  const opened = await page.evaluate((pluginName) => {
+    const card = [...document.querySelectorAll('.card')]
+      .find(c => (c.textContent || '').toLowerCase().includes(pluginName.replace('homebridge-', '')));
+    if (!card) return 'plugin card not found';
+    card.querySelector('button[aria-label="Plugin Actions"]')?.click();
+    const item = [...card.querySelectorAll('button.dropdown-item')]
+      .find(b => /Plugin Config/i.test(b.textContent || ''));
+    if (!item) return 'Plugin Config menu item not found';
+    item.click();
+    return 'ok';
+  }, PLUGIN_NAME);
+  if (opened !== 'ok') throw new Error(opened);
+  let iframe = null;
+  for (let i = 0; i < 30 && !iframe; i++) {
+    await new Promise(r => setTimeout(r, 500));
+    iframe = page.frames().find(f => f !== page.mainFrame() && f.url().includes('/plugins/settings-ui/'));
+  }
+  if (!iframe) throw new Error('settings iframe missing');
+  return iframe;
+}
+
+// Wait for on-load discovery to resolve the gate list, then read the gate rows off the
+// cards (deviceId + admin/latch badges). Returns { phase, gates } — phase is 'gates',
+// 'resolved-empty', or 'timeout'.
+async function waitForGates(iframe, timeoutMs) {
+  const deadline = Date.now() + (timeoutMs || 25000);
+  let phase = 'timeout';
+  while (Date.now() < deadline) {
+    const state = await iframe.evaluate(() => {
+      const el = document.getElementById('gateList');
+      if (!el) return { phase: 'no-element' };
+      const text = el.innerText.replace(/\s+/g, ' ').trim();
+      const cards = el.querySelectorAll('.card').length;
+      const loading = /Loading gates|Still trying/i.test(text);
+      return { phase: loading ? 'loading' : (cards > 0 ? 'gates' : 'resolved-empty'), cards };
+    }).catch(() => ({ phase: 'eval-error' }));
+    if (state.phase === 'gates' || state.phase === 'resolved-empty') { phase = state.phase; break; }
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  const gates = await iframe.evaluate(() =>
+    [...document.querySelectorAll('#gateList .card')].map(card => ({
+      deviceId: (card.querySelector('.gate-id')?.textContent || '').trim(),
+      latch: !!card.querySelector('.latch-badge'),
+      admin: !!card.querySelector('.admin-badge'),
+    })).filter(g => g.deviceId)
+  ).catch(() => []);
+  return { phase, gates };
+}
+
 (async () => {
   const rest = createHbRest({ baseUrl: HB_UI_URL, username: USERNAME, password: PASSWORD, pluginName: PLUGIN_NAME });
   let originalConfig = null;
@@ -137,9 +200,17 @@ function clickFormButton(iframe, sid, selector) {
 
     const wiped = stripToTokenFields(originalConfig);
     wiped.platform = wiped.platform || PLUGIN_ALIAS;
-    const hasToken = !!(wiped.token && wiped.phoneNumber && wiped.tokenType !== undefined);
-    check(hasToken, 'token fields present after wipe', hasToken ? undefined : 'missing token/phoneNumber/tokenType — link a device first');
-    if (!hasToken) throw new Error('config has no linking credentials to preserve');
+    // Credentials may be in the legacy top-level fields or the accounts[] array — accept
+    // either. availableAccounts drives the one- vs two-account scenarios in step 7.
+    const availableAccounts = extractAccounts(wiped);
+    const hasCredentials = availableAccounts.length > 0;
+    check(hasCredentials, 'linking credentials present after wipe',
+      hasCredentials ? `${availableAccounts.length} account(s)` : 'no token fields or accounts[] — link a device first');
+    if (!hasCredentials) throw new Error('config has no linking credentials to preserve');
+
+    // Structural (non-credential) keys reused when re-pointing the config per scenario.
+    const structural = {};
+    for (const k of ['platform', 'name', '_bridge']) if (wiped[k] !== undefined) structural[k] = wiped[k];
 
     await rest.setConfig(wiped);
     const afterWipe = await rest.getConfig();
@@ -167,29 +238,9 @@ function clickFormButton(iframe, sid, selector) {
     check(loggedIn, 'UI login succeeds', page.url());
     if (!loggedIn) throw new Error('login failed');
 
-    await page.goto(`${HB_UI_URL}/plugins`, { waitUntil: 'networkidle2', timeout: 20000 });
-    await page.waitForSelector('.card', { timeout: 15000 });
-    const opened = await page.evaluate((pluginName) => {
-      const card = [...document.querySelectorAll('.card')]
-        .find(c => (c.textContent || '').toLowerCase().includes(pluginName.replace('homebridge-', '')));
-      if (!card) return 'plugin card not found';
-      card.querySelector('button[aria-label="Plugin Actions"]')?.click();
-      const item = [...card.querySelectorAll('button.dropdown-item')]
-        .find(b => /Plugin Config/i.test(b.textContent || ''));
-      if (!item) return 'Plugin Config menu item not found';
-      item.click();
-      return 'ok';
-    }, PLUGIN_NAME);
-    check(opened === 'ok', 'plugin settings modal opens', opened);
-    if (opened !== 'ok') throw new Error(opened);
-
     let iframe = null;
-    for (let i = 0; i < 30 && !iframe; i++) {
-      await sleep(500);
-      iframe = page.frames().find(f => f !== page.mainFrame() && f.url().includes('/plugins/settings-ui/'));
-    }
-    check(!!iframe, 'custom UI iframe loads', iframe ? iframe.url() : 'not found after 15s');
-    if (!iframe) throw new Error('iframe missing');
+    try { iframe = await openSettings(page); } catch (err) { check(false, 'plugin settings modal + iframe load', err.message); throw err; }
+    check(!!iframe, 'custom UI iframe loads', iframe.url());
 
     // ── 2. DISCOVER: on-load auto-discovery resolves to gate cards ─────
     let gateState = null;
@@ -548,6 +599,67 @@ function clickFormButton(iframe, sid, selector) {
       ? afterReset.customGates.find(e => e.deviceId === target.deviceId) : null;
     check(!residual, 'per-gate "Reset all" removes the override (no hollow entry)',
       residual ? `residual entry: ${JSON.stringify(residual)}` : undefined);
+
+    // ── 7. ACCOUNTS: one-account and two-account scenarios ─────────────
+    // Re-point the config at N accounts (as an accounts[] array), reload the settings UI,
+    // and assert the accounts section + per-gate affiliation labels for that count. The
+    // two-account pass runs only when a second account is actually linked.
+    const scenarios = [{ name: 'one account', n: 1 }];
+    if (availableAccounts.length >= 2) scenarios.push({ name: 'two accounts', n: 2 });
+    else info(`only ${availableAccounts.length} account linked — skipping the two-account pass (link a second to cover it)`);
+
+    const gateCountByScenario = {};
+    for (const scenario of scenarios) {
+      const accts = availableAccounts.slice(0, scenario.n).map((a, i) => ({
+        label: a.label || `Account ${i + 1}`,
+        token: a.token, phoneNumber: a.phoneNumber, tokenType: a.tokenType,
+      }));
+      await rest.setConfig(Object.assign({}, structural, { accounts: accts }));
+      const scenIframe = await openSettings(page);
+      const { phase, gates: scenGates } = await waitForGates(scenIframe, GATE_LIST_TIMEOUT_MS);
+      gateCountByScenario[scenario.n] = scenGates.length;
+
+      const ui = await scenIframe.evaluate(() => {
+        const list = document.getElementById('accountList');
+        const relink = list ? [...list.querySelectorAll('button[data-relink]')] : [];
+        const remove = list ? [...list.querySelectorAll('button[data-remove]')] : [];
+        const addArea = document.getElementById('addAccountArea');
+        const solid = (els, cls) => els.length > 0 && els.every(b => b.classList.contains(cls) && !b.className.includes('outline'));
+        return {
+          cards: list ? list.querySelectorAll('.card').length : 0,
+          relink: relink.length,
+          remove: remove.length,
+          relinkSolid: solid(relink, 'btn-primary'),
+          removeSolid: solid(remove, 'btn-danger'),
+          addVisible: !!addArea && !addArea.classList.contains('d-none'),
+          badge: !document.getElementById('linkedBadge').classList.contains('d-none'),
+          affiliation: !!document.querySelector('#gateList .card i.fa-link'),
+        };
+      });
+
+      check(ui.cards === scenario.n && ui.badge,
+        `[${scenario.name}] accounts section renders ${scenario.n} account card(s)`,
+        `cards=${ui.cards} badge=${ui.badge}`);
+      check(ui.relink === scenario.n && ui.remove === scenario.n && ui.relinkSolid && ui.removeSolid,
+        `[${scenario.name}] each account has a solid Re-link + Remove button`,
+        `relink=${ui.relink}(solid=${ui.relinkSolid}) remove=${ui.remove}(solid=${ui.removeSolid})`);
+      check(ui.addVisible, `[${scenario.name}] "Add Account" button is available`);
+      check(phase === 'gates',
+        `[${scenario.name}] discovery resolves to gate cards`,
+        `phase=${phase} gates=${scenGates.length}`);
+      // Affiliation labels are shown only when more than one account is linked.
+      const affiliationOk = scenario.n > 1 ? ui.affiliation : !ui.affiliation;
+      check(affiliationOk,
+        `[${scenario.name}] gate cards ${scenario.n > 1 ? 'show' : 'omit'} account affiliation labels`,
+        `affiliation=${ui.affiliation}`);
+    }
+
+    // Two accounts should surface at least as many gates as one (the union of both).
+    if (gateCountByScenario[2] !== undefined) {
+      check(gateCountByScenario[2] >= gateCountByScenario[1],
+        'two-account discovery surfaces at least as many gates as one account',
+        `one=${gateCountByScenario[1]} two=${gateCountByScenario[2]}`);
+    }
 
     // ── final: no page errors anywhere ────────────────────────────────
     // Known-benign: config-ui-x's own SDK throws a DataCloneError when

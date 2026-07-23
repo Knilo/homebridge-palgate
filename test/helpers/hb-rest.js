@@ -122,8 +122,11 @@ function createHbRest({ baseUrl, username, password, pluginName }) {
   };
 }
 
-// Keys that survive a "wipe" — structural identity plus the linking/token fields.
-const PRESERVED_KEYS = ['platform', 'name', '_bridge', 'token', 'phoneNumber', 'tokenType'];
+// Keys that survive a "wipe" — structural identity plus the linking credentials, in both
+// the legacy single-account shape (token/phoneNumber/tokenType) and the multi-account
+// shape (accounts[]). Preserving `accounts` is essential: without it the wipe would delete
+// every linked account and leave nothing to test against.
+const PRESERVED_KEYS = ['platform', 'name', '_bridge', 'accounts', 'token', 'phoneNumber', 'tokenType'];
 
 function stripToTokenFields(block) {
   const wiped = {};
@@ -133,4 +136,19 @@ function stripToTokenFields(block) {
   return wiped;
 }
 
-module.exports = { createHbRest, stripToTokenFields, PRESERVED_KEYS };
+// Normalizes a plugin config block to the list of linked accounts, in either shape.
+// Returns [{ label?, token, phoneNumber, tokenType }] (empty if unlinked).
+function extractAccounts(block) {
+  if (!block) return [];
+  if (Array.isArray(block.accounts) && block.accounts.length) {
+    return block.accounts
+      .filter(a => a && a.token && a.phoneNumber && a.tokenType !== undefined)
+      .map(a => ({ label: a.label, token: a.token, phoneNumber: a.phoneNumber, tokenType: a.tokenType }));
+  }
+  if (block.token && block.phoneNumber && block.tokenType !== undefined) {
+    return [{ token: block.token, phoneNumber: block.phoneNumber, tokenType: block.tokenType }];
+  }
+  return [];
+}
+
+module.exports = { createHbRest, stripToTokenFields, extractAccounts, PRESERVED_KEYS };
