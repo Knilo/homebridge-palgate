@@ -40,6 +40,9 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - **Hold Open & Hold Closed Control:**  
   Control the gate's latch relays from HomeKit to hold it open or closed. Expose them as locks, switches, or valves. Requires Latch permissions on the gate.
 
+- **Stateful Gate (Latching):**  
+  For a single-family home, back a garage door's Open/Closed state with the latch relay so the Home app shows the gate's real state — tapping open holds it open until you tap close. Requires Latch permissions. Not for shared buildings or parking entrances.
+
 - **External-Open Detection:**  
   Poll the PalGate operation log and animate the accessory when a gate is opened from the PalGate app or a dial-in call — the opens PalGate records. This also gives you native Home-app "opened" notifications. Requires Admin permissions on the gate.
 
@@ -176,7 +179,7 @@ still work and are treated as a single account, so existing configs need no chan
 | `phoneNumber` | Your account’s phone number (e.g., `972500000000`). |
 | `tokenType` | The linking type. Each PalGate account supports two device link slots. Valid values: <br> - `0` for SMS <br> - `1` for Linked Device 1 <br> - `2` for Linked Device 2 |
 | `accessoryType`| Defines the default type for discovered devices; valid values are `"garageDoor"`, `"switch"`, or `"lock"`. |
-| `triggerMode` | How accessories respond to a tap. Valid values: <br> - `"stateful"` — tap to open; tap again to trigger the closing animation in the Home app <br> - `"stateless"` — always triggers a new opening, even if the gate is listed as open <br> - `"momentary"` — triggers an opening, then immediately resets the accessory state to closed <br> Default is `"stateful"`. |
+| `triggerMode` | How accessories respond to a tap. Valid values: <br> - `"stateful"` — tap to open; tap again to trigger the closing animation in the Home app <br> - `"stateless"` — always triggers a new opening, even if the gate is listed as open <br> - `"momentary"` — triggers an opening, then immediately resets the accessory state to closed <br> - `"latching"` — backs a `garageDoor`'s open/closed state with the latch relay for real state (single-family homes only; requires latch permission) <br> Default is `"stateful"`. |
 | `gateOpeningDelay` | The first part (ms) of the open window. A `garageDoor` shows it as the "Opening" state before "Open"; a `switch` or `lock` has no "Opening" state, but the time still counts toward how long it stays on/unlocked. The full window is `gateOpeningDelay` + `gateCloseDelay` for every type. Default is `1000`. |
 | `gateCloseDelay` | The second part (ms) of the open window, after `gateOpeningDelay`, before the accessory returns to closed/locked/off. The full window is `gateOpeningDelay` + `gateCloseDelay`. Default is `5000`. |
 | `pollInterval` | How often (in seconds) the plugin checks the PalGate API for changes made outside HomeKit, such as a relay toggled by another admin. Default is `60`, minimum `10`. |
@@ -222,6 +225,7 @@ still work and are treated as a single account, so existing configs need no chan
 - **Stateful** (default): Tap to open; the accessory animates open, then returns to rest after the open delay. Tapping again while it's still "open" just cancels the animation — it does **not** send another open command. Best when you want the tile to reflect an open/closed cycle.
 - **Stateless**: Every tap sends an open command, even if the accessory is already open or mid-cycle. Best for gates you may want to re-trigger, or where the on-screen state doesn't matter.
 - **Momentary**: Sends an open command, then immediately snaps back to closed/locked/off with no open window. Best for a push-button feel, or for triggering from automations and Siri.
+- **Stateful (latching)**: Backs the tile with the latch relay for **real** open/closed state instead of an animated guess. Tapping open holds the gate open (hold open); tapping close releases the latch so the gate closes. The state stays truthful across restarts and reflects a hold set from the PalGate app. **Single-family homes only** — an indefinite hold on a shared building or parking entrance leaves it open for everyone. Requires **latch** permission, applies only to `garageDoor` gates, and supersedes that gate's separate Hold Open accessory. As with external-open detection, an open from a physical remote or keypad (which doesn't engage the latch) still won't show.
 
 #### Relay Mode
 Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (hold open) or "Always Closed" (hold closed) state.
