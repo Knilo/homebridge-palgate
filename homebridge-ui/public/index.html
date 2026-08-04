@@ -300,10 +300,15 @@
         <label class="form-check-label" for="globalTriggerMode-stateless"><i class="fas fa-bolt me-1"></i>Stateless</label>
         <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Always triggers a new open, even if the gate is still mid-cycle</div>
       </div>
-      <div class="form-check">
+      <div class="form-check mb-1">
         <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-momentary" value="momentary">
         <label class="form-check-label" for="globalTriggerMode-momentary"><i class="fas fa-hand-pointer me-1"></i>Momentary</label>
         <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Triggers open then immediately resets to closed/off/locked</div>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-latching" value="latching">
+        <label class="form-check-label" for="globalTriggerMode-latching"><i class="fas fa-warehouse me-1"></i>Stateful (latching)</label>
+        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Holds the gate open on the latch relay for real Open/Closed state — until you tap Close. <strong>Single-family homes only</strong>, never a shared building or parking entrance. Requires latch permission; only applies to Garage Door gates and supersedes their separate Hold&nbsp;Open accessory.</div>
       </div>
     </div>
 
@@ -467,8 +472,8 @@ function withTimeout(promise, ms, message) {
   const MANUAL_CONFIG_KEY = 'palgateManualConfigVisible';
   const TYPE_ICON = { garageDoor: 'fa-warehouse', switch: 'fa-toggle-on', lock: 'fa-lock' };
   const TYPE_LABEL = { garageDoor: 'Garage Door', switch: 'Switch', lock: 'Lock' };
-  const TRIGGER_ICON = { stateful: 'fa-right-left', stateless: 'fa-bolt', momentary: 'fa-hand-pointer' };
-  const TRIGGER_LABEL = { stateful: 'Stateful', stateless: 'Stateless', momentary: 'Momentary' };
+  const TRIGGER_ICON = { stateful: 'fa-right-left', stateless: 'fa-bolt', momentary: 'fa-hand-pointer', latching: 'fa-warehouse' };
+  const TRIGGER_LABEL = { stateful: 'Stateful', stateless: 'Stateless', momentary: 'Momentary', latching: 'Stateful (latching)' };
 
   // showSpinner / hideSpinner use window.parent.postMessage internally; if the parent
   // reference is stale they throw synchronously. Wrapping prevents that from propagating
@@ -1519,10 +1524,15 @@ function withTimeout(promise, ms, message) {
             <label class="form-check-label" for="triggerMode-${sid}-stateless"><i class="fas fa-bolt me-1"></i>Stateless</label>
             <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Always triggers a new open, even if the gate is still mid-cycle</div>
           </div>
-          <div class="form-check">
+          <div class="form-check mb-1">
             <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-momentary" value="momentary" ${resolvedTrigger === 'momentary' ? 'checked' : ''}>
             <label class="form-check-label" for="triggerMode-${sid}-momentary"><i class="fas fa-hand-pointer me-1"></i>Momentary</label>
             <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Triggers open then immediately resets to closed/off/locked</div>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-latching" value="latching" ${resolvedTrigger === 'latching' ? 'checked' : ''} ${showRelay ? '' : 'disabled'}>
+            <label class="form-check-label" for="triggerMode-${sid}-latching"><i class="fas fa-warehouse me-1"></i>Stateful (latching)</label>
+            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Holds the gate open on the latch relay for real Open/Closed state, until you tap Close. Garage&nbsp;Door gates only; supersedes the separate Hold&nbsp;Open accessory.${showRelay ? '' : ' <em>Requires latch permission.</em>'}</div>
           </div>
         </div>
 
