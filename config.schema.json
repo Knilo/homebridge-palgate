@@ -73,13 +73,14 @@
 			},
 			"triggerMode": {
 				"title": "Default Trigger Mode",
-				"description": "How accessories respond to taps. Stateful toggles open/closed. Stateless always triggers open regardless of current state. Momentary triggers open then immediately resets to resting state.",
+				"description": "How accessories respond to taps. Stateful toggles open/closed. Stateless always triggers open regardless of current state. Momentary triggers open then immediately resets to resting state. Stateful (latching) holds the gate open on the latch relay for real open/closed state — single-family homes only, requires latch permission.",
 				"type": "string",
 				"default": "stateful",
 				"oneOf": [
 					{ "title": "Stateful", "enum": ["stateful"] },
 					{ "title": "Stateless", "enum": ["stateless"] },
-					{ "title": "Momentary", "enum": ["momentary"] }
+					{ "title": "Momentary", "enum": ["momentary"] },
+					{ "title": "Stateful (latching)", "enum": ["latching"] }
 				]
 			},
 			"accessoryType": {
@@ -284,12 +285,13 @@
 						},
 						"triggerMode": {
 							"title": "Trigger Mode Override",
-							"description": "Override the trigger mode for this gate. Stateful toggles open/closed. Stateless always triggers open. Momentary triggers open then immediately resets.",
+							"description": "Override the trigger mode for this gate. Stateful toggles open/closed. Stateless always triggers open. Momentary triggers open then immediately resets. Stateful (latching) holds the gate open on the latch relay for real open/closed state (requires latch permission).",
 							"type": "string",
 							"oneOf": [
 								{ "title": "Stateful", "enum": ["stateful"] },
 								{ "title": "Stateless", "enum": ["stateless"] },
-								{ "title": "Momentary", "enum": ["momentary"] }
+								{ "title": "Momentary", "enum": ["momentary"] },
+								{ "title": "Stateful (latching)", "enum": ["latching"] }
 							]
 						},
 						"detectExternalOpens": {
