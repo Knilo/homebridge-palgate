@@ -135,16 +135,16 @@ test('poller reconciles a latching garage door to the real latch state', async (
   api.emit('shutdown');
 });
 
-test('latching suppresses the redundant Hold-Open relay accessory on the same output', async () => {
+test('latching coexists with Hold Open/Closed relay accessories on the same output', async () => {
   const { api } = await launchPlatform(
     { enableRelayLocks: true, relayAccessoryType: 'lock', customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] },
     LATCH_GATE
   );
 
+  // The latching tile and the Hold Open/Closed accessories all drive the same latch and are
+  // reconciled by the poller, so they don't contradict — both are exposed.
   assert.ok(api.registered.some(a => a.context.accessoryType === 'garageDoor'), 'garage door present');
-  const relayTypes = ['holdOpenLock', 'holdClosedLock', 'holdOpenSwitch', 'holdClosedSwitch', 'holdOpenValve', 'holdClosedValve'];
-  const relays = api.registered.filter(a => relayTypes.includes(a.context.accessoryType));
-  assert.equal(relays.length, 0, 'no separate relay accessories when latching owns the latch');
+  assert.ok(api.registered.some(a => a.context.accessoryType === 'holdOpenLock'), 'hold-open lock still present');
   api.emit('shutdown');
 });
 
