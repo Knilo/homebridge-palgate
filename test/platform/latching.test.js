@@ -43,7 +43,7 @@ async function launchPlatform(configOverrides, devices) {
 const LATCH_GATE = [{ id: 'DEV1', name1: 'Front', output1: true, output1Latch: true }];
 
 test('latching open engages hold_open and stays open (no auto-close)', async () => {
-  const { api } = await launchPlatform({ triggerMode: 'latching' }, LATCH_GATE);
+  const { api } = await launchPlatform({ customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] }, LATCH_GATE);
 
   const acc = api.registered.find(a => a.context.accessoryType === 'garageDoor');
   assert.ok(acc, 'expected a garageDoor accessory');
@@ -66,7 +66,7 @@ test('latching open engages hold_open and stays open (no auto-close)', async () 
 });
 
 test('latching close releases the latch (normal) and walks CLOSING → CLOSED', async () => {
-  const { api } = await launchPlatform({ triggerMode: 'latching' }, LATCH_GATE);
+  const { api } = await launchPlatform({ customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] }, LATCH_GATE);
 
   const acc = api.registered.find(a => a.context.accessoryType === 'garageDoor');
   const service = acc.getService(api.hap.Service.GarageDoorOpener);
@@ -88,7 +88,7 @@ test('latching close releases the latch (normal) and walks CLOSING → CLOSED', 
 
 test('latching without latch permission falls back to a momentary pulse', async () => {
   const { api } = await launchPlatform(
-    { triggerMode: 'latching' },
+    { customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] },
     [{ id: 'DEV1', name1: 'Front', output1: true, output1Latch: false }]
   );
 
@@ -103,8 +103,21 @@ test('latching without latch permission falls back to a momentary pulse', async 
   api.emit('shutdown');
 });
 
+test('latching as a global default is ignored (per-gate-only) and falls back to stateful', async () => {
+  // Even with latch permission, a global triggerMode of "latching" must not latch — it is a
+  // per-gate-only mode. The open should be a plain momentary pulse, not a hold_open.
+  const { api } = await launchPlatform({ triggerMode: 'latching' }, LATCH_GATE);
+
+  const acc = api.registered.find(a => a.context.accessoryType === 'garageDoor');
+  const C = api.hap.Characteristic;
+  await acc.getService(api.hap.Service.GarageDoorOpener)
+    .getCharacteristic(C.TargetDoorState).triggerSet(C.TargetDoorState.OPEN);
+  assert.deepEqual(stub.requests.at(-1).query, { outputNum: '1' }, 'no latch params — global latching ignored');
+  api.emit('shutdown');
+});
+
 test('poller reconciles a latching garage door to the real latch state', async () => {
-  const { platform, api } = await launchPlatform({ triggerMode: 'latching' }, LATCH_GATE);
+  const { platform, api } = await launchPlatform({ customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] }, LATCH_GATE);
 
   const acc = api.registered.find(a => a.context.accessoryType === 'garageDoor');
   const C = api.hap.Characteristic;
@@ -124,7 +137,7 @@ test('poller reconciles a latching garage door to the real latch state', async (
 
 test('latching suppresses the redundant Hold-Open relay accessory on the same output', async () => {
   const { api } = await launchPlatform(
-    { triggerMode: 'latching', enableRelayLocks: true, relayAccessoryType: 'lock' },
+    { enableRelayLocks: true, relayAccessoryType: 'lock', customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] },
     LATCH_GATE
   );
 
@@ -136,7 +149,7 @@ test('latching suppresses the redundant Hold-Open relay accessory on the same ou
 });
 
 test('a non-garage primary ignores latching and uses a momentary pulse', async () => {
-  const { api } = await launchPlatform({ accessoryType: 'switch', triggerMode: 'latching' }, LATCH_GATE);
+  const { api } = await launchPlatform({ accessoryType: 'switch', customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] }, LATCH_GATE);
 
   const acc = api.registered.find(a => a.context.accessoryType === 'switch');
   const C = api.hap.Characteristic;
