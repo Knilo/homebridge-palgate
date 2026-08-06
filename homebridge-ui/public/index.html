@@ -290,25 +290,21 @@
 
     <div class="mb-3">
       <label class="form-label mb-1">Default Trigger Mode</label>
+      <p class="text-muted small mb-2">PalGate doesn't report whether a gate is open, so these modes just send an open command and <em>animate</em> the tile on a timer — they don't reflect the gate's real position. (For real Open/Closed state, see the per-gate <strong>Stateful (latching)</strong> option.)</p>
       <div class="form-check mb-1">
         <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-stateful" value="stateful">
         <label class="form-check-label" for="globalTriggerMode-stateful"><i class="fas fa-right-left me-1"></i>Stateful</label>
-        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Tap to open; tap again while still open to close immediately without re-triggering</div>
+        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Tap sends one open command; the tile animates open then back to closed. Tapping again while it still shows open just cancels the animation — it won't send another open.</div>
       </div>
       <div class="form-check mb-1">
         <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-stateless" value="stateless">
         <label class="form-check-label" for="globalTriggerMode-stateless"><i class="fas fa-bolt me-1"></i>Stateless</label>
-        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Always triggers a new open, even if the gate is still mid-cycle</div>
-      </div>
-      <div class="form-check mb-1">
-        <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-momentary" value="momentary">
-        <label class="form-check-label" for="globalTriggerMode-momentary"><i class="fas fa-hand-pointer me-1"></i>Momentary</label>
-        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Triggers open then immediately resets to closed/off/locked</div>
+        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Every tap sends a fresh open command, even if the tile still shows open. Good for re-triggering a gate mid-cycle.</div>
       </div>
       <div class="form-check">
-        <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-latching" value="latching">
-        <label class="form-check-label" for="globalTriggerMode-latching"><i class="fas fa-warehouse me-1"></i>Stateful (latching)</label>
-        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Holds the gate open on the latch relay for real Open/Closed state — until you tap Close. <strong>Single-family homes only</strong>, never a shared building or parking entrance. Requires latch permission; only applies to Garage Door gates and supersedes their separate Hold&nbsp;Open accessory.</div>
+        <input class="form-check-input" type="radio" name="globalTriggerMode" id="globalTriggerMode-momentary" value="momentary">
+        <label class="form-check-label" for="globalTriggerMode-momentary"><i class="fas fa-hand-pointer me-1"></i>Momentary</label>
+        <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Sends one open command, then the tile snaps straight back to closed/off/locked with no animation. Best for a button feel, automations, and Siri.</div>
       </div>
     </div>
 
@@ -1085,6 +1081,40 @@ function withTimeout(promise, ms, message) {
     return { success: true, gates: merged };
   }
 
+  // Advisory shown before enabling "Stateful (latching)" on a gate. Returns true to proceed,
+  // false if the user backs out. Never throws — an advisory must not block enabling the mode.
+  async function adviseBeforeLatching(gate) {
+    try {
+      // Signal 1: you can operate the latch but you're not an admin on the gate — usually a
+      // sign it's managed by someone else (a shared or building gate), not your own home.
+      if (!gate || gate.admin !== true) {
+        return window.confirm(
+          "You can operate this gate's latch but you're not an admin on it — which usually means it's managed by someone else (a shared or building gate) rather than your own.\n\n" +
+          "Stateful (latching) holds the gate open until you tap Close, and is meant for a private single-family gate. Enable it anyway?"
+        );
+      }
+      // Signal 2 (admin only): check who has been opening the gate recently.
+      const acct = getAccounts().find(a => a.id === gate.accountId);
+      if (!acct) return true;
+      let data;
+      try {
+        safeShowSpinner();
+        data = await homebridge.request('/gate/opener-advisory', {
+          token: acct.token, phoneNumber: acct.phoneNumber, tokenType: acct.tokenType, deviceId: gate.deviceId,
+        });
+      } finally {
+        safeHideSpinner();
+      }
+      if (!data || !data.success || !data.looksShared) return true;
+      return window.confirm(
+        `This gate was opened by ${data.distinctUsers} different people in its last ${data.sampleSize} opens — that looks like a shared building or parking entrance, not a private home.\n\n` +
+        "Stateful (latching) holds the gate open until you tap Close, which isn't appropriate for a shared gate. Enable it anyway?"
+      );
+    } catch (_) {
+      return true; // never block on an advisory failure
+    }
+  }
+
   // Discovery is read-only: results live in discoveredGates and are never written to
   // config (an earlier design cached admin/latch/defaultName into customGates, which
   // went stale and clobbered names — see cleanCustomGates). background = true is the
@@ -1517,23 +1547,24 @@ function withTimeout(promise, ms, message) {
           <div class="form-check mb-1">
             <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-stateful" value="stateful" ${resolvedTrigger === 'stateful' ? 'checked' : ''}>
             <label class="form-check-label" for="triggerMode-${sid}-stateful"><i class="fas fa-right-left me-1"></i>Stateful</label>
-            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Tap to open; tap again while still open to close immediately without re-triggering</div>
+            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Tap sends one open command; the tile animates open then back to closed. Tapping again while it still shows open just cancels the animation — it won't send another open.</div>
           </div>
           <div class="form-check mb-1">
             <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-stateless" value="stateless" ${resolvedTrigger === 'stateless' ? 'checked' : ''}>
             <label class="form-check-label" for="triggerMode-${sid}-stateless"><i class="fas fa-bolt me-1"></i>Stateless</label>
-            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Always triggers a new open, even if the gate is still mid-cycle</div>
+            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Every tap sends a fresh open command, even if the tile still shows open. Good for re-triggering a gate mid-cycle.</div>
           </div>
           <div class="form-check mb-1">
             <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-momentary" value="momentary" ${resolvedTrigger === 'momentary' ? 'checked' : ''}>
             <label class="form-check-label" for="triggerMode-${sid}-momentary"><i class="fas fa-hand-pointer me-1"></i>Momentary</label>
-            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Triggers open then immediately resets to closed/off/locked</div>
+            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Sends one open command, then the tile snaps straight back with no animation. Best for a button feel, automations, and Siri.</div>
           </div>
+          ${showRelay ? `
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-latching" value="latching" ${resolvedTrigger === 'latching' ? 'checked' : ''} ${showRelay ? '' : 'disabled'}>
+            <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-latching" value="latching" ${resolvedTrigger === 'latching' ? 'checked' : ''}>
             <label class="form-check-label" for="triggerMode-${sid}-latching"><i class="fas fa-warehouse me-1"></i>Stateful (latching)</label>
-            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;">Holds the gate open on the latch relay for real Open/Closed state, until you tap Close. Garage&nbsp;Door gates only; supersedes the separate Hold&nbsp;Open accessory.${showRelay ? '' : ' <em>Requires latch permission.</em>'}</div>
-          </div>
+            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;"><strong>Real Open/Closed state.</strong> Uses this gate's underlying <strong>Hold&nbsp;Open</strong> latch to hold the gate open, then releases it to close — so the tile reflects the gate's actual state instead of a timed animation. For a private single-family gate; replaces this gate's separate Hold&nbsp;Open accessory.</div>
+          </div>` : ''}
         </div>
 
         <!-- Relay Mode (conditional) -->
@@ -1763,6 +1794,26 @@ function withTimeout(promise, ms, message) {
         resetTriggerModeLink.classList.add('d-none');
       });
     }
+
+    // Stateful (latching) advisory: latching holds the gate open, which only suits a private
+    // single-family gate. Warn when the signals suggest otherwise (you're not an admin on the
+    // gate, or its recent opens look like a shared entrance); revert the pick if declined.
+    const triggerRadios = container.querySelectorAll(`input[name="triggerMode-${sid}"]`);
+    let prevTrigger = (Array.from(triggerRadios).find(r => r.checked) || {}).value || 'stateful';
+    triggerRadios.forEach(radio => {
+      radio.addEventListener('change', async () => {
+        if (!radio.checked) return;
+        if (radio.value !== 'latching') { prevTrigger = radio.value; return; }
+        const proceed = await adviseBeforeLatching(gate);
+        if (proceed) {
+          prevTrigger = 'latching';
+        } else {
+          const revertTo = prevTrigger === 'latching' ? 'stateful' : prevTrigger;
+          const back = container.querySelector(`#triggerMode-${sid}-${revertTo}`);
+          if (back) back.checked = true;
+        }
+      });
+    });
 
     // Timing reset links — appear when per-gate value is set, vanish when cleared
     const openingInput = container.querySelector(`#openingDelay-${sid}`);
