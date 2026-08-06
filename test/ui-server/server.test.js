@@ -70,6 +70,13 @@ test('/devices/discover with malformed token fails cleanly, not with a crash', a
   assert.ok(res.data.error, 'expected an error message');
 });
 
+test('/gate/opener-advisory with missing credentials returns success:false with an error', async () => {
+  const res = await request('/gate/opener-advisory', { deviceId: 'DEV1' });
+  assert.equal(res.success, true); // transport-level success
+  assert.equal(res.data.success, false); // application-level failure
+  assert.match(res.data.error, /Missing credentials/);
+});
+
 test('/link/init returns a QR code and a session id', async () => {
   const res = await request('/link/init');
   assert.equal(res.data.success, true);

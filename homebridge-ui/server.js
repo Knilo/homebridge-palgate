@@ -1,6 +1,6 @@
-const { callApi, callApiOnce, getDevices } = require('../lib/api.js');
+const { callApi, callApiOnce, getDevices, getDeviceLogOnce } = require('../lib/api.js');
 const { generateToken } = require('../lib/token-gen.js');
-const { detectMultiOutputDevices, generateGateEntries, splitDeviceId } = require('../lib/utils/helpers.js');
+const { detectMultiOutputDevices, generateGateEntries, splitDeviceId, analyzeOpenerLog } = require('../lib/utils/helpers.js');
 
 // Link sessions expire after 6 minutes — slightly longer than the 5-minute client timeout
 // so a completed scan is never lost before the client picks it up.
@@ -34,6 +34,7 @@ const SESSION_TTL_MS = 6 * 60 * 1000;
       this.onRequest('/link/init', this.initLinkDevice.bind(this));
       this.onRequest('/link/confirm', this.confirmLinkDevice.bind(this));
       this.onRequest('/devices/discover', this.discoverDevices.bind(this));
+      this.onRequest('/gate/opener-advisory', this.openerAdvisory.bind(this));
 
       // Signal that the UI is ready.
       this.ready();
@@ -169,6 +170,34 @@ const SESSION_TTL_MS = 6 * 60 * 1000;
         });
 
         return { success: true, gates };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    /**
+     * Advisory used before enabling "Stateful (latching)" on a gate. Reads the gate's recent
+     * operation log (admin-only) and reports whether the mix of openers looks like a shared
+     * entrance rather than a private home. Non-fatal: any failure returns success:false and
+     * the client simply proceeds without an advisory.
+     */
+    async openerAdvisory(payload = {}) {
+      try {
+        const { token, phoneNumber, tokenType, deviceId } = payload;
+        if (!token || !phoneNumber || tokenType === undefined || tokenType === null || !deviceId) {
+          throw new Error('Missing credentials or deviceId.');
+        }
+
+        const temporalToken = generateToken(
+          Buffer.from(token, 'hex'),
+          parseInt(phoneNumber, 10),
+          parseInt(tokenType, 10)
+        );
+
+        const { baseId, outputNum } = splitDeviceId(deviceId);
+        const entries = await getDeviceLogOnce(temporalToken, baseId);
+        const advisory = analyzeOpenerLog(entries, outputNum);
+        return { success: true, ...advisory };
       } catch (err) {
         return { success: false, error: err.message };
       }

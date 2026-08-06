@@ -9,6 +9,7 @@ const {
   detectMultiOutputDevices,
   generateGateEntries,
   splitDeviceId,
+  analyzeOpenerLog,
 } = require('../../lib/utils/helpers.js');
 
 test('splitDeviceId: plain id defaults to output 1', () => {
@@ -78,4 +79,65 @@ test('galoisMul2: GF(2^8) doubling with AES reduction polynomial', () => {
   assert.equal(galoisMul2(0x01), 0x02);
   assert.equal(galoisMul2(0x80), 0x1b); // high bit set → reduce with 0x1b
   assert.equal(galoisMul2(0xff), 0xe5);
+});
+
+// ── analyzeOpenerLog: shared-vs-private advisory heuristic ──────────────
+function opens(n, userIds, extra = {}) {
+  // Build n entries cycling through userIds, all on Output 1 unless overridden.
+  return Array.from({ length: n }, (_, i) => ({
+    userId: userIds[i % userIds.length],
+    operation: 'Output 1',
+    time: 1000 - i,
+    type: 100,
+    ...extra,
+  }));
+}
+
+test('analyzeOpenerLog: a few openers over a full sample looks private', () => {
+  const r = analyzeOpenerLog(opens(25, ['a', 'b', 'c']), 1);
+  assert.equal(r.sampleSize, 25);
+  assert.equal(r.distinctUsers, 3);
+  assert.equal(r.looksShared, false);
+});
+
+test('analyzeOpenerLog: many distinct openers looks shared', () => {
+  const many = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+  const r = analyzeOpenerLog(opens(25, many), 1);
+  assert.equal(r.distinctUsers, 10);
+  assert.equal(r.looksShared, true);
+});
+
+test('analyzeOpenerLog: a tiny sample never advises (avoids false alarms on new gates)', () => {
+  const r = analyzeOpenerLog(opens(5, ['a', 'b', 'c', 'd', 'e']), 1);
+  assert.equal(r.sampleSize, 5);
+  assert.equal(r.looksShared, false, 'below the 8-entry minimum');
+});
+
+test('analyzeOpenerLog: only counts entries for the requested output', () => {
+  const entries = [
+    { userId: 'a', operation: 'Output 1', type: 100 },
+    { userId: 'b', operation: 'Output 2', type: 100 },
+    { userId: 'c', operation: 'Output 2', type: 100 },
+  ];
+  const r = analyzeOpenerLog(entries, 1);
+  assert.equal(r.sampleSize, 1);
+  assert.equal(r.distinctUsers, 1);
+});
+
+test('analyzeOpenerLog: caps the sample at 25 newest entries', () => {
+  const r = analyzeOpenerLog(opens(60, ['a', 'b']), 1);
+  assert.equal(r.sampleSize, 25);
+});
+
+test('analyzeOpenerLog: counts dial-in opens and tolerates junk input', () => {
+  const entries = [
+    { userId: 'a', operation: 'Output 1', type: 8 },
+    null,
+    { userId: '', operation: 'Output 1', type: 100 },
+    { userId: 'b', operation: 'Output 1', type: 8 },
+  ];
+  const r = analyzeOpenerLog(entries, 1);
+  assert.equal(r.dialIns, 2);
+  assert.equal(r.distinctUsers, 2, 'blank userId is ignored');
+  assert.equal(analyzeOpenerLog(null, 1).sampleSize, 0);
 });
