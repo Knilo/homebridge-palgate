@@ -124,9 +124,17 @@ test('analyzeOpenerLog: only counts entries for the requested output', () => {
   assert.equal(r.distinctUsers, 1);
 });
 
-test('analyzeOpenerLog: caps the sample at 25 newest entries', () => {
+test('analyzeOpenerLog: caps the sample at 40 newest entries', () => {
   const r = analyzeOpenerLog(opens(60, ['a', 'b']), 1);
-  assert.equal(r.sampleSize, 25);
+  assert.equal(r.sampleSize, 40);
+});
+
+test('analyzeOpenerLog: repeated dial-in opens look shared even from one user', () => {
+  // A callbox/intercom entrance: same caller id, but the dial-in pattern gives it away.
+  const entries = opens(10, ['a'], { type: 8 });
+  const r = analyzeOpenerLog(entries, 1);
+  assert.equal(r.distinctUsers, 1);
+  assert.equal(r.looksShared, true, 'dial-in opens trip the advisory regardless of opener count');
 });
 
 test('analyzeOpenerLog: counts dial-in opens and tolerates junk input', () => {
