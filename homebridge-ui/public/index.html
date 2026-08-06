@@ -234,6 +234,46 @@
     z-index: 2000;
     pointer-events: none;
   }
+
+  /* Themed confirm dialog — the config-ui-x iframe is sandboxed without allow-modals, so the
+     native window.confirm() is blocked. We render our own overlay instead. */
+  .pg-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 3000;
+  }
+  .pg-modal {
+    background: #2a2a2a;
+    color: #eaeaea;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+    width: 100%;
+    max-width: 460px;
+    padding: 18px 18px 16px;
+  }
+  .pg-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 10px;
+  }
+  .pg-modal-title .fa-triangle-exclamation { color: #e0a100; }
+  .pg-modal-body {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #cfcfcf;
+    white-space: pre-line;
+    margin-bottom: 16px;
+  }
+  .pg-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 </style>
 
 <!-- ── Account Section ─────────────────────────────────────────── -->
@@ -1081,6 +1121,33 @@ function withTimeout(promise, ms, message) {
     return { success: true, gates: merged };
   }
 
+  // Themed confirm dialog. The config-ui-x iframe is sandboxed without allow-modals, so the
+  // native window.confirm() is silently blocked (returns false, shows nothing). Render our
+  // own overlay instead. Resolves true to proceed, false to cancel.
+  function pgConfirm({ title, body, confirmText = 'Enable anyway', cancelText = 'Cancel' } = {}) {
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.className = 'pg-modal-overlay';
+      overlay.innerHTML = `
+        <div class="pg-modal" role="dialog" aria-modal="true">
+          <div class="pg-modal-title"><i class="fas fa-triangle-exclamation"></i>${escapeHtml(title || 'Are you sure?')}</div>
+          <div class="pg-modal-body">${escapeHtml(body || '')}</div>
+          <div class="pg-modal-actions">
+            <button type="button" class="btn btn-secondary btn-sm" data-act="cancel">${escapeHtml(cancelText)}</button>
+            <button type="button" class="btn btn-warning btn-sm" data-act="confirm">${escapeHtml(confirmText)}</button>
+          </div>
+        </div>`;
+      const cleanup = (val) => { document.removeEventListener('keydown', onKey); overlay.remove(); resolve(val); };
+      const onKey = (e) => { if (e.key === 'Escape') cleanup(false); };
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+      overlay.querySelector('[data-act="cancel"]').addEventListener('click', () => cleanup(false));
+      overlay.querySelector('[data-act="confirm"]').addEventListener('click', () => cleanup(true));
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(overlay);
+      overlay.querySelector('[data-act="confirm"]').focus();
+    });
+  }
+
   // Advisory shown before enabling "Stateful (latching)" on a gate. Returns true to proceed,
   // false if the user backs out. Never throws — an advisory must not block enabling the mode.
   async function adviseBeforeLatching(gate) {
@@ -1088,10 +1155,11 @@ function withTimeout(promise, ms, message) {
       // Signal 1: you can operate the latch but you're not an admin on the gate — usually a
       // sign it's managed by someone else (a shared or building gate), not your own home.
       if (!gate || gate.admin !== true) {
-        return window.confirm(
-          "You can operate this gate's latch but you're not an admin on it — which usually means it's managed by someone else (a shared or building gate) rather than your own.\n\n" +
-          "Stateful (latching) holds the gate open until you tap Close, and is meant for a private single-family gate. Enable it anyway?"
-        );
+        return await pgConfirm({
+          title: 'This may not be your gate',
+          body: "You can operate this gate's latch but you're not an admin on it — which usually means it's managed by someone else (a shared or building gate) rather than your own.\n\n" +
+            "Stateful (latching) holds the gate open until you tap Close, and is meant for a private single-family gate. Enable it anyway?",
+        });
       }
       // Signal 2 (admin only): check who has been opening the gate recently.
       const acct = getAccounts().find(a => a.id === gate.accountId);
@@ -1106,10 +1174,11 @@ function withTimeout(promise, ms, message) {
         safeHideSpinner();
       }
       if (!data || !data.success || !data.looksShared) return true;
-      return window.confirm(
-        `This gate was opened by ${data.distinctUsers} different people in its last ${data.sampleSize} opens — that looks like a shared building or parking entrance, not a private home.\n\n` +
-        "Stateful (latching) holds the gate open until you tap Close, which isn't appropriate for a shared gate. Enable it anyway?"
-      );
+      return await pgConfirm({
+        title: 'This looks like a shared gate',
+        body: `This gate was opened by ${data.distinctUsers} different people in its last ${data.sampleSize} opens — that looks like a shared building or parking entrance, not a private home.\n\n` +
+          "Stateful (latching) holds the gate open until you tap Close, which isn't appropriate for a shared gate. Enable it anyway?",
+      });
     } catch (_) {
       return true; // never block on an advisory failure
     }
