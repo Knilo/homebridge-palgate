@@ -6,12 +6,12 @@
  * failed and icons rendered blank. Serving from the plugin package keeps them working
  * offline and CSP-safe, with no external request.
  *
- * Why a subset: only the 28 glyphs this UI actually uses are included, so the
+ * Why a subset: only the 29 glyphs this UI actually uses are included, so the
  * font is ~3KB instead of the full ~156KB solid face.
  *
  * Regenerate (when the icon set changes): re-run the subset step in TESTING.md /
  * scratch — pyftsubset fa-solid-900.woff2 --unicodes=<used codepoints> --flavor=woff2.
- * Glyphs: bolt, chevron-right, chevron-up, circle-info, code, ellipsis-v, eye-slash, faucet, floppy-disk, hand-pointer, link, lock, lock-open, pen, qrcode, right-left, rotate-left, rotate-right, search, shield, sliders, spinner, sync, toggle-on, trash, triangle-exclamation, user, warehouse
+ * Glyphs: bolt, chevron-right, chevron-up, circle-info, code, ellipsis-v, eye-slash, faucet, floppy-disk, hand-pointer, house-lock, link, lock, lock-open, pen, qrcode, right-left, rotate-left, rotate-right, search, shield, sliders, spinner, sync, toggle-on, trash, triangle-exclamation, user, warehouse
  */
 @font-face{
   font-family:"Font Awesome 6 Free";
@@ -44,6 +44,7 @@
 .fa-faucet::before{content:"\e005"}
 .fa-floppy-disk::before{content:"\f0c7"}
 .fa-hand-pointer::before{content:"\f25a"}
+.fa-house-lock::before{content:"\e510"}
 .fa-link::before{content:"\f0c1"}
 .fa-lock::before{content:"\f023"}
 .fa-lock-open::before{content:"\f3c1"}
