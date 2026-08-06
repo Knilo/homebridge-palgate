@@ -73,7 +73,7 @@
 			},
 			"triggerMode": {
 				"title": "Default Trigger Mode",
-				"description": "How accessories respond to taps. Stateful animates open then closed on a timer after one open command. Stateless sends a new open on every tap. Momentary sends one open then snaps back with no animation. (Stateful latching is a per-gate option, not a global default.)",
+				"description": "How accessories respond to taps. Stateful animates open then closed on a timer after one open command. Stateless sends a new open on every tap. Momentary sends one open then snaps back with no animation. (Latching is a per-gate option, not a global default.)",
 				"type": "string",
 				"default": "stateful",
 				"oneOf": [
@@ -284,13 +284,13 @@
 						},
 						"triggerMode": {
 							"title": "Trigger Mode Override",
-							"description": "Override the trigger mode for this gate. Stateful toggles open/closed. Stateless always triggers open. Momentary triggers open then immediately resets. Stateful (latching) holds the gate open on the latch relay for real open/closed state (requires latch permission).",
+							"description": "Override the trigger mode for this gate. Stateful toggles open/closed. Stateless always triggers open. Momentary triggers open then immediately resets. Latching holds the gate open on the latch relay for real open/closed state (requires latch permission).",
 							"type": "string",
 							"oneOf": [
 								{ "title": "Stateful", "enum": ["stateful"] },
 								{ "title": "Stateless", "enum": ["stateless"] },
 								{ "title": "Momentary", "enum": ["momentary"] },
-								{ "title": "Stateful (latching)", "enum": ["latching"] }
+								{ "title": "Latching", "enum": ["latching"] }
 							]
 						},
 						"detectExternalOpens": {

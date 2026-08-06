@@ -40,7 +40,7 @@ PalGate Platform for Homebridge is a Homebridge plugin that integrates your PalG
 - **Hold Open & Hold Closed Control:**  
   Control the gate's latch relays from HomeKit to hold it open or closed. Expose them as locks, switches, or valves. Requires Latch permissions on the gate.
 
-- **Stateful Gate (Latching):**  
+- **Latching:**  
   For a single-family home, back a garage door's Open/Closed state with the latch relay so the Home app shows the gate's real state — tapping open holds it open until you tap close. Requires Latch permissions. Not for shared buildings or parking entrances.
 
 - **External-Open Detection:**  
@@ -222,10 +222,10 @@ still work and are treated as a single account, so existing configs need no chan
 
 #### Trigger Modes
 `triggerMode` controls how an accessory reacts to a tap. PalGate doesn't report whether a gate is open, so the first three modes just send an open command and **animate** the tile on a timer — they don't reflect the gate's real position. Set the default globally; override per gate.
-- **Stateful** (default): A tap sends one open command; the tile animates open, then back to closed. Tapping again while it still shows open just cancels the animation — it does **not** send another open. Best when you want the tile to reflect an open/closed cycle.
-- **Stateless**: Every tap sends a fresh open command, even if the tile still shows open. Best for gates you may want to re-trigger, or where the on-screen state doesn't matter.
-- **Momentary**: Sends one open command, then immediately snaps back to closed/locked/off with no open animation. Best for a push-button feel, or for triggering from automations and Siri.
-- **Stateful (latching)**: The only mode with **real** open/closed state instead of an animated guess. It uses the gate's underlying **Hold Open** latch: tapping open holds the gate open, and tapping close releases the latch so the gate closes. The state stays truthful across restarts and reflects a hold set from the PalGate app. This is a **per-gate** option (not a global default), applies only to `garageDoor` gates, requires **latch** permission, and supersedes that gate's separate Hold Open accessory. **For a private single-family gate only** — an indefinite hold on a shared building or parking entrance leaves it open for everyone; when you enable it the UI checks a couple of signals (whether you're an admin, and whether the gate's recent opens look shared) and warns you if it doesn't look private. As with external-open detection, an open from a physical remote or keypad (which doesn't engage the latch) still won't show.
+- **Stateful** (default): A tap opens the gate; the tile animates open, then back to closed based on the timings. Tapping again while it still shows open sets the tile to closed without opening the gate again. Best when you want the tile to reflect an open/closed cycle.
+- **Stateless**: Every tap opens the gate and starts the animation, even if the tile still shows open. Tapping while open opens the gate again and restarts the animation (the tile may briefly show closed in the Home app). Best for gates you may want to re-trigger.
+- **Momentary**: Opens the gate, then the tile immediately snaps back to closed/locked/off with no animation. Best for a push-button feel, or for triggering from automations and Siri.
+- **Latching**: The only mode with **real** open/closed state instead of an animated guess. It uses the gate's underlying **Hold Open** latch: tapping open holds the gate open, and tapping close releases the latch so the gate closes. The state stays truthful across restarts and reflects a hold set from the PalGate app. This is a **per-gate** option (not a global default), applies only to `garageDoor` gates, and requires **latch** permission. It happily coexists with that gate's separate Hold Open accessory — both drive the same latch and the poller keeps them in sync. **For a private single-family gate only** — an indefinite hold on a shared building or parking entrance leaves it open for everyone; when you enable it the UI checks a couple of signals (whether you're an admin, and whether the gate's recent opens look shared) and warns you if it doesn't look private. As with external-open detection, an open from a physical remote or keypad (which doesn't engage the latch) still won't show.
 
 #### Relay Mode
 Virtual relay controllers allow HomeKit to hold the gate in an "Always Open" (hold open) or "Always Closed" (hold closed) state.
