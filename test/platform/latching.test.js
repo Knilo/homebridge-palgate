@@ -148,6 +148,42 @@ test('latching coexists with Hold Open/Closed relay accessories on the same outp
   api.emit('shutdown');
 });
 
+test('latching open/close instantly syncs the Hold Open accessory (no poll wait)', async () => {
+  const { api } = await launchPlatform(
+    { enableRelayLocks: true, relayAccessoryType: 'lock', customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] },
+    LATCH_GATE
+  );
+  const C = api.hap.Characteristic;
+  const gdo = api.registered.find(a => a.context.accessoryType === 'garageDoor');
+  const holdOpen = api.registered.find(a => a.context.accessoryType === 'holdOpenLock');
+  const target = gdo.getService(api.hap.Service.GarageDoorOpener).getCharacteristic(C.TargetDoorState);
+
+  await target.triggerSet(C.TargetDoorState.OPEN);
+  assert.equal(holdOpen.context.lockCurrentState, C.LockCurrentState.SECURED, 'Hold Open locks immediately on latching open');
+
+  await target.triggerSet(C.TargetDoorState.CLOSED);
+  assert.equal(holdOpen.context.lockCurrentState, C.LockCurrentState.UNSECURED, 'Hold Open unlocks immediately on latching close');
+  api.emit('shutdown');
+});
+
+test('toggling the Hold Open accessory instantly syncs the latching tile (no poll wait)', async () => {
+  const { api } = await launchPlatform(
+    { enableRelayLocks: true, relayAccessoryType: 'lock', customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] },
+    LATCH_GATE
+  );
+  const C = api.hap.Characteristic;
+  const gdo = api.registered.find(a => a.context.accessoryType === 'garageDoor');
+  const holdOpen = api.registered.find(a => a.context.accessoryType === 'holdOpenLock');
+  const lockTarget = holdOpen.getService(api.hap.Service.LockMechanism).getCharacteristic(C.LockTargetState);
+
+  await lockTarget.triggerSet(C.LockTargetState.SECURED);
+  assert.equal(gdo.context.currentDoorState, C.CurrentDoorState.OPEN, 'latching tile opens immediately when Hold Open locks');
+
+  await lockTarget.triggerSet(C.LockTargetState.UNSECURED);
+  assert.equal(gdo.context.currentDoorState, C.CurrentDoorState.CLOSED, 'latching tile closes immediately when Hold Open unlocks');
+  api.emit('shutdown');
+});
+
 test('a non-garage primary ignores latching and uses a momentary pulse', async () => {
   const { api } = await launchPlatform({ accessoryType: 'switch', customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] }, LATCH_GATE);
 
