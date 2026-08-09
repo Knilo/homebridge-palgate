@@ -1633,7 +1633,7 @@ function withTimeout(promise, ms, message) {
           <div class="form-check">
             <input class="form-check-input" type="radio" name="triggerMode-${sid}" id="triggerMode-${sid}-latching" value="latching" ${resolvedTrigger === 'latching' ? 'checked' : ''}>
             <label class="form-check-label" for="triggerMode-${sid}-latching"><i class="fas fa-house-lock me-1"></i>Latching</label>
-            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;"><strong>Real Open/Closed state.</strong> Uses this gate's <strong>Hold&nbsp;Open</strong> latch to hold it open and releases it to close, so the tile shows the actual state. Private single-family gates only.</div>
+            <div class="text-muted" style="font-size:0.78rem; padding-left:0.25rem;"><strong>Real Open/Closed state.</strong> Holds the gate open on its <strong>Hold&nbsp;Open</strong> latch, then releases the latch to close it, so the tile shows the actual state. Private single-family gates only.</div>
           </div>` : ''}
         </div>
 
