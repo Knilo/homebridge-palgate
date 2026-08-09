@@ -49,7 +49,7 @@
     "bin": "cli"
   },
   "devDependencies": {
-    "homebridge-config-ui-x": "^5.24.0",
+    "homebridge-config-ui-x": "^5.27.0",
     "puppeteer-core": "^25.3.0"
   }
 }
