@@ -184,13 +184,59 @@ test('toggling the Hold Open accessory instantly syncs the latching tile (no pol
   api.emit('shutdown');
 });
 
-test('a non-garage primary ignores latching and uses a momentary pulse', async () => {
+test('a switch primary supports latching (holds on via hold_open, no auto-off)', async () => {
   const { api } = await launchPlatform({ accessoryType: 'switch', customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] }, LATCH_GATE);
 
   const acc = api.registered.find(a => a.context.accessoryType === 'switch');
   const C = api.hap.Characteristic;
-  await acc.getService(api.hap.Service.Switch).getCharacteristic(C.On).triggerSet(true);
-  // Plain open-gate, no latch params — latching does not apply to a Switch primary.
-  assert.deepEqual(stub.requests.at(-1).query, { outputNum: '1' });
+  const on = acc.getService(api.hap.Service.Switch).getCharacteristic(C.On);
+
+  await on.triggerSet(true);
+  assert.deepEqual(stub.requests.at(-1).query, { outputNum: '1', output1LatchStatus: 'true', output1Disabled: 'true' }, 'On engages hold_open');
+  await sleep(150); // well past the delays — a latching switch must NOT auto-off
+  assert.equal(acc.context.switchOn, true, 'stays on until turned off');
+
+  await on.triggerSet(false);
+  assert.deepEqual(stub.requests.at(-1).query, { outputNum: '1', output1LatchStatus: 'false', output1Disabled: 'false' }, 'Off releases the latch');
+  assert.equal(acc.context.switchOn, false);
+  api.emit('shutdown');
+});
+
+test('a lock primary supports latching (unsecure holds open, secure releases)', async () => {
+  const { api } = await launchPlatform({ accessoryType: 'lock', customGates: [{ deviceId: 'DEV1', triggerMode: 'latching' }] }, LATCH_GATE);
+
+  const acc = api.registered.find(a => a.context.accessoryType === 'lock');
+  const C = api.hap.Characteristic;
+  const target = acc.getService(api.hap.Service.LockMechanism).getCharacteristic(C.LockTargetState);
+
+  await target.triggerSet(C.LockTargetState.UNSECURED);
+  assert.deepEqual(stub.requests.at(-1).query, { outputNum: '1', output1LatchStatus: 'true', output1Disabled: 'true' }, 'unsecure engages hold_open');
+  await sleep(150); // must NOT auto-relock
+  assert.equal(acc.context.lockCurrentState, C.LockCurrentState.UNSECURED, 'stays unsecured until secured');
+
+  await target.triggerSet(C.LockTargetState.SECURED);
+  assert.deepEqual(stub.requests.at(-1).query, { outputNum: '1', output1LatchStatus: 'false', output1Disabled: 'false' }, 'secure releases the latch');
+  assert.equal(acc.context.lockCurrentState, C.LockCurrentState.SECURED);
+  api.emit('shutdown');
+});
+
+test('parallel latching primaries stay in sync when one is toggled', async () => {
+  // Same gate exposed as both a garage door and a switch, both latching.
+  const { api } = await launchPlatform(
+    { customGates: [{ deviceId: 'DEV1', garageDoor: true, switch: true, triggerMode: 'latching' }] },
+    LATCH_GATE
+  );
+  const C = api.hap.Characteristic;
+  const gdo = api.registered.find(a => a.context.accessoryType === 'garageDoor');
+  const sw = api.registered.find(a => a.context.accessoryType === 'switch');
+  assert.ok(gdo && sw, 'both primaries registered');
+
+  // Open via the garage door → the switch companion turns on immediately.
+  await gdo.getService(api.hap.Service.GarageDoorOpener).getCharacteristic(C.TargetDoorState).triggerSet(C.TargetDoorState.OPEN);
+  assert.equal(sw.context.switchOn, true, 'switch follows the garage door open');
+
+  // Turn the switch off → the garage door companion closes immediately.
+  await sw.getService(api.hap.Service.Switch).getCharacteristic(C.On).triggerSet(false);
+  assert.equal(gdo.context.currentDoorState, C.CurrentDoorState.CLOSED, 'garage door follows the switch off');
   api.emit('shutdown');
 });
