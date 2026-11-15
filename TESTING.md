@@ -8,7 +8,7 @@ HB_UI_PASSWORD=<pw> npm run test:e2e           # end-to-end UI test (local only)
 HB_UI_PASSWORD=<pw> npm run test:e2e:restart   # e2e + restart-and-verify-from-logs (restarts the live bridge)
 ```
 
-CI runs `npm test` on Node 20/22/24 for every push and PR (`.github/workflows/test.yml`).
+CI runs `npm test` on Node 20/22/24/26 for every push and PR (`.github/workflows/test.yml`).
 
 ## Layers
 

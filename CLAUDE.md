@@ -30,7 +30,7 @@ of scope. Every feature should make the gates behave like first-class HomeKit ac
   triggers `.github/workflows/npm-publish.yml`, which runs `npm test` then `npm publish`.
   So only create a *tagged* release when you're ready to publish to npm — otherwise use a
   draft (no tag). `.github/workflows/test.yml` runs `npm test` on every push/PR (Node
-  20/22/24).
+  20/22/24/26).
 - Release flow: bump version commit → push master → `gh release create <version>
   --title "<version>" --notes-file <file>` → the publish workflow ships it.
 
